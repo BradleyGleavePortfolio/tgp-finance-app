@@ -1,0 +1,25 @@
+{
+  "name": "tgp-finance",
+  "version": "1.0.0",
+  "description": "The Growth Project: Finance — Multi-tenant financial coaching and accountability app",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n backend,mobile -c cyan,magenta \"npm run dev:backend\" \"npm run dev:mobile\"",
+    "dev:backend": "cd backend && npm run start:dev",
+    "dev:mobile": "cd mobile && npx expo start",
+    "install:all": "npm install && cd backend && npm install && cd ../mobile && npm install",
+    "seed": "cd backend && npx ts-node --project tsconfig.json ../scripts/seed.ts",
+    "migrate": "cd backend && npx prisma migrate dev",
+    "migrate:deploy": "cd backend && npx prisma migrate deploy",
+    "build:backend": "cd backend && npm run build",
+    "prisma:studio": "cd backend && npx prisma studio",
+    "prisma:generate": "cd backend && npx prisma generate",
+    "typecheck": "cd backend && npx tsc --noEmit"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

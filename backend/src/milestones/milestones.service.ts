@@ -1,0 +1,118 @@
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+
+// All 15 milestone definitions with unlock conditions
+export const MILESTONES = [
+  // CASH milestones
+  { key: 'cash_1k', title: 'Starter Pack Achieved', description: 'First $1,000 in cash', category: 'cash', check: (p: any) => (p.total_cash || 0) >= 1000 },
+  { key: 'cash_5k', title: 'Buffer Mode Unlocked', description: '$5,000 in cash', category: 'cash', check: (p: any) => (p.total_cash || 0) >= 5000 },
+  { key: 'cash_10k', title: 'Cash Stack Building', description: '$10,000 in cash', category: 'cash', check: (p: any) => (p.total_cash || 0) >= 10000 },
+  { key: 'cash_20k', title: 'Emergency Fund: Complete', description: '$20,000 in cash', category: 'cash', check: (p: any) => (p.total_cash || 0) >= 20000 },
+
+  // DEBT milestones
+  { key: 'first_debt_paid', title: 'First Blood: Debt Slayer', description: 'First debt account reaches $0', category: 'debt', check: (p: any, accounts: any[], onboardDebt: number) => accounts.some((a) => a.is_debt && a.balance === 0) },
+  { key: 'debt_half', title: 'Halfway There', description: 'Total debt cut in half vs onboarding', category: 'debt', check: (p: any, accounts: any[], onboardDebt: number) => onboardDebt > 0 && (p.total_debt || 0) <= onboardDebt / 2 },
+  { key: 'debt_zero', title: 'DEBT FREE — Wealth Mode Unlocked', description: 'All debt = $0', category: 'debt', check: (p: any) => (p.total_debt || 0) === 0 },
+
+  // NET WORTH milestones
+  { key: 'nw_positive', title: 'Into the Black', description: 'Net worth turns positive', category: 'networth', check: (p: any) => (p.net_worth_snapshot || 0) > 0 },
+  { key: 'nw_10k', title: 'Five Figures', description: '$10K net worth', category: 'networth', check: (p: any) => (p.net_worth_snapshot || 0) >= 10000 },
+  { key: 'nw_50k', title: 'Wealth Builder', description: '$50K net worth', category: 'networth', check: (p: any) => (p.net_worth_snapshot || 0) >= 50000 },
+  { key: 'nw_100k', title: 'Six Figures', description: '$100K net worth', category: 'networth', check: (p: any) => (p.net_worth_snapshot || 0) >= 100000 },
+  { key: 'nw_250k', title: 'Quarter Millionaire', description: '$250K net worth', category: 'networth', check: (p: any) => (p.net_worth_snapshot || 0) >= 250000 },
+  { key: 'nw_1m', title: 'The Million Dollar Moment', description: '$1M net worth', category: 'networth', check: (p: any) => (p.net_worth_snapshot || 0) >= 1000000 },
+
+  // STREAK milestones
+  { key: 'streak_7', title: 'Week Warrior', description: '7-day EOD streak', category: 'streak', check: (p: any) => (p.streak_days || 0) >= 7 },
+  { key: 'streak_30', title: 'Month Master', description: '30-day streak', category: 'streak', check: (p: any) => (p.streak_days || 0) >= 30 },
+  { key: 'streak_90', title: '90-Day Operator', description: '90-day streak', category: 'streak', check: (p: any) => (p.streak_days || 0) >= 90 },
+  { key: 'streak_365', title: 'Financial Discipline: Elite', description: '365-day streak', category: 'streak', check: (p: any) => (p.streak_days || 0) >= 365 },
+
+  // INCOME milestones
+  { key: 'income_100k', title: 'Six-Figure Earner', description: 'Annual income hits $100K', category: 'income', check: (p: any) => (p.annual_income_gross || 0) >= 100000 },
+  { key: 'income_200k', title: 'Top 5% Earner', description: 'Annual income hits $200K', category: 'income', check: (p: any) => (p.annual_income_gross || 0) >= 200000 },
+];
+
+@Injectable()
+export class MilestonesService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async getMilestones(userId: string) {
+    const [profile, accounts, unlocked] = await Promise.all([
+      this.prisma.financialProfile.findUnique({ where: { user_id: userId } }),
+      this.prisma.financialAccount.findMany({ where: { user_id: userId } }),
+      this.prisma.milestoneUnlock.findMany({ where: { user_id: userId } }),
+    ]);
+
+    const unlockedKeys = new Set(unlocked.map((m) => m.milestone_key));
+
+    return MILESTONES.map((m) => ({
+      key: m.key,
+      title: m.title,
+      description: m.description,
+      category: m.category,
+      unlocked: unlockedKeys.has(m.key),
+      unlocked_at: unlocked.find((u) => u.milestone_key === m.key)?.unlocked_at || null,
+      celebrated: unlocked.find((u) => u.milestone_key === m.key)?.celebrated || false,
+    }));
+  }
+
+  async checkAndUnlockMilestones(userId: string): Promise<string[]> {
+    const [profile, accounts, alreadyUnlocked] = await Promise.all([
+      this.prisma.financialProfile.findUnique({ where: { user_id: userId } }),
+      this.prisma.financialAccount.findMany({ where: { user_id: userId, is_active: true } }),
+      this.prisma.milestoneUnlock.findMany({ where: { user_id: userId } }),
+    ]);
+
+    const alreadyUnlockedKeys = new Set(alreadyUnlocked.map((m) => m.milestone_key));
+
+    // Calculate onboarding debt (first-ever EOD or account creation totals)
+    const onboardingDebt = await this.getOnboardingDebt(userId, accounts);
+
+    const newlyUnlocked: string[] = [];
+
+    for (const milestone of MILESTONES) {
+      if (alreadyUnlockedKeys.has(milestone.key)) continue;
+
+      const isUnlocked = milestone.check(profile, accounts, onboardingDebt);
+
+      if (isUnlocked) {
+        await this.prisma.milestoneUnlock.create({
+          data: { user_id: userId, milestone_key: milestone.key },
+        });
+        newlyUnlocked.push(milestone.key);
+      }
+    }
+
+    return newlyUnlocked;
+  }
+
+  private async getOnboardingDebt(userId: string, accounts: any[]): Promise<number> {
+    // Use earliest account balance logs to approximate onboarding debt
+    const earliest = await this.prisma.accountBalanceLog.findFirst({
+      where: { account: { user_id: userId }, source: 'onboarding' },
+      orderBy: { logged_at: 'asc' },
+    });
+
+    if (!earliest) {
+      return accounts.filter((a) => a.is_debt).reduce((s, a) => s + a.balance, 0);
+    }
+
+    const onboardingLogs = await this.prisma.accountBalanceLog.findMany({
+      where: { account: { user_id: userId }, source: 'onboarding' },
+      include: { account: { select: { is_debt: true } } },
+    });
+
+    return onboardingLogs
+      .filter((l) => l.account.is_debt)
+      .reduce((s, l) => s + l.balance, 0);
+  }
+
+  async markCelebrated(userId: string, milestoneKey: string) {
+    await this.prisma.milestoneUnlock.updateMany({
+      where: { user_id: userId, milestone_key: milestoneKey },
+      data: { celebrated: true },
+    });
+    return { message: 'Milestone marked as celebrated' };
+  }
+}
