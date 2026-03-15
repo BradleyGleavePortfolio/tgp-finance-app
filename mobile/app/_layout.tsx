@@ -1,5 +1,6 @@
 // Root layout with auth guard, font loading, and navigation setup
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
+import { View, Text } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -19,6 +20,31 @@ import { Colors } from '../src/theme/finance';
 
 SplashScreen.preventAutoHideAsync();
 
+// Error boundary to prevent crash-to-desktop
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: string }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: '' };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error: error.message };
+  }
+  componentDidCatch(error: Error) {
+    console.log('App Error:', error);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={{ flex: 1, backgroundColor: '#0D1117', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+          <Text style={{ color: '#F9C74F', fontSize: 20, fontWeight: 'bold', marginBottom: 12 }}>Something went wrong</Text>
+          <Text style={{ color: '#8895A7', fontSize: 14, textAlign: 'center' }}>{this.state.error}</Text>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
@@ -32,19 +58,19 @@ export default function RootLayout() {
   const { initialize, isLoading } = useAuthStore();
 
   useEffect(() => {
-    initialize();
+    initialize().catch(console.log);
   }, []);
 
   useEffect(() => {
-    if (fontsLoaded && !isLoading) {
-      SplashScreen.hideAsync();
+    if ((fontsLoaded || fontError) && !isLoading) {
+      SplashScreen.hideAsync().catch(console.log);
     }
-  }, [fontsLoaded, isLoading]);
+  }, [fontsLoaded, fontError, isLoading]);
 
   if (!fontsLoaded && !fontError) return null;
 
   return (
-    <>
+    <ErrorBoundary>
       <StatusBar style="light" backgroundColor={Colors.backgroundDeepNavy} />
       <Stack
         screenOptions={{
@@ -79,6 +105,6 @@ export default function RootLayout() {
         <Stack.Screen name="settings/notifications" />
         <Stack.Screen name="settings/security" />
       </Stack>
-    </>
+    </ErrorBoundary>
   );
 }
