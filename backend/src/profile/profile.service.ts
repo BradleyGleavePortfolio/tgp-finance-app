@@ -1,0 +1,67 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+
+@Injectable()
+export class ProfileService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async getProfile(userId: string) {
+    const profile = await this.prisma.financialProfile.findUnique({
+      where: { user_id: userId },
+      include: { user: { select: { id: true, email: true, name: true, role: true } } },
+    });
+
+    if (!profile) {
+      // Auto-create empty profile if it doesn't exist
+      return this.prisma.financialProfile.create({
+        data: { user_id: userId },
+        include: { user: { select: { id: true, email: true, name: true, role: true } } },
+      });
+    }
+
+    return profile;
+  }
+
+  async updateProfile(userId: string, data: any) {
+    // Compute annual from monthly if only monthly provided
+    if (data.monthly_income_gross && !data.annual_income_gross) {
+      data.annual_income_gross = data.monthly_income_gross * 12;
+    }
+
+    const profile = await this.prisma.financialProfile.upsert({
+      where: { user_id: userId },
+      update: { ...data, updated_at: new Date() },
+      create: { user_id: userId, ...data },
+    });
+
+    return profile;
+  }
+
+  async computeAndUpdateTotals(userId: string) {
+    const accounts = await this.prisma.financialAccount.findMany({
+      where: { user_id: userId, is_active: true },
+    });
+
+    const total_assets = accounts
+      .filter((a) => !a.is_debt)
+      .reduce((sum, a) => sum + a.balance, 0);
+
+    const total_debt = accounts
+      .filter((a) => a.is_debt)
+      .reduce((sum, a) => sum + a.balance, 0);
+
+    const total_cash = accounts
+      .filter((a) => ['checking', 'savings'].includes(a.account_type) && !a.is_debt)
+      .reduce((sum, a) => sum + a.balance, 0);
+
+    const net_worth_snapshot = total_assets - total_debt;
+
+    await this.prisma.financialProfile.upsert({
+      where: { user_id: userId },
+      update: { total_assets, total_debt, total_cash, net_worth_snapshot },
+      create: { user_id: userId, total_assets, total_debt, total_cash, net_worth_snapshot },
+    });
+
+    return { total_assets, total_debt, total_cash, net_worth_snapshot };
+  }
+}

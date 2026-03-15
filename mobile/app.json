@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "TGP Finance",
+    "slug": "tgp-finance",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0D1117"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.tgp.finance"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0D1117"
+      },
+      "package": "com.tgp.finance"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#F9C74F",
+          "sounds": []
+        }
+      ],
+      "expo-secure-store",
+      "expo-font"
+    ],
+    "scheme": "tgp-finance",
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
