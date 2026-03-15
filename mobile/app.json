@@ -42,6 +42,14 @@
     "scheme": "tgp-finance",
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "17de3371-7698-4eed-b4bf-8b73426c40e6"
+      }
     }
   }
 }
