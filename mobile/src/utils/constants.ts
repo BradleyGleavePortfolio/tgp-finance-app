@@ -236,7 +236,7 @@ export const COACH_ACCESS_CODE = '6678345';
 
 // ─── API Base URL ─────────────────────────────────────────────────────────────
 
-export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://tgp-finance-api.fly.dev';
 
 // ─── Mood Emojis ──────────────────────────────────────────────────────────────
 
