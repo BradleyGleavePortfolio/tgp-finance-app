@@ -122,7 +122,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.graphiteBorder,
     borderRadius: BorderRadius.md,
-    minHeight: 48,
+    height: 52,
+    maxHeight: 52,
   },
   focused: {
     borderColor: Colors.accentGold,
@@ -133,11 +134,11 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     paddingHorizontal: Spacing.base,
-    paddingVertical: Spacing.md,
+    paddingVertical: 0,
     fontFamily: 'Inter_400Regular',
     fontSize: Typography.bodyMedium,
     color: Colors.frostWhite,
-    minHeight: 48,
+    height: 50,
   },
   inputWithLeft: {
     paddingLeft: Spacing.xs,
