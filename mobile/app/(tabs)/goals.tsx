@@ -18,6 +18,7 @@ import { useAccountsStore } from '../../src/stores/accountsStore';
 import { PRIORITY_WATERFALL, WHATIF_SCENARIOS, MILESTONE_DEFINITIONS } from '../../src/utils/constants';
 import { ProgressBar } from '../../src/components/ui/ProgressBar';
 import { formatCurrency } from '../../src/utils/formatters';
+import { ScreenErrorBoundary } from '../../src/components/ui/ScreenErrorBoundary';
 
 type GoalsTab = 'priority' | 'whatif' | 'projections' | 'milestones';
 
@@ -25,8 +26,10 @@ export default function GoalsScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<GoalsTab>('priority');
   const { currentPriority, allPriorities, fetchCurrent, fetchAll } = usePriorityStore();
-  const { savedScenarios, fetchSaved } = useWhatIfStore();
-  const { unlocked, fetchMilestones, isUnlocked } = useMilestonesStore();
+  const { savedScenarios: rawSavedScenarios, fetchSaved } = useWhatIfStore();
+  const { unlocked: rawUnlocked, fetchMilestones, isUnlocked } = useMilestonesStore();
+  const savedScenarios = Array.isArray(rawSavedScenarios) ? rawSavedScenarios : [];
+  const unlocked = Array.isArray(rawUnlocked) ? rawUnlocked : [];
   const { profile } = useAuthStore();
   const { netWorth, accounts } = useAccountsStore();
 
@@ -45,6 +48,7 @@ export default function GoalsScreen() {
   ];
 
   return (
+    <ScreenErrorBoundary screenName="Goals">
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>Goals</Text>
@@ -168,6 +172,7 @@ export default function GoalsScreen() {
         </ScrollView>
       )}
     </SafeAreaView>
+    </ScreenErrorBoundary>
   );
 }
 

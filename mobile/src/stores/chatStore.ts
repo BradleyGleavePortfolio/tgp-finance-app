@@ -1,33 +1,34 @@
-// AI chat history state management
 import { create } from 'zustand';
-import { aiApi } from '../services/api';
-import type { ChatMessage } from '../types';
+import { chatApi } from '../services/api';
 
-interface ChatStore {
-  messages: ChatMessage[];
-  isLoading: boolean;
-  isChatOpen: boolean;
-  error: string | null;
-
-  sendMessage: (content: string) => Promise<void>;
-  openChat: () => void;
-  closeChat: () => void;
-  clearHistory: () => void;
-  clearError: () => void;
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
 }
 
-export const useChatStore = create<ChatStore>((set, get) => ({
+interface ChatState {
+  messages: ChatMessage[];
+  isLoading: boolean;
+  error: string | null;
+
+  sendMessage: (message: string, context?: any) => Promise<void>;
+  loadHistory: () => Promise<void>;
+  clearMessages: () => void;
+}
+
+export const useChatStore = create<ChatState>((set, get) => ({
   messages: [],
   isLoading: false,
-  isChatOpen: false,
   error: null,
 
-  sendMessage: async (content) => {
+  sendMessage: async (message: string, context?: any) => {
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
-      content,
-      timestamp: new Date().toISOString(),
+      content: message,
+      timestamp: new Date(),
     };
 
     set((state) => ({
@@ -37,40 +38,39 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }));
 
     try {
-      const history = get().messages.slice(-10).map((m) => ({
-        role: m.role,
-        content: m.content,
-      }));
-
-      const { data } = await aiApi.chat(content, history);
+      const { data } = await chatApi.send(message, context);
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: data.response || data.message || data,
-        timestamp: new Date().toISOString(),
+        content: typeof data === 'string' ? data : (data.response || data.message || JSON.stringify(data)),
+        timestamp: new Date(),
       };
 
       set((state) => ({
         messages: [...state.messages, assistantMessage],
         isLoading: false,
       }));
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'AI response failed';
-      set({ isLoading: false, error: message });
-
-      // Add error message in chat
-      const errorMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: "I'm having trouble connecting right now. Try again in a moment.",
-        timestamp: new Date().toISOString(),
-      };
-      set((state) => ({ messages: [...state.messages, errorMessage] }));
+    } catch (error: any) {
+      set({
+        error: error.response?.data?.message || 'Failed to send message',
+        isLoading: false,
+      });
     }
   },
 
-  openChat: () => set({ isChatOpen: true }),
-  closeChat: () => set({ isChatOpen: false }),
-  clearHistory: () => set({ messages: [] }),
-  clearError: () => set({ error: null }),
+  loadHistory: async () => {
+    set({ isLoading: true });
+    try {
+      const { data } = await chatApi.getHistory();
+      const messages = data.messages || data;
+      set({ messages, isLoading: false });
+    } catch (error: any) {
+      set({
+        error: error.response?.data?.message || 'Failed to load chat history',
+        isLoading: false,
+      });
+    }
+  },
+
+  clearMessages: () => set({ messages: [] }),
 }));

@@ -1,157 +1,111 @@
-// Axios instance with auth interceptors for The Growth Project: Finance
-import axios, { AxiosInstance, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
+import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase } from './supabase';
-import { API_BASE_URL } from '../utils/constants';
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
-const api: AxiosInstance = axios.create({
-  baseURL: API_BASE_URL,
+const API_URL = Constants.expoConfig?.extra?.apiUrl || 'https://api.tgpfinance.com';
+
+const api = axios.create({
+  baseURL: API_URL,
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
+    'X-Platform': Platform.OS,
   },
 });
 
-// ─── Request Interceptor: Attach JWT ─────────────────────────────────────────
+// Request interceptor to attach auth token
 api.interceptors.request.use(
-  async (config: InternalAxiosRequestConfig) => {
-    try {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-    } catch {
-      // Session not available; proceed without auth
+  async (config) => {
+    const token = await AsyncStorage.getItem('auth_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// ─── Response Interceptor: Handle Auth Errors ─────────────────────────────────
+// Response interceptor to unwrap TransformInterceptor envelope
+api.interceptors.response.use(
+  (response) => {
+    // Unwrap TransformInterceptor envelope: { data, success, timestamp } → data
+    if (response.data && typeof response.data === 'object' && 'success' in response.data && 'data' in response.data) {
+      response.data = response.data.data;
+    }
+    return response;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Response interceptor for 401 handling
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config;
-
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-      try {
-        const { data, error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshError || !data.session) {
-          // Refresh failed: force logout
-          await supabase.auth.signOut();
-          return Promise.reject(error);
-        }
-        originalRequest.headers.Authorization = `Bearer ${data.session.access_token}`;
-        return api(originalRequest);
-      } catch {
-        await supabase.auth.signOut();
-        return Promise.reject(error);
-      }
+    if (error.response?.status === 401) {
+      await AsyncStorage.removeItem('auth_token');
+      // Navigation to login will be handled by auth state listener
     }
-
     return Promise.reject(error);
   }
 );
 
-// ─── API Service Methods ──────────────────────────────────────────────────────
-
+// Auth API
 export const authApi = {
-  register: (data: { name: string; email: string; password: string; phone?: string; referral_code?: string }) =>
+  login: (email: string, password: string) =>
+    api.post('/api/auth/login', { email, password }),
+  register: (data: { email: string; password: string; name: string }) =>
     api.post('/api/auth/register', data),
-  login: (email: string, password: string) => api.post('/api/auth/login', { email, password }),
-  selectRole: (role: string, accessCode?: string) => api.post('/api/auth/select-role', { role, coach_access_code: accessCode }),
-  logout: () => api.post('/api/auth/logout'),
   me: () => api.get('/api/auth/me'),
+  selectRole: (roleId: string) =>
+    api.post('/api/auth/select-role', { roleId }),
+  refreshToken: () => api.post('/api/auth/refresh'),
 };
 
-export const profileApi = {
-  get: () => api.get('/api/profile'),
-  update: (data: Record<string, unknown>) => api.put('/api/profile', data),
-};
-
+// Accounts API
 export const accountsApi = {
   getAll: () => api.get('/api/accounts'),
-  create: (data: Record<string, unknown>) => api.post('/api/accounts', data),
-  update: (id: string, data: Record<string, unknown>) => api.put(`/api/accounts/${id}`, data),
+  getById: (id: string) => api.get(`/api/accounts/${id}`),
+  create: (data: any) => api.post('/api/accounts', data),
+  update: (id: string, data: any) => api.put(`/api/accounts/${id}`, data),
   delete: (id: string) => api.delete(`/api/accounts/${id}`),
-  getHistory: (id: string, days = 30) => api.get(`/api/accounts/${id}/history?days=${days}`),
+  sync: (id: string) => api.post(`/api/accounts/${id}/sync`),
 };
 
-export const eodApi = {
-  submit: (data: Record<string, unknown>) => api.post('/api/eod', data),
-  getHistory: (days = 30) => api.get(`/api/eod?days=${days}`),
-  getToday: () => api.get('/api/eod/today'),
-};
-
+// Net Worth API
 export const networthApi = {
-  getHistory: (days = 90) => api.get(`/api/networth/history?days=${days}`),
   getCurrent: () => api.get('/api/networth/current'),
+  getHistory: (period?: string) =>
+    api.get('/api/networth/history', { params: { period } }),
 };
 
-export const prioritiesApi = {
+// Priority API
+export const priorityApi = {
   getCurrent: () => api.get('/api/priorities/current'),
-  getAll: () => api.get('/api/priorities/all'),
+  getAll: () => api.get('/api/priorities'),
+  update: (id: string, data: any) => api.put(`/api/priorities/${id}`, data),
+  complete: (id: string) => api.post(`/api/priorities/${id}/complete`),
 };
 
-export const whatifApi = {
-  run: (scenario_type: string, parameters: Record<string, unknown>) =>
-    api.post('/api/whatif/run', { scenario_type, parameters }),
-  getSaved: () => api.get('/api/whatif/saved'),
-  save: (data: Record<string, unknown>) => api.post('/api/whatif/save', data),
-  delete: (id: string) => api.delete(`/api/whatif/${id}`),
+// Chat API
+export const chatApi = {
+  send: (message: string, context?: any) =>
+    api.post('/api/chat', { message, context }),
+  getHistory: () => api.get('/api/chat/history'),
 };
 
-export const projectionsApi = {
-  run: (params: {
-    income_growth_pct: number;
-    savings_rate_pct: number;
-    investment_return_pct: number;
-    extra_debt_payment: number;
-    years?: number;
-  }) => api.post('/api/projections/run', params),
+// EOD API
+export const eodApi = {
+  submitToday: (data: any) => api.post('/api/eod', data),
+  getToday: () => api.get('/api/eod/today'),
+  getHistory: (limit?: number) =>
+    api.get('/api/eod/history', { params: { limit } }),
 };
 
-export const milestonesApi = {
-  getAll: () => api.get('/api/milestones'),
-  check: () => api.post('/api/milestones/check'),
-};
-
-export const aiApi = {
-  chat: (message: string, conversation_history: Array<{ role: string; content: string }>) =>
-    api.post('/api/ai/chat', { message, conversation_history }),
-  getEodInsight: (eod_submission_id: string) => api.post('/api/ai/eod-insight', { eod_submission_id }),
-  getSpendingDNA: (month: string) => api.post('/api/ai/spending-dna', { month }),
-};
-
-export const notificationsApi = {
-  getPreferences: () => api.get('/api/notifications/preferences'),
-  updatePreferences: (data: Record<string, unknown>) => api.put('/api/notifications/preferences', data),
-};
-
-export const coachApi = {
-  getStudents: () => api.get('/api/coach/students'),
-  getStudent: (id: string) => api.get(`/api/coach/students/${id}`),
-  getAlerts: () => api.get('/api/coach/alerts'),
-  addNote: (student_id: string, note: string, is_private = false) =>
-    api.post(`/api/coach/notes/${student_id}`, { note, is_private }),
-  getDigest: () => api.get('/api/coach/digest'),
-  getTemplates: () => api.get('/api/coach/templates'),
-  createTemplate: (data: Record<string, unknown>) => api.post('/api/coach/templates', data),
-  applyTemplate: (template_id: string, student_id: string) =>
-    api.post(`/api/coach/templates/${template_id}/apply/${student_id}`),
-};
-
-export const costLivingApi = {
-  getCountries: () => api.get('/api/costliving/countries'),
-  compare: (from: string, to: string, income: number) =>
-    api.get(`/api/costliving/compare?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&income=${income}`),
-};
-
+// Onboarding API
 export const onboardingApi = {
-  submit: (data: Record<string, unknown>) => api.post('/api/onboarding/complete', data),
+  submitQuiz: (answers: any) => api.post('/api/onboarding/quiz', { answers }),
+  getStatus: () => api.get('/api/onboarding/status'),
 };
 
 export default api;

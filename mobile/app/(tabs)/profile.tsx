@@ -13,6 +13,7 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { useAccountsStore } from '../../src/stores/accountsStore';
 import { formatCurrency } from '../../src/utils/formatters';
 import { computeFINumber } from '../../src/utils/financial';
+import { ScreenErrorBoundary } from '../../src/components/ui/ScreenErrorBoundary';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -31,10 +32,13 @@ export default function ProfileScreen() {
     ]);
   };
 
-  const fiNumber = profile?.dream_lifestyle_cost_mo ? computeFINumber(profile.dream_lifestyle_cost_mo) : 0;
-  const fiProgress = fiNumber > 0 ? Math.max(0, Math.min(100, (netWorth / fiNumber) * 100)) : 0;
-  const debtAccounts = accounts.filter(a => a.is_debt).length;
-  const totalAccounts = accounts.length;
+  const safeAccounts = Array.isArray(accounts) ? accounts : [];
+  const safeNetWorth = isFinite(netWorth) ? netWorth : 0;
+  const dreamCost = isFinite(profile?.dream_lifestyle_cost_mo as number) ? (profile?.dream_lifestyle_cost_mo || 0) : 0;
+  const fiNumber = dreamCost > 0 ? computeFINumber(dreamCost) : 0;
+  const fiProgress = fiNumber > 0 ? Math.max(0, Math.min(100, (safeNetWorth / fiNumber) * 100)) : 0;
+  const debtAccounts = safeAccounts.filter(a => a?.is_debt).length;
+  const totalAccounts = safeAccounts.length;
 
   const settingsItems = [
     { icon: 'notifications-outline', label: 'Notification Preferences', route: '/settings/notifications' },
@@ -45,6 +49,7 @@ export default function ProfileScreen() {
   ];
 
   return (
+    <ScreenErrorBoundary screenName="Profile">
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
@@ -156,6 +161,7 @@ export default function ProfileScreen() {
         </Text>
       </ScrollView>
     </SafeAreaView>
+    </ScreenErrorBoundary>
   );
 }
 

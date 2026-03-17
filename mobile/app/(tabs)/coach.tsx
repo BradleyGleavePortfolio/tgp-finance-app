@@ -12,6 +12,7 @@ import { Colors, Typography, Spacing, BorderRadius } from '../../src/theme/finan
 import { useAuthStore } from '../../src/stores/authStore';
 import { useCoachStore } from '../../src/stores/coachStore';
 import { formatCurrency, formatRelativeTime } from '../../src/utils/formatters';
+import { ScreenErrorBoundary } from '../../src/components/ui/ScreenErrorBoundary';
 
 export default function CoachScreen() {
   const { user } = useAuthStore();
@@ -32,7 +33,9 @@ function CoachDashboard() {
     fetchAlerts();
   }, []);
 
-  const filtered = students.filter(s =>
+  const safeStudents = Array.isArray(students) ? students : [];
+  const safeAlerts = Array.isArray(alerts) ? alerts : [];
+  const filtered = safeStudents.filter(s =>
     s.user.name.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -50,7 +53,7 @@ function CoachDashboard() {
     ? Math.round(students.reduce((s, st) => s + (st.profile.wealth_velocity_score || 0), 0) / students.length)
     : 0;
 
-  if (isLoading && students.length === 0) {
+  if (isLoading && safeStudents.length === 0) {
     return <LoadingSpinner fullScreen text="Loading coach dashboard..." />;
   }
 
@@ -148,9 +151,11 @@ function CoachDashboard() {
 // ─── Student AI Chat ──────────────────────────────────────────────────────────
 function StudentAIChat() {
   return (
+    <ScreenErrorBoundary screenName="AI Coach">
     <SafeAreaView style={styles.container} edges={['top']}>
       <ChatPanel />
     </SafeAreaView>
+    </ScreenErrorBoundary>
   );
 }
 

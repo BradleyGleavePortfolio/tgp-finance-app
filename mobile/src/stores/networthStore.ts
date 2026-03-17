@@ -1,12 +1,26 @@
-// Net worth history state management
+// Net worth history state management — BULLETPROOF
 import { create } from 'zustand';
 import { networthApi } from '../services/api';
 import type { NetWorthHistory } from '../types';
 
+/** Safely extract an array from any API response shape */
+function safeArray<T>(data: any, key: string): T[] {
+  if (!data) return [];
+  if (Array.isArray(data)) return data;
+  if (data[key] && Array.isArray(data[key])) return data[key];
+  return [];
+}
+
+/** Safe number — never let NaN propagate */
+function safeNum(v: any, fallback = 0): number {
+  const n = Number(v);
+  return isFinite(n) ? n : fallback;
+}
+
 interface NetWorthStore {
   history: NetWorthHistory[];
   currentNetWorth: number;
-  previousNetWorth: number; // yesterday's value for change indicator
+  previousNetWorth: number;
   isLoading: boolean;
   error: string | null;
 
@@ -26,12 +40,18 @@ export const useNetWorthStore = create<NetWorthStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const { data } = await networthApi.getHistory(days);
-      const history: NetWorthHistory[] = data.history || data;
+      const history: NetWorthHistory[] = safeArray(data, 'history');
 
       // Compute previous (yesterday's) net worth for change indicator
-      const sorted = [...history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      const current = sorted[0]?.net_worth || 0;
-      const previous = sorted[1]?.net_worth || current;
+      const sorted = [...history].sort((a, b) => {
+        try {
+          return new Date(b.date).getTime() - new Date(a.date).getTime();
+        } catch {
+          return 0;
+        }
+      });
+      const current = safeNum(sorted[0]?.net_worth);
+      const previous = safeNum(sorted[1]?.net_worth, current);
 
       set({ history, currentNetWorth: current, previousNetWorth: previous, isLoading: false });
     } catch (err: unknown) {
@@ -43,16 +63,19 @@ export const useNetWorthStore = create<NetWorthStore>((set, get) => ({
   fetchCurrent: async () => {
     try {
       const { data } = await networthApi.getCurrent();
-      set({
-        currentNetWorth: data.net_worth || 0,
-        previousNetWorth: data.previous_net_worth || get().currentNetWorth,
-      });
+      if (data && typeof data === 'object') {
+        set({
+          currentNetWorth: safeNum(data.net_worth),
+          previousNetWorth: safeNum(data.previous_net_worth, get().currentNetWorth),
+        });
+      }
     } catch {
       // Silent failure - use cached value
     }
   },
 
   setCurrentNetWorth: (value) => {
-    set((state) => ({ previousNetWorth: state.currentNetWorth, currentNetWorth: value }));
+    const safe = safeNum(value);
+    set((state) => ({ previousNetWorth: state.currentNetWorth, currentNetWorth: safe }));
   },
 }));
