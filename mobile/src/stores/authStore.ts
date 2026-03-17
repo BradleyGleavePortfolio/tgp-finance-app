@@ -1,22 +1,26 @@
-// Auth state management — BULLETPROOF
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authApi } from '../services/api';
-import type { FinancialProfile } from '../types';
+
+interface UserProfile {
+  monthly_income_gross?: number;
+  onboarding_complete?: boolean;
+  [key: string]: any;
+}
 
 interface User {
   id: string;
   email: string;
   name: string;
   role?: string;
-  phone?: string;
-  coach_id?: string;
-  referral_code?: string;
+  onboarding_complete?: boolean;
+  profile?: UserProfile | null;
+  [key: string]: any;
 }
 
 interface AuthState {
   user: User | null;
-  profile: FinancialProfile | null;
+  profile: UserProfile | null;
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
@@ -25,41 +29,43 @@ interface AuthState {
 
   initialize: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
-  register: (data: { name: string; email: string; password: string; phone?: string; referral_code?: string }) => Promise<any>;
+  register: (data: {
+    name: string;
+    email: string;
+    password: string;
+    phone?: string;
+    referral_code?: string;
+  }) => Promise<void>;
   logout: () => Promise<void>;
-  selectRole: (role: string, accessCode?: string) => Promise<void>;
+  selectRole: (role: string, coachAccessCode?: string) => Promise<void>;
   refreshUser: () => Promise<void>;
   clearError: () => void;
 }
 
-/** Safely extract user + profile from /auth/me response */
-function extractMe(data: any): { user: User | null; profile: FinancialProfile | null; onboardingComplete: boolean } {
-  if (!data || typeof data !== 'object') {
-    return { user: null, profile: null, onboardingComplete: false };
+/**
+ * Extract user + profile from the /me response.
+ * Backend returns the full user object with nested profile.
+ * After the response interceptor unwraps the envelope, we get the user object directly.
+ */
+function extractMe(raw: any): { user: User; profile: UserProfile | null; onboardingComplete: boolean } {
+  if (!raw || typeof raw !== 'object') {
+    return { user: { id: '', email: '', name: '' }, profile: null, onboardingComplete: false };
   }
-
-  // /me returns { id, email, name, role, profile: {...}, ... }
-  const raw = data.user || data;
 
   const user: User = {
     id: raw.id || '',
     email: raw.email || '',
     name: raw.name || '',
-    role: raw.role || 'student',
-    phone: raw.phone || undefined,
-    coach_id: raw.coach_id || undefined,
-    referral_code: raw.referral_code || undefined,
+    role: raw.role || undefined,
+    onboarding_complete: raw.onboarding_complete || raw.profile?.onboarding_complete || false,
   };
 
-  // Profile can be nested under .profile or be the data itself
-  const profile = raw.profile || null;
+  const profile: UserProfile | null = raw.profile || null;
 
-  // Check onboarding_complete in multiple locations
   const onboardingComplete = !!(
     raw.onboarding_complete ||
-    raw.onboardingComplete ||
-    profile?.onboarding_complete ||
-    profile?.onboardingComplete
+    raw.profile?.onboarding_complete ||
+    user.onboarding_complete
   );
 
   return { user, profile, onboardingComplete };
@@ -74,33 +80,35 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   hasCompletedOnboarding: false,
   error: null,
 
+  clearError: () => set({ error: null }),
+
   initialize: async () => {
     try {
       const token = await AsyncStorage.getItem('auth_token');
       if (token) {
         set({ token });
-        const { data } = await authApi.me();
-        const { user, profile, onboardingComplete } = extractMe(data);
-
-        if (user?.id) {
-          set({
-            user,
-            profile,
-            isAuthenticated: true,
-            hasCompletedOnboarding: onboardingComplete,
-            isLoading: false,
-          });
-        } else {
-          // Token exists but /me failed — clear stale token
-          await AsyncStorage.removeItem('auth_token');
-          set({ token: null, isAuthenticated: false, isLoading: false });
-        }
+        const { data: raw } = await authApi.me();
+        const { user, profile, onboardingComplete } = extractMe(raw);
+        set({
+          user,
+          profile,
+          hasCompletedOnboarding: onboardingComplete,
+          isAuthenticated: true,
+          isLoading: false,
+        });
       } else {
         set({ isLoading: false });
       }
     } catch (error) {
       await AsyncStorage.removeItem('auth_token');
-      set({ token: null, isAuthenticated: false, isLoading: false });
+      set({
+        token: null,
+        user: null,
+        profile: null,
+        isAuthenticated: false,
+        hasCompletedOnboarding: false,
+        isLoading: false,
+      });
     }
   },
 
@@ -108,69 +116,68 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const { data } = await authApi.login(email, password);
-
-      // Backend returns { access_token, refresh_token, user } OR { token, user }
+      // Backend returns { access_token, refresh_token, user: {...} }
+      // After response interceptor unwraps envelope, data = that object
       const token = data?.access_token || data?.token || '';
-      if (!token) throw new Error('No token received from server');
-
+      if (!token) {
+        throw new Error('No token received from server');
+      }
       await AsyncStorage.setItem('auth_token', token);
       set({ token });
 
       // Fetch full user profile
-      const { data: meData } = await authApi.me();
-      const { user, profile, onboardingComplete } = extractMe(meData);
-
+      const { data: raw } = await authApi.me();
+      const { user, profile, onboardingComplete } = extractMe(raw);
       set({
         user,
         profile,
-        isAuthenticated: true,
         hasCompletedOnboarding: onboardingComplete,
+        isAuthenticated: true,
         isLoading: false,
       });
     } catch (error: any) {
       const message =
-        error?.response?.data?.message ||
-        error?.response?.data?.error ||
-        error?.message ||
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
         'Login failed';
-      set({ error: message, isLoading: false });
+      set({
+        error: message,
+        isLoading: false,
+      });
       throw error;
     }
   },
 
-  register: async (regData: { name: string; email: string; password: string; phone?: string; referral_code?: string }) => {
+  register: async (dto) => {
     set({ isLoading: true, error: null });
     try {
-      const { data } = await authApi.register(regData);
-      // After register, store token if provided
-      const token = data?.access_token || data?.token || '';
-      if (token) {
-        await AsyncStorage.setItem('auth_token', token);
-        set({ token });
-      }
-      // Extract user info from register response
-      const userRaw = data?.user || data;
-      if (userRaw?.id) {
+      const { data } = await authApi.register(dto);
+      // Registration returns { user: { id, email, name }, message }
+      // User is NOT authenticated yet — they must verify email first
+      // Store the user info for the verify-email screen to display
+      if (data?.user) {
         set({
           user: {
-            id: userRaw.id,
-            email: userRaw.email || regData.email,
-            name: userRaw.name || regData.name,
-            role: userRaw.role,
+            id: data.user.id || '',
+            email: data.user.email || dto.email,
+            name: data.user.name || dto.name,
           },
           isLoading: false,
         });
       } else {
         set({ isLoading: false });
       }
-      return data;
     } catch (error: any) {
       const message =
-        error?.response?.data?.message ||
-        error?.response?.data?.error ||
-        error?.message ||
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
         'Registration failed';
-      set({ error: message, isLoading: false });
+      set({
+        error: message,
+        isLoading: false,
+      });
       throw error;
     }
   },
@@ -192,13 +199,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     });
   },
 
-  selectRole: async (role: string, accessCode?: string) => {
+  selectRole: async (role: string, coachAccessCode?: string) => {
     set({ isLoading: true, error: null });
     try {
-      await authApi.selectRole(role, accessCode);
-      // Refresh user data after role selection
-      const { data } = await authApi.me();
-      const { user, profile, onboardingComplete } = extractMe(data);
+      await authApi.selectRole(role, coachAccessCode);
+      // Refresh user to get updated role
+      const { data: raw } = await authApi.me();
+      const { user, profile, onboardingComplete } = extractMe(raw);
       set({
         user,
         profile,
@@ -207,26 +214,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
     } catch (error: any) {
       const message =
-        error?.response?.data?.message ||
-        error?.response?.data?.error ||
-        error?.message ||
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
         'Role selection failed';
-      set({ error: message, isLoading: false });
+      set({
+        error: message,
+        isLoading: false,
+      });
       throw error;
     }
   },
 
   refreshUser: async () => {
     try {
-      const { data } = await authApi.me();
-      const { user, profile, onboardingComplete } = extractMe(data);
-      if (user?.id) {
-        set({ user, profile, hasCompletedOnboarding: onboardingComplete });
-      }
-    } catch {
-      // Silent failure — user data will be stale but app won't crash
+      const { data: raw } = await authApi.me();
+      const { user, profile, onboardingComplete } = extractMe(raw);
+      set({
+        user,
+        profile,
+        hasCompletedOnboarding: onboardingComplete,
+      });
+    } catch (error) {
+      // Silently fail — user data will be stale but app won't crash
     }
   },
-
-  clearError: () => set({ error: null }),
 }));

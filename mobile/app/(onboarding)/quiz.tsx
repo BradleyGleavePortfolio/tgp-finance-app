@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { onboardingApi } from '../../src/services/api';
 import { useAuthStore } from '../../src/stores/authStore';
+import { Colors, Typography, Spacing } from '../../src/theme/finance';
 
 interface QuizQuestion {
   id: string;
@@ -52,18 +54,25 @@ export default function QuizScreen() {
     setIsSubmitting(true);
     setError(null);
     try {
-      const { data: responseData } = await onboardingApi.submitQuiz(answers);
-      const result = responseData;
+      // Save quiz answers locally so they persist
+      await AsyncStorage.setItem('quiz_answers', JSON.stringify(answers));
 
+      // Try to submit to backend — may fail if endpoint not deployed yet
+      try {
+        await onboardingApi.submitQuiz(answers);
+      } catch (apiErr: any) {
+        // If the backend doesn't have this endpoint yet (404), continue anyway
+        // The quiz answers are saved locally
+        console.log('Quiz API submit failed (non-blocking):', apiErr?.response?.status);
+      }
+
+      // Refresh user data from /me
       await refreshUser();
 
-      if (result.nextStep) {
-        router.replace(result.nextStep);
-      } else {
-        router.replace('/(tabs)');
-      }
+      // Navigate to command center
+      router.replace('/(tabs)');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to submit quiz');
+      setError(err.response?.data?.message || err.message || 'Failed to submit quiz');
     } finally {
       setIsSubmitting(false);
     }
@@ -74,10 +83,28 @@ export default function QuizScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.title}>Financial Profile Quiz</Text>
+      <View style={styles.header}>
+        <Text style={styles.title}>Financial Profile</Text>
+        <Text style={styles.subtitle}>Help us personalize your experience</Text>
+      </View>
+
       <Text style={styles.progress}>
         Question {currentQuestion + 1} of {QUIZ_QUESTIONS.length}
       </Text>
+
+      {/* Progress dots */}
+      <View style={styles.dotsRow}>
+        {QUIZ_QUESTIONS.map((_, i) => (
+          <View
+            key={i}
+            style={[
+              styles.dot,
+              i <= currentQuestion ? styles.dotActive : null,
+              answers[QUIZ_QUESTIONS[i].id] ? styles.dotCompleted : null,
+            ]}
+          />
+        ))}
+      </View>
 
       <View style={styles.questionContainer}>
         <Text style={styles.question}>{question.question}</Text>
@@ -108,15 +135,16 @@ export default function QuizScreen() {
             style={styles.navButton}
             onPress={() => setCurrentQuestion((prev) => prev - 1)}
           >
-            <Text style={styles.navButtonText}>Previous</Text>
+            <Text style={styles.navButtonText}>← Previous</Text>
           </TouchableOpacity>
         )}
+        <View style={{ flex: 1 }} />
         {currentQuestion < QUIZ_QUESTIONS.length - 1 && answers[question.id] && (
           <TouchableOpacity
             style={styles.navButton}
             onPress={() => setCurrentQuestion((prev) => prev + 1)}
           >
-            <Text style={styles.navButtonText}>Next</Text>
+            <Text style={styles.navButtonText}>Next →</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -128,9 +156,9 @@ export default function QuizScreen() {
           disabled={isSubmitting}
         >
           {isSubmitting ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={Colors.backgroundDeepNavy} />
           ) : (
-            <Text style={styles.submitButtonText}>Submit</Text>
+            <Text style={styles.submitButtonText}>Go to Command Center →</Text>
           )}
         </TouchableOpacity>
       )}
@@ -143,75 +171,112 @@ export default function QuizScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    backgroundColor: '#fff',
+    padding: Spacing.xl,
+    backgroundColor: Colors.backgroundDeepNavy,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: Spacing.xl,
+    paddingTop: Spacing.section,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    textAlign: 'center',
+    fontFamily: 'Inter_700Bold',
+    fontSize: Typography.displaySmall,
+    color: Colors.frostWhite,
+    marginBottom: Spacing.sm,
+  },
+  subtitle: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: Typography.bodyMedium,
+    color: Colors.slateGray,
   },
   progress: {
-    fontSize: 14,
-    color: '#666',
+    fontFamily: 'Inter_500Medium',
+    fontSize: Typography.bodySmall,
+    color: Colors.slateGray,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: Spacing.base,
+  },
+  dotsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: Spacing.xl,
+  },
+  dot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: Colors.graphiteBorder,
+  },
+  dotActive: {
+    backgroundColor: Colors.slateGray,
+  },
+  dotCompleted: {
+    backgroundColor: Colors.accentGold,
   },
   questionContainer: {
-    marginBottom: 24,
+    marginBottom: Spacing.xl,
   },
   question: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 16,
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: Typography.titleSmall,
+    color: Colors.frostWhite,
+    marginBottom: Spacing.base,
   },
   option: {
-    padding: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    marginBottom: 8,
+    padding: Spacing.base,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: Colors.graphiteBorder,
+    marginBottom: Spacing.sm,
+    backgroundColor: Colors.cardSurfaceNavy,
   },
   selectedOption: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+    backgroundColor: 'rgba(249,199,79,0.12)',
+    borderColor: Colors.accentGold,
   },
   optionText: {
-    fontSize: 16,
+    fontFamily: 'Inter_500Medium',
+    fontSize: Typography.bodyMedium,
+    color: Colors.frostWhite,
   },
   selectedOptionText: {
-    color: '#fff',
+    color: Colors.accentGold,
   },
   navigation: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 24,
+    marginBottom: Spacing.xl,
   },
   navButton: {
-    padding: 12,
+    padding: Spacing.sm,
   },
   navButtonText: {
-    fontSize: 16,
-    color: '#007AFF',
+    fontFamily: 'Inter_500Medium',
+    fontSize: Typography.bodyMedium,
+    color: Colors.accentGold,
   },
   submitButton: {
-    backgroundColor: '#007AFF',
-    padding: 16,
-    borderRadius: 8,
+    backgroundColor: Colors.accentGold,
+    padding: Spacing.base,
+    borderRadius: 12,
     alignItems: 'center',
+    marginBottom: Spacing.xl,
   },
   disabledButton: {
     opacity: 0.6,
   },
   submitButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
+    fontFamily: 'Inter_700Bold',
+    color: Colors.backgroundDeepNavy,
+    fontSize: Typography.titleSmall,
   },
   error: {
-    color: 'red',
+    fontFamily: 'Inter_400Regular',
+    color: Colors.debtCrimson,
     textAlign: 'center',
-    marginTop: 12,
+    marginTop: Spacing.sm,
+    fontSize: Typography.bodySmall,
   },
 });
