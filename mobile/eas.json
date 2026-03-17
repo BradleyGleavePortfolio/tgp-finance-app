@@ -5,15 +5,18 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "node": "20.19.4"
     },
     "preview": {
       "distribution": "internal",
+      "node": "20.19.4",
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
+      "node": "20.19.4",
       "android": {
         "buildType": "apk"
       },
