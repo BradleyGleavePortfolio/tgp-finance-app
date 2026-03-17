@@ -2,6 +2,7 @@
   "expo": {
     "name": "TGP Finance",
     "slug": "tgp-finance",
+    "owner": "bradley1031",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -42,6 +43,11 @@
     "scheme": "tgp-finance",
     "experiments": {
       "typedRoutes": false
+    },
+    "extra": {
+      "eas": {
+        "projectId": "7ea81e4e-4090-4938-a482-1d3fed5c6cfc"
+      }
     }
   }
 }
