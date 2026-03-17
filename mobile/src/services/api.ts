@@ -54,11 +54,11 @@ api.interceptors.response.use(
 export const authApi = {
   login: (email: string, password: string) =>
     api.post('/api/auth/login', { email, password }),
-  register: (data: { email: string; password: string; name: string }) =>
+  register: (data: { email: string; password: string; name: string; phone?: string; referral_code?: string }) =>
     api.post('/api/auth/register', data),
   me: () => api.get('/api/auth/me'),
-  selectRole: (roleId: string) =>
-    api.post('/api/auth/select-role', { roleId }),
+  selectRole: (role: string, coach_access_code?: string) =>
+    api.post('/api/auth/select-role', { role, coach_access_code }),
   refreshToken: () => api.post('/api/auth/refresh'),
 };
 
