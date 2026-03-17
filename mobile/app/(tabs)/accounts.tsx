@@ -12,6 +12,7 @@ import { Colors, Typography, Spacing, BorderRadius } from '../../src/theme/finan
 import { useAccountsStore } from '../../src/stores/accountsStore';
 import { formatCurrency } from '../../src/utils/formatters';
 import type { FinancialAccount } from '../../src/types';
+import { ScreenErrorBoundary } from '../../src/components/ui/ScreenErrorBoundary';
 
 type Tab = 'all' | 'assets' | 'debts';
 
@@ -29,16 +30,18 @@ export default function AccountsScreen() {
     setRefreshing(false);
   };
 
-  const cashAccounts = accounts.filter(a => !a.is_debt && (a.account_type === 'checking' || a.account_type === 'savings'));
-  const investmentAccounts = accounts.filter(a => !a.is_debt && (a.account_type.startsWith('investment') || a.account_type.startsWith('retirement')));
-  const assetAccounts = accounts.filter(a => !a.is_debt && (a.account_type === 'real_estate' || a.account_type === 'vehicle' || a.account_type === 'other_asset'));
-  const debtAccounts = accounts.filter(a => a.is_debt);
+  const safeAccounts = Array.isArray(accounts) ? accounts : [];
+  const cashAccounts = safeAccounts.filter(a => !a?.is_debt && (a?.account_type === 'checking' || a?.account_type === 'savings'));
+  const investmentAccounts = safeAccounts.filter(a => !a?.is_debt && (a?.account_type?.startsWith('investment') || a?.account_type?.startsWith('retirement')));
+  const assetAccounts = safeAccounts.filter(a => !a?.is_debt && (a?.account_type === 'real_estate' || a?.account_type === 'vehicle' || a?.account_type === 'other_asset'));
+  const debtAccounts = safeAccounts.filter(a => a?.is_debt);
 
   const handleAccountPress = (account: FinancialAccount) => {
     router.push(`/accounts/${account.id}`);
   };
 
   return (
+    <ScreenErrorBoundary screenName="Accounts" onRetry={onRefresh}>
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>Accounts</Text>
@@ -137,6 +140,7 @@ export default function AccountsScreen() {
         )}
       </ScrollView>
     </SafeAreaView>
+    </ScreenErrorBoundary>
   );
 }
 

@@ -1,7 +1,15 @@
-// Coach dashboard state management
+// Coach dashboard state management — BULLETPROOF
 import { create } from 'zustand';
 import { coachApi } from '../services/api';
 import type { CoachStudentSummary, CoachAlert, ProgramTemplate } from '../types';
+
+/** Safely extract an array from any API response shape */
+function safeArray<T>(data: any, key: string): T[] {
+  if (!data) return [];
+  if (Array.isArray(data)) return data;
+  if (data[key] && Array.isArray(data[key])) return data[key];
+  return [];
+}
 
 interface CoachStore {
   students: CoachStudentSummary[];
@@ -33,7 +41,8 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const { data } = await coachApi.getStudents();
-      set({ students: data.students || data, isLoading: false });
+      const students = safeArray<CoachStudentSummary>(data, 'students');
+      set({ students, isLoading: false });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to load students';
       set({ isLoading: false, error: message });
@@ -44,7 +53,8 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const { data } = await coachApi.getStudent(id);
-      set({ selectedStudent: data.student || data, isLoading: false });
+      const student = data?.student || data || null;
+      set({ selectedStudent: student, isLoading: false });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to load student';
       set({ isLoading: false, error: message });
@@ -54,7 +64,8 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
   fetchAlerts: async () => {
     try {
       const { data } = await coachApi.getAlerts();
-      set({ alerts: data.alerts || data });
+      const alerts = safeArray<CoachAlert>(data, 'alerts');
+      set({ alerts });
     } catch {
       // Silent failure
     }
@@ -63,7 +74,8 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
   fetchTemplates: async () => {
     try {
       const { data } = await coachApi.getTemplates();
-      set({ templates: data.templates || data });
+      const templates = safeArray<ProgramTemplate>(data, 'templates');
+      set({ templates });
     } catch {
       // Silent failure
     }
@@ -82,8 +94,12 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
   createTemplate: async (templateData) => {
     try {
       const { data } = await coachApi.createTemplate(templateData as Record<string, unknown>);
-      const template: ProgramTemplate = data.template || data;
-      set((state) => ({ templates: [template, ...state.templates] }));
+      const template: ProgramTemplate = data?.template || data;
+      if (template?.id) {
+        set((state) => ({
+          templates: [template, ...(Array.isArray(state.templates) ? state.templates : [])],
+        }));
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to create template';
       set({ error: message });

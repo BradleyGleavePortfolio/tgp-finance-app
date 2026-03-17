@@ -1,4 +1,4 @@
-// Home — Command Center screen
+// Home — Command Center screen — BULLETPROOF
 import React, { useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl,
@@ -14,6 +14,7 @@ import { QuickActions } from '../../src/components/home/QuickActions';
 import { CelebrationModal } from '../../src/components/milestones/CelebrationModal';
 import { LoadingSpinner } from '../../src/components/ui/LoadingSpinner';
 import { Button } from '../../src/components/ui/Button';
+import { ScreenErrorBoundary } from '../../src/components/ui/ScreenErrorBoundary';
 import { Colors, Typography, Spacing } from '../../src/theme/finance';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useAccountsStore } from '../../src/stores/accountsStore';
@@ -48,19 +49,28 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
-  const displayNetWorth = currentNetWorth || netWorth;
-  const { text: changeText, isPositive } = formatChange(displayNetWorth - previousNetWorth);
-  const dti = computeDTI(accounts, profile?.monthly_income_gross || 0);
-  const savingsRate = computeSavingsRate(((profile?.monthly_income_gross || 0) * 0.75));
-  const monthlyIncome = (profile?.monthly_income_gross || 0) * 0.75;
-  const monthlyDebts = accounts.filter(a => a.is_debt).reduce((s, a) => s + (a.minimum_payment || 0), 0);
-  const cashFlow = monthlyIncome - monthlyDebts;
+  // BULLETPROOF: Safe array & numeric guards
+  const safeAccounts = Array.isArray(accounts) ? accounts : [];
+  const safeNetWorth = isFinite(netWorth) ? netWorth : 0;
+  const safeCurrent = isFinite(currentNetWorth) ? currentNetWorth : 0;
+  const safePrevious = isFinite(previousNetWorth) ? previousNetWorth : 0;
+  const safeDailyInterest = isFinite(dailyInterest) ? dailyInterest : 0;
 
-  if (isLoading && accounts.length === 0) {
+  const displayNetWorth = safeCurrent || safeNetWorth;
+  const { text: changeText, isPositive } = formatChange(displayNetWorth - safePrevious);
+  const monthlyGross = isFinite(profile?.monthly_income_gross as number) ? (profile?.monthly_income_gross || 0) : 0;
+  const dti = computeDTI(safeAccounts, monthlyGross);
+  const savingsRate = computeSavingsRate(monthlyGross * 0.75);
+  const monthlyIncome = monthlyGross * 0.75;
+  const monthlyDebts = safeAccounts.filter(a => a?.is_debt).reduce((s, a) => s + (Number(a?.minimum_payment) || 0), 0);
+  const cashFlow = isFinite(monthlyIncome - monthlyDebts) ? monthlyIncome - monthlyDebts : 0;
+
+  if (isLoading && safeAccounts.length === 0) {
     return <LoadingSpinner fullScreen text="Loading your command center..." />;
   }
 
   return (
+    <ScreenErrorBoundary screenName="Command Center" onRetry={onRefresh}>
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         style={styles.scroll}
@@ -85,7 +95,7 @@ export default function HomeScreen() {
           <Text style={styles.netWorthLabel}>NET WORTH</Text>
           <AnimatedCounter
             value={displayNetWorth}
-            previousValue={previousNetWorth}
+            previousValue={safePrevious}
             style={styles.heroNumber}
             decimals={0}
           />
@@ -151,7 +161,7 @@ export default function HomeScreen() {
         {/* Interest Bleed Ticker */}
         <View style={styles.tickerSection}>
           <InterestBleedTicker
-            dailyInterest={dailyInterest}
+            dailyInterest={safeDailyInterest}
             onPress={() => router.push('/interest-bleed')}
           />
         </View>
@@ -163,6 +173,7 @@ export default function HomeScreen() {
         onDismiss={dismissCelebration}
       />
     </SafeAreaView>
+    </ScreenErrorBoundary>
   );
 }
 

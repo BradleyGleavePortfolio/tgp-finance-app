@@ -1,10 +1,8 @@
-// Priority waterfall state management
 import { create } from 'zustand';
-import { prioritiesApi } from '../services/api';
-import type { Priority } from '../types';
-import { PRIORITY_WATERFALL } from '../utils/constants';
+import { priorityApi } from '../services/api';
+import { Priority } from '../types';
 
-interface PriorityStore {
+interface PriorityState {
   currentPriority: Priority | null;
   allPriorities: Priority[];
   currentIndex: number;
@@ -13,9 +11,11 @@ interface PriorityStore {
 
   fetchCurrent: () => Promise<void>;
   fetchAll: () => Promise<void>;
+  updatePriority: (id: string, updates: Partial<Priority>) => Promise<void>;
+  completePriority: (id: string) => Promise<void>;
 }
 
-export const usePriorityStore = create<PriorityStore>((set) => ({
+export const usePriorityStore = create<PriorityState>((set, get) => ({
   currentPriority: null,
   allPriorities: [],
   currentIndex: 0,
@@ -25,33 +25,74 @@ export const usePriorityStore = create<PriorityStore>((set) => ({
   fetchCurrent: async () => {
     set({ isLoading: true, error: null });
     try {
-      const { data } = await prioritiesApi.getCurrent();
-      const priority: Priority = data.priority || data;
-      set({ currentPriority: priority, currentIndex: priority.index, isLoading: false });
-    } catch (err: unknown) {
-      // Fall back to local waterfall definition if API unavailable
-      const fallback: Priority = {
-        ...PRIORITY_WATERFALL[0],
-        isComplete: false,
-        progressPercent: 0,
+      const { data } = await priorityApi.getCurrent();
+      const raw = data.priority || data;
+      const priority: Priority = {
+        index: raw.index ?? 0,
+        title: raw.title || '',
+        description: raw.description || '',
+        actionItems: raw.actionItems || raw.action_items || [],
+        target: raw.target,
+        current: raw.current,
+        isComplete: raw.isComplete ?? raw.complete ?? false,
+        estimatedCompletionDate: raw.estimatedCompletionDate || raw.estimated_completion || undefined,
+        progressPercent: raw.progressPercent ?? (typeof raw.progress === 'number' ? Math.round(raw.progress * 100) : 0),
       };
-      set({ currentPriority: fallback, isLoading: false });
+      set({ currentPriority: priority, currentIndex: priority.index, isLoading: false });
+    } catch (error: any) {
+      set({
+        error: error.response?.data?.message || 'Failed to fetch priority',
+        isLoading: false,
+      });
     }
   },
 
   fetchAll: async () => {
     set({ isLoading: true, error: null });
     try {
-      const { data } = await prioritiesApi.getAll();
-      set({ allPriorities: data.priorities || data, isLoading: false });
-    } catch (err: unknown) {
-      // Fall back to full waterfall list
-      const fallback = PRIORITY_WATERFALL.map((p) => ({
-        ...p,
-        isComplete: false,
-        progressPercent: 0,
-      }));
-      set({ allPriorities: fallback, isLoading: false });
+      const { data } = await priorityApi.getAll();
+      const rawPriorities = data.priorities || data;
+      const allPriorities = Array.isArray(rawPriorities) ? rawPriorities.map((raw: any) => ({
+        index: raw.index ?? 0,
+        title: raw.title || '',
+        description: raw.description || '',
+        actionItems: raw.actionItems || raw.action_items || [],
+        target: raw.target,
+        current: raw.current,
+        isComplete: raw.isComplete ?? raw.complete ?? false,
+        estimatedCompletionDate: raw.estimatedCompletionDate || raw.estimated_completion || undefined,
+        progressPercent: raw.progressPercent ?? (typeof raw.progress === 'number' ? Math.round(raw.progress * 100) : 0),
+      })) : [];
+      set({ allPriorities, isLoading: false });
+    } catch (error: any) {
+      set({
+        error: error.response?.data?.message || 'Failed to fetch priorities',
+        isLoading: false,
+      });
+    }
+  },
+
+  updatePriority: async (id: string, updates: Partial<Priority>) => {
+    try {
+      await priorityApi.update(id, updates);
+      await get().fetchCurrent();
+    } catch (error: any) {
+      set({
+        error: error.response?.data?.message || 'Failed to update priority',
+      });
+      throw error;
+    }
+  },
+
+  completePriority: async (id: string) => {
+    try {
+      await priorityApi.complete(id);
+      await get().fetchAll();
+    } catch (error: any) {
+      set({
+        error: error.response?.data?.message || 'Failed to complete priority',
+      });
+      throw error;
     }
   },
 }));
