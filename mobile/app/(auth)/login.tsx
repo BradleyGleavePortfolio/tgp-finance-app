@@ -31,7 +31,8 @@ export default function LoginScreen() {
     if (!validate()) return;
     try {
       await login(email, password);
-      // Navigation is handled by the root layout auth guard
+      // Navigate to index which will route based on auth/onboarding state
+      router.replace('/');
     } catch {
       // Error shown from store
     }
