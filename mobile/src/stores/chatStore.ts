@@ -13,9 +13,10 @@ interface ChatState {
   isLoading: boolean;
   error: string | null;
 
-  sendMessage: (message: string, context?: any) => Promise<void>;
+  sendMessage: (message: string) => Promise<void>;
   loadHistory: () => Promise<void>;
   clearMessages: () => void;
+  clearError: () => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -23,7 +24,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   isLoading: false,
   error: null,
 
-  sendMessage: async (message: string, context?: any) => {
+  sendMessage: async (message: string) => {
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
@@ -38,11 +39,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }));
 
     try {
-      const { data } = await chatApi.send(message, context);
+      // Send conversation history (last 10 messages) for context
+      const history = get().messages.slice(-10).map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      const { data } = await chatApi.send(message, history);
+
+      // Backend returns { reply, model } wrapped in TransformInterceptor envelope
+      const replyText =
+        typeof data === 'string'
+          ? data
+          : data?.reply || data?.response || data?.message || JSON.stringify(data);
+
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: typeof data === 'string' ? data : (data.response || data.message || JSON.stringify(data)),
+        content: replyText,
         timestamp: new Date(),
       };
 
@@ -51,10 +65,25 @@ export const useChatStore = create<ChatState>((set, get) => ({
         isLoading: false,
       }));
     } catch (error: any) {
-      set({
-        error: error.response?.data?.message || 'Failed to send message',
+      const errorMsg =
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        error.message ||
+        'Something went wrong. Try again.';
+
+      // Add an error message as an assistant response so user sees it in chat
+      const errorBubble: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: `⚠️ ${errorMsg}`,
+        timestamp: new Date(),
+      };
+
+      set((state) => ({
+        messages: [...state.messages, errorBubble],
+        error: errorMsg,
         isLoading: false,
-      });
+      }));
     }
   },
 
@@ -62,15 +91,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ isLoading: true });
     try {
       const { data } = await chatApi.getHistory();
-      const messages = data.messages || data;
+      const messages = Array.isArray(data) ? data : data?.messages || [];
       set({ messages, isLoading: false });
-    } catch (error: any) {
-      set({
-        error: error.response?.data?.message || 'Failed to load chat history',
-        isLoading: false,
-      });
+    } catch {
+      // History not available — not critical
+      set({ isLoading: false });
     }
   },
 
-  clearMessages: () => set({ messages: [] }),
+  clearMessages: () => set({ messages: [], error: null }),
+  clearError: () => set({ error: null }),
 }));

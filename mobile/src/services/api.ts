@@ -95,9 +95,10 @@ export const priorityApi = {
 
 // Chat API
 export const chatApi = {
-  send: (message: string, context?: any) =>
-    api.post('/api/chat', { message, context }),
-  getHistory: () => api.get('/api/chat/history'),
+  send: (message: string, conversationHistory: any[] = []) =>
+    api.post('/api/ai/chat', { message, conversation_history: conversationHistory }),
+  getHistory: () => api.get('/api/ai/history'),
+  getContext: () => api.get('/api/ai/context'),
 };
 
 // EOD API
