@@ -44,6 +44,7 @@
       "typedRoutes": false
     },
     "extra": {
+      "apiUrl": "https://tgp-finance-api.fly.dev",
       "eas": {
         "projectId": "502a4eef-5481-49ab-84a0-5c3fa042953d"
       }
