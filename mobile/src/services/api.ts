@@ -76,6 +76,8 @@ export const accountsApi = {
   update: (id: string, data: any) => api.put(`/api/accounts/${id}`, data),
   delete: (id: string) => api.delete(`/api/accounts/${id}`),
   sync: (id: string) => api.post(`/api/accounts/${id}/sync`),
+  getHistory: (id: string, days?: number) =>
+    api.get(`/api/accounts/${id}/history`, { params: { days } }),
 };
 
 // Net Worth API
@@ -113,6 +115,42 @@ export const eodApi = {
 export const onboardingApi = {
   submitQuiz: (answers: any) => api.post('/api/onboarding/quiz', { answers }),
   getStatus: () => api.get('/api/onboarding/status'),
+};
+
+// Milestones API
+export const milestonesApi = {
+  getAll: () => api.get('/api/milestones'),
+  check: () => api.post('/api/milestones/check'),
+  celebrate: (key: string) => api.post(`/api/milestones/${key}/celebrate`),
+};
+
+// What-If API
+export const whatifApi = {
+  run: (type: string, parameters: any) =>
+    api.post('/api/whatif/run', { type, parameters }),
+  getSaved: () => api.get('/api/whatif/saved'),
+  save: (scenario: any) => api.post('/api/whatif/save', scenario),
+  delete: (id: string) => api.delete(`/api/whatif/${id}`),
+};
+
+// Coach API
+export const coachApi = {
+  getStudents: () => api.get('/api/coach/students'),
+  getStudent: (id: string) => api.get(`/api/coach/students/${id}`),
+  getAlerts: () => api.get('/api/coach/alerts'),
+  addNote: (studentId: string, note: string, isPrivate: boolean) =>
+    api.post(`/api/coach/notes/${studentId}`, { note, is_private: isPrivate }),
+  getDigest: () => api.get('/api/coach/digest'),
+  getTemplates: () => api.get('/api/coach/templates'),
+  createTemplate: (data: any) => api.post('/api/coach/templates', data),
+  applyTemplate: (templateId: string, studentId: string) =>
+    api.post(`/api/coach/templates/${templateId}/apply/${studentId}`),
+};
+
+// Profile API
+export const profileApi = {
+  get: () => api.get('/api/profile'),
+  update: (data: any) => api.put('/api/profile', data),
 };
 
 export default api;
