@@ -9,10 +9,12 @@ import type { NetWorthHistory } from '../../types';
 interface NetWorthChartProps {
   history: NetWorthHistory[];
   height?: number;
+  showIndicator?: boolean;
 }
 
-export function NetWorthChart({ history, height = 200 }: NetWorthChartProps) {
-  if (!history || history.length < 2) {
+export function NetWorthChart({ history, height = 200, showIndicator = true }: NetWorthChartProps) {
+  // Handle 0 data points
+  if (!history || history.length === 0) {
     return (
       <View style={[styles.empty, { height }]}>
         <Text style={styles.emptyText}>Submit EOD check-ins to see your net worth trend</Text>
@@ -22,8 +24,22 @@ export function NetWorthChart({ history, height = 200 }: NetWorthChartProps) {
 
   const sorted = [...history].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   const values = sorted.map((h) => h.net_worth);
-  const isPositiveTrend = values[values.length - 1] >= values[0];
+  const first = values[0];
+  const last = values[values.length - 1];
+  const change = last - first;
+  const isPositiveTrend = change >= 0;
   const lineColor = isPositiveTrend ? Colors.profitGreen : Colors.debtCrimson;
+
+  // Handle 1 data point — show as flat line with the single value
+  if (history.length === 1) {
+    return (
+      <View style={[styles.singlePoint, { height }]}>
+        <Text style={styles.singleValue}>{formatCurrency(first)}</Text>
+        <Text style={styles.singleLabel}>Net Worth (1 data point)</Text>
+        <Text style={styles.emptyText}>Keep submitting EOD check-ins to see your trend</Text>
+      </View>
+    );
+  }
 
   const data = sorted.map((h) => ({
     value: h.net_worth,
@@ -34,6 +50,18 @@ export function NetWorthChart({ history, height = 200 }: NetWorthChartProps) {
 
   return (
     <View style={styles.container}>
+      {/* Up/Down indicator */}
+      {showIndicator && (
+        <View style={styles.indicatorRow}>
+          <Text style={[styles.indicatorArrow, { color: lineColor }]}>
+            {isPositiveTrend ? '\u25B2' : '\u25BC'}
+          </Text>
+          <Text style={[styles.indicatorText, { color: lineColor }]}>
+            {isPositiveTrend ? '+' : ''}{formatCurrency(change)} ({history.length} days)
+          </Text>
+        </View>
+      )}
+
       <LineChart
         data={data}
         width={width}
@@ -65,6 +93,21 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: 'hidden',
   },
+  indicatorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  indicatorArrow: {
+    fontSize: 14,
+    fontFamily: 'Inter_700Bold',
+  },
+  indicatorText: {
+    fontFamily: 'JetBrainsMono_700Bold',
+    fontSize: Typography.bodySmall,
+  },
   empty: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -74,6 +117,21 @@ const styles = StyleSheet.create({
     fontSize: Typography.bodySmall,
     color: Colors.slateGray,
     textAlign: 'center',
+  },
+  singlePoint: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  singleValue: {
+    fontFamily: 'JetBrainsMono_700Bold',
+    fontSize: Typography.titleMedium,
+    color: Colors.accentGold,
+  },
+  singleLabel: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: Typography.bodySmall,
+    color: Colors.slateGray,
   },
   axisText: {
     fontFamily: 'JetBrainsMono_400Regular',

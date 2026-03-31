@@ -11,16 +11,30 @@ function safeArray<T>(data: any, key: string): T[] {
   return [];
 }
 
+interface StudentDetailData {
+  student: any;
+  profile: any;
+  accounts: any[];
+  eod_submissions: any[];
+  net_worth_history: any[];
+  weekly_rollups: any[];
+  milestones: any[];
+  coach_notes: any[];
+  period_days: number;
+}
+
 interface CoachStore {
   students: CoachStudentSummary[];
   selectedStudent: CoachStudentSummary | null;
+  studentDetail: StudentDetailData | null;
   alerts: CoachAlert[];
   templates: ProgramTemplate[];
   isLoading: boolean;
   error: string | null;
 
-  fetchStudents: () => Promise<void>;
+  fetchStudents: (search?: string) => Promise<void>;
   fetchStudent: (id: string) => Promise<void>;
+  fetchStudentDetail: (id: string, days?: number) => Promise<void>;
   fetchAlerts: () => Promise<void>;
   fetchTemplates: () => Promise<void>;
   addNote: (studentId: string, note: string, isPrivate?: boolean) => Promise<void>;
@@ -32,15 +46,16 @@ interface CoachStore {
 export const useCoachStore = create<CoachStore>((set, get) => ({
   students: [],
   selectedStudent: null,
+  studentDetail: null,
   alerts: [],
   templates: [],
   isLoading: false,
   error: null,
 
-  fetchStudents: async () => {
+  fetchStudents: async (search?: string) => {
     set({ isLoading: true, error: null });
     try {
-      const { data } = await coachApi.getStudents();
+      const { data } = await coachApi.getStudents(search);
       const students = safeArray<CoachStudentSummary>(data, 'students');
       set({ students, isLoading: false });
     } catch (err: unknown) {
@@ -57,6 +72,17 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
       set({ selectedStudent: student, isLoading: false });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to load student';
+      set({ isLoading: false, error: message });
+    }
+  },
+
+  fetchStudentDetail: async (id, days = 90) => {
+    set({ isLoading: true, error: null, studentDetail: null });
+    try {
+      const { data } = await coachApi.getStudentDetail(id, days);
+      set({ studentDetail: data || null, isLoading: false });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load student detail';
       set({ isLoading: false, error: message });
     }
   },

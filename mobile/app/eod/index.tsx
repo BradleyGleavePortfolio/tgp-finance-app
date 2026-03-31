@@ -23,7 +23,7 @@ type Step = 'accounts' | 'mood' | 'notes' | 'habits' | 'result';
 export default function EODScreen() {
   const router = useRouter();
   const { accounts } = useAccountsStore();
-  const { submitEOD, isSubmitting } = useEODStore();
+  const { submitToday: submitEOD, isLoading: isSubmitting } = useEODStore();
   const { profile } = useAuthStore();
   const { currentNetWorth, previousNetWorth } = useNetWorthStore();
 

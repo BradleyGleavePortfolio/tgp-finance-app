@@ -5,9 +5,16 @@ import { PrismaService } from '../prisma/prisma.service';
 export class CoachService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getStudents(coachId: string) {
+  async getStudents(coachId: string, search?: string) {
+    const where: any = { role: 'student', coach_id: coachId };
+
+    // Support email search (exact or partial)
+    if (search && search.trim()) {
+      where.email = { contains: search.trim(), mode: 'insensitive' };
+    }
+
     const students = await this.prisma.user.findMany({
-      where: { role: 'student', coach_id: coachId },
+      where,
       include: {
         profile: {
           select: {
@@ -60,6 +67,89 @@ export class CoachService {
     }
 
     return student;
+  }
+
+  async getStudentDetailWithHistory(coachId: string, studentId: string, days: number = 90) {
+    const student = await this.prisma.user.findUnique({
+      where: { id: studentId },
+      include: { profile: true, accounts: { where: { is_active: true } } },
+    });
+
+    if (!student) throw new NotFoundException({ error: 'Student not found', code: 'NOT_FOUND' });
+    if (student.coach_id !== coachId) {
+      throw new ForbiddenException({ error: 'Access denied', code: 'FORBIDDEN' });
+    }
+
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+
+    const [eodSubmissions, milestones, notes] = await Promise.all([
+      this.prisma.eODSubmission.findMany({
+        where: { user_id: studentId, submitted_at: { gte: since } },
+        orderBy: { submission_date: 'desc' },
+      }),
+      this.prisma.milestoneUnlock.findMany({
+        where: { user_id: studentId },
+        orderBy: { unlocked_at: 'desc' },
+      }),
+      this.prisma.coachNote.findMany({
+        where: { student_id: studentId, coach_id: coachId },
+        orderBy: { created_at: 'desc' },
+        take: 20,
+      }),
+    ]);
+
+    // Build net worth history from EOD submissions
+    const netWorthHistory = eodSubmissions.map((e) => ({
+      date: e.submission_date,
+      net_worth: e.net_worth_computed,
+      total_assets: e.total_assets_computed,
+      total_debt: e.total_debt_computed,
+      total_cash: e.total_cash_computed,
+    }));
+
+    // Weekly rollups
+    const weeklyRollups = this.computeWeeklyRollups(eodSubmissions);
+
+    return {
+      student: {
+        id: student.id,
+        email: student.email,
+        name: student.name,
+        role: student.role,
+        created_at: student.created_at,
+      },
+      profile: student.profile,
+      accounts: student.accounts,
+      eod_submissions: eodSubmissions,
+      net_worth_history: netWorthHistory,
+      weekly_rollups: weeklyRollups,
+      milestones,
+      coach_notes: notes,
+      period_days: days,
+    };
+  }
+
+  private computeWeeklyRollups(submissions: any[]) {
+    if (submissions.length === 0) return [];
+
+    const weeks: Map<string, any[]> = new Map();
+    for (const sub of submissions) {
+      const date = new Date(sub.submission_date);
+      const weekStart = new Date(date);
+      weekStart.setDate(date.getDate() - date.getDay());
+      const key = weekStart.toISOString().split('T')[0];
+      if (!weeks.has(key)) weeks.set(key, []);
+      weeks.get(key)!.push(sub);
+    }
+
+    return Array.from(weeks.entries()).map(([weekOf, subs]) => ({
+      week_of: weekOf,
+      submissions_count: subs.length,
+      avg_net_worth: Math.round(subs.reduce((s, e) => s + e.net_worth_computed, 0) / subs.length),
+      avg_debt: Math.round(subs.reduce((s, e) => s + e.total_debt_computed, 0) / subs.length),
+      avg_assets: Math.round(subs.reduce((s, e) => s + e.total_assets_computed, 0) / subs.length),
+    }));
   }
 
   async getAlerts(coachId: string) {
