@@ -59,7 +59,6 @@ export const authApi = {
   selectRole: (role: string, coach_access_code?: string) =>
     api.post('/api/auth/select-role', { role, ...(coach_access_code ? { coach_access_code } : {}) }),
   logout: () => api.post('/api/auth/logout'),
-  refreshToken: () => api.post('/api/auth/refresh'),
 };
 
 // Accounts API
@@ -69,7 +68,6 @@ export const accountsApi = {
   create: (data: any) => api.post('/api/accounts', data),
   update: (id: string, data: any) => api.put(`/api/accounts/${id}`, data),
   delete: (id: string) => api.delete(`/api/accounts/${id}`),
-  sync: (id: string) => api.post(`/api/accounts/${id}/sync`),
   getHistory: (id: string, days?: number) =>
     api.get(`/api/accounts/${id}/history`, { params: { days } }),
 };
@@ -77,23 +75,20 @@ export const accountsApi = {
 // Net Worth API
 export const networthApi = {
   getCurrent: () => api.get('/api/networth/current'),
-  getHistory: (period?: string) =>
-    api.get('/api/networth/history', { params: { period } }),
+  getHistory: (days?: number) =>
+    api.get('/api/networth/history', { params: { days } }),
 };
 
 // Priority API
 export const priorityApi = {
   getCurrent: () => api.get('/api/priorities/current'),
-  getAll: () => api.get('/api/priorities'),
-  update: (id: string, data: any) => api.put(`/api/priorities/${id}`, data),
-  complete: (id: string) => api.post(`/api/priorities/${id}/complete`),
+  getAll: () => api.get('/api/priorities/all'),
 };
 
 // Chat API
 export const chatApi = {
   send: (message: string, conversationHistory: any[] = []) =>
     api.post('/api/ai/chat', { message, conversation_history: conversationHistory }),
-  getHistory: () => api.get('/api/ai/history'),
   getContext: () => api.get('/api/ai/context'),
 };
 
@@ -101,8 +96,8 @@ export const chatApi = {
 export const eodApi = {
   submitToday: (data: any) => api.post('/api/eod', data),
   getToday: () => api.get('/api/eod/today'),
-  getHistory: (limit?: number) =>
-    api.get('/api/eod/history', { params: { limit } }),
+  getHistory: (days?: number) =>
+    api.get('/api/eod', { params: { days } }),
 };
 
 // Onboarding API
