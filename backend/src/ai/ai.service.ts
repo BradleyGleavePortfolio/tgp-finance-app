@@ -276,14 +276,14 @@ export class AIService {
 
     try {
       const response = await this.perplexity.chat.completions.create({
-        model: 'sonar-pro',
+        model: 'sonar',
         messages: messages as any,
         temperature: 0.6, // Slightly lower for financial precision
         max_tokens: 600,
       });
 
       const reply = response.choices[0]?.message?.content || 'Unable to generate response.';
-      return { reply, model: 'sonar-pro' };
+      return { reply, model: 'sonar' };
     } catch (error: any) {
       this.logger.error(`AI chat error: ${error.message}`);
       // Graceful degradation — return an error message rather than crashing
@@ -384,7 +384,7 @@ Keep it under 30 words. Be direct, specific, and forward-looking.`;
 
     try {
       const response = await this.perplexity.chat.completions.create({
-        model: 'sonar-pro',
+        model: 'sonar',
         messages: [
           { role: 'system', content: 'You are FP, a financial coach. Generate one short, specific insight sentence.' },
           { role: 'user', content: prompt },
@@ -454,7 +454,7 @@ User data for ${month}:
 
     try {
       const response = await this.perplexity.chat.completions.create({
-        model: 'sonar-pro',
+        model: 'sonar',
         messages: [
           { role: 'system', content: 'You are FP, a financial performance coach. Write direct, personal financial insights.' },
           { role: 'user', content: prompt },
