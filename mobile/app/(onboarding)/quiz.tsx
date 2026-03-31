@@ -54,25 +54,13 @@ export default function QuizScreen() {
     setIsSubmitting(true);
     setError(null);
     try {
-      // Save quiz answers locally so they persist
       await AsyncStorage.setItem('quiz_answers', JSON.stringify(answers));
-
-      // Try to submit to backend — may fail if endpoint not deployed yet
-      try {
-        await onboardingApi.submitQuiz(answers);
-      } catch (apiErr: any) {
-        // If the backend doesn't have this endpoint yet (404), continue anyway
-        // The quiz answers are saved locally
-        console.log('Quiz API submit failed (non-blocking):', apiErr?.response?.status);
-      }
-
-      // Refresh user data from /me
+      await onboardingApi.submitQuiz(answers);
       await refreshUser();
-
-      // Navigate to command center
       router.replace('/(tabs)');
     } catch (err: any) {
-      setError(err.response?.data?.message || err.message || 'Failed to submit quiz');
+      const message = err.response?.data?.error || err.message || 'Failed to save your profile. Please try again.';
+      setError(message);
     } finally {
       setIsSubmitting(false);
     }

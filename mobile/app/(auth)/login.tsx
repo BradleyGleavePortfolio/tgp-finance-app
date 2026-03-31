@@ -17,7 +17,8 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [resetSent, setResetSent] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({ email: '', password: '' });
-  const [googleLoading, setGoogleLoading] = useState(false);
+  // GOOGLE_OAUTH_DISABLED: Re-enable when Google Cloud OAuth client IDs are configured and expo-auth-session is integrated
+  // const [googleLoading, setGoogleLoading] = useState(false);
 
   const validate = () => {
     const errors = { email: '', password: '' };
@@ -39,16 +40,17 @@ export default function LoginScreen() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    setGoogleLoading(true);
-    try {
-      await signInWithGoogle();
-    } catch (err: any) {
-      Alert.alert('Google Sign-In Failed', err.message || 'Something went wrong. Please try again.');
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
+  // GOOGLE_OAUTH_DISABLED: Re-enable when Google Cloud OAuth client IDs are configured and expo-auth-session is integrated
+  // const handleGoogleSignIn = async () => {
+  //   setGoogleLoading(true);
+  //   try {
+  //     await signInWithGoogle();
+  //   } catch (err: any) {
+  //     Alert.alert('Google Sign-In Failed', err.message || 'Something went wrong. Please try again.');
+  //   } finally {
+  //     setGoogleLoading(false);
+  //   }
+  // };
 
   const handleForgotPassword = async () => {
     if (!email) {
@@ -128,7 +130,8 @@ export default function LoginScreen() {
           style={styles.loginBtn}
         />
 
-        <View style={styles.divider}>
+        {/* GOOGLE_OAUTH_DISABLED: Re-enable when Google Cloud OAuth client IDs are configured and expo-auth-session is integrated */}
+        {/* <View style={styles.divider}>
           <View style={styles.dividerLine} />
           <Text style={styles.dividerText}>or</Text>
           <View style={styles.dividerLine} />
@@ -141,7 +144,7 @@ export default function LoginScreen() {
           disabled={googleLoading}
         >
           <Text style={styles.googleText}>{googleLoading ? 'Signing in...' : 'Continue with Google'}</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         <View style={styles.signupRow}>
           <Text style={styles.signupText}>Don't have an account? </Text>
