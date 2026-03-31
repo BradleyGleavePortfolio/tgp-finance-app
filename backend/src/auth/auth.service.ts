@@ -50,12 +50,11 @@ export class AuthService {
       throw new ConflictException({ error: 'Email already registered', code: 'EMAIL_EXISTS' });
     }
 
-    // Register with Supabase Auth using admin.createUser + inviteUserByEmail
-    // Step 1: Create user (admin API, no email sent)
+    // Register with Supabase Auth — auto-confirm email for MVP
     const { data: authData, error: authError } = await this.supabase.auth.admin.createUser({
       email: dto.email,
       password: dto.password,
-      email_confirm: false,
+      email_confirm: true,
       user_metadata: { name: dto.name },
     });
 
@@ -65,13 +64,6 @@ export class AuthService {
         error: authError?.message || 'Registration failed',
         code: 'REGISTRATION_FAILED',
       });
-    }
-
-    // Step 2: Send verification email via invite
-    // inviteUserByEmail sends a "confirm your signup" email to the user
-    const { error: inviteError } = await this.supabase.auth.admin.inviteUserByEmail(dto.email);
-    if (inviteError) {
-      this.logger.warn(`Invite email failed: ${inviteError.message}. User can request resend.`);
     }
 
     // Create user record in our DB
@@ -88,7 +80,7 @@ export class AuthService {
 
     return {
       user: { id: user.id, email: user.email, name: user.name },
-      message: 'Verification email sent. Please verify your email to continue.',
+      message: 'Registration successful. You can now log in.',
     };
   }
 
