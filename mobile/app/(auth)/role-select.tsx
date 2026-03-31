@@ -5,8 +5,6 @@ import { useRouter } from 'expo-router';
 import { Button } from '../../src/components/ui/Button';
 import { Colors, Typography, Spacing, BorderRadius } from '../../src/theme/finance';
 import { useAuthStore } from '../../src/stores/authStore';
-import { COACH_ACCESS_CODE } from '../../src/utils/constants';
-
 export default function RoleSelectScreen() {
   const router = useRouter();
   const { selectRole, isLoading } = useAuthStore();
@@ -22,8 +20,8 @@ export default function RoleSelectScreen() {
   };
 
   const handleCoachCodeSubmit = async () => {
-    if (accessCode !== COACH_ACCESS_CODE) {
-      setCodeError('Incorrect access code. Contact your administrator.');
+    if (!accessCode.trim()) {
+      setCodeError('Please enter an access code.');
       return;
     }
     setCodeError('');
@@ -31,7 +29,11 @@ export default function RoleSelectScreen() {
     try {
       await selectRole('coach', accessCode);
       router.replace('/(onboarding)/quiz');
-    } catch {}
+    } catch (err: any) {
+      const message = err.response?.data?.error || err.message || 'Invalid access code';
+      setCodeError(message);
+      setShowCodeModal(true);
+    }
   };
 
   return (
