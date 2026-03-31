@@ -14,7 +14,6 @@ interface ChatState {
   error: string | null;
 
   sendMessage: (message: string) => Promise<void>;
-  loadHistory: () => Promise<void>;
   clearMessages: () => void;
   clearError: () => void;
 }
@@ -88,18 +87,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
         error: errorMsg,
         isLoading: false,
       }));
-    }
-  },
-
-  loadHistory: async () => {
-    set({ isLoading: true });
-    try {
-      const { data } = await chatApi.getHistory();
-      const messages = Array.isArray(data) ? data : data?.messages || [];
-      set({ messages, isLoading: false });
-    } catch {
-      // History not available — not critical
-      set({ isLoading: false });
     }
   },
 
