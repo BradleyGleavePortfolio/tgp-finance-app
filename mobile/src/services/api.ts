@@ -26,7 +26,7 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor to unwrap TransformInterceptor envelope
+// Single response interceptor: unwrap envelope + handle 401
 api.interceptors.response.use(
   (response) => {
     // Unwrap TransformInterceptor envelope: { data, success, timestamp } → data
@@ -35,12 +35,6 @@ api.interceptors.response.use(
     }
     return response;
   },
-  (error) => Promise.reject(error)
-);
-
-// Response interceptor for 401 handling
-api.interceptors.response.use(
-  (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
       await AsyncStorage.removeItem('auth_token');
@@ -135,8 +129,11 @@ export const whatifApi = {
 
 // Coach API
 export const coachApi = {
-  getStudents: () => api.get('/api/coach/students'),
+  getStudents: (search?: string) =>
+    api.get('/api/coach/students', { params: search ? { search } : {} }),
   getStudent: (id: string) => api.get(`/api/coach/students/${id}`),
+  getStudentDetail: (id: string, days: number = 90) =>
+    api.get(`/api/coach/students/${id}/detail`, { params: { days } }),
   getAlerts: () => api.get('/api/coach/alerts'),
   addNote: (studentId: string, note: string, isPrivate: boolean) =>
     api.post(`/api/coach/notes/${studentId}`, { note, is_private: isPrivate }),

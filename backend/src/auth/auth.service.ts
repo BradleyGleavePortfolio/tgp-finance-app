@@ -25,7 +25,7 @@ export class AuthService {
   ) {
     const supabaseUrl = this.config.get<string>('SUPABASE_URL', '');
     const supabaseKey = this.config.get<string>('SUPABASE_SERVICE_ROLE_KEY', '');
-    this.coachAccessCode = this.config.get<string>('COACH_ACCESS_CODE', '6678345');
+    this.coachAccessCode = this.config.get<string>('COACH_ACCESS_CODE', 'CaboRules');
 
     if (!supabaseUrl || !supabaseKey) {
       this.logger.warn(

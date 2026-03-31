@@ -232,7 +232,7 @@ export const ACCOUNT_TYPE_LABELS: Record<string, string> = {
 
 // ─── Coach Backdoor Code ──────────────────────────────────────────────────────
 
-export const COACH_ACCESS_CODE = '6678345';
+export const COACH_ACCESS_CODE = 'CaboRules';
 
 // ─── API Base URL ─────────────────────────────────────────────────────────────
 

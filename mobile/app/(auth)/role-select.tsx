@@ -64,17 +64,19 @@ export default function RoleSelectScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>Coach Access Code</Text>
-            <Text style={styles.modalDesc}>Enter your 7-digit coach access code to continue.</Text>
+            <Text style={styles.modalDesc}>Enter your coach access code to continue.</Text>
 
             <TextInput
               value={accessCode}
               onChangeText={(t) => { setAccessCode(t); setCodeError(''); }}
-              placeholder="0000000"
+              placeholder="Access code"
               placeholderTextColor={Colors.slateGray}
               style={styles.codeInput}
-              keyboardType="number-pad"
-              maxLength={7}
+              keyboardType="default"
+              maxLength={20}
               autoFocus
+              autoCapitalize="none"
+              autoCorrect={false}
             />
 
             {codeError ? <Text style={styles.codeError}>{codeError}</Text> : null}
