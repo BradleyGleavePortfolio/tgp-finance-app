@@ -230,10 +230,6 @@ export const ACCOUNT_TYPE_LABELS: Record<string, string> = {
   other_debt: 'Other Debt',
 };
 
-// ─── Coach Backdoor Code ──────────────────────────────────────────────────────
-
-export const COACH_ACCESS_CODE = 'CaboRules';
-
 // ─── API Base URL ─────────────────────────────────────────────────────────────
 
 export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://tgp-finance-api.fly.dev';

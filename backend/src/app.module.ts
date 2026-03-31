@@ -19,6 +19,7 @@ import { AIModule } from './ai/ai.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { CoachModule } from './coach/coach.module';
 import { AccountabilityModule } from './accountability/accountability.module';
+import { OnboardingModule } from './onboarding/onboarding.module';
 
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
@@ -58,6 +59,7 @@ import { TenantGuard } from './auth/guards/tenant.guard';
     NotificationsModule,
     CoachModule,
     AccountabilityModule,
+    OnboardingModule,
   ],
   providers: [
     // Global exception filter — structured errors, no stack traces
