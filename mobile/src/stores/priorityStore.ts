@@ -11,8 +11,6 @@ interface PriorityState {
 
   fetchCurrent: () => Promise<void>;
   fetchAll: () => Promise<void>;
-  updatePriority: (id: string, updates: Partial<Priority>) => Promise<void>;
-  completePriority: (id: string) => Promise<void>;
 }
 
 export const usePriorityStore = create<PriorityState>((set, get) => ({
@@ -72,27 +70,4 @@ export const usePriorityStore = create<PriorityState>((set, get) => ({
     }
   },
 
-  updatePriority: async (id: string, updates: Partial<Priority>) => {
-    try {
-      await priorityApi.update(id, updates);
-      await get().fetchCurrent();
-    } catch (error: any) {
-      set({
-        error: error.response?.data?.message || 'Failed to update priority',
-      });
-      throw error;
-    }
-  },
-
-  completePriority: async (id: string) => {
-    try {
-      await priorityApi.complete(id);
-      await get().fetchAll();
-    } catch (error: any) {
-      set({
-        error: error.response?.data?.message || 'Failed to complete priority',
-      });
-      throw error;
-    }
-  },
 }));
