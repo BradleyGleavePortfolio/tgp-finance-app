@@ -144,6 +144,17 @@ export const coachApi = {
     api.post(`/api/coach/templates/${templateId}/apply/${studentId}`),
 };
 
+// Notifications API
+export const notificationsApi = {
+  getPreferences: () => api.get('/api/notifications/preferences'),
+  updatePreferences: (data: any) => api.put('/api/notifications/preferences', data),
+};
+
+// AI API (beyond chat)
+export const aiApi = {
+  getSpendingDNA: (month: string) => api.post('/api/ai/spending-dna', { month }),
+};
+
 // Profile API
 export const profileApi = {
   get: () => api.get('/api/profile'),
