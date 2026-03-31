@@ -51,12 +51,34 @@ export class AuthService {
     }
 
     // Register with Supabase Auth — auto-confirm email for MVP
-    const { data: authData, error: authError } = await this.supabase.auth.admin.createUser({
+    let { data: authData, error: authError } = await this.supabase.auth.admin.createUser({
       email: dto.email,
       password: dto.password,
       email_confirm: true,
       user_metadata: { name: dto.name },
     });
+
+    // Handle ghost user: exists in Supabase Auth but not in our DB
+    if (authError && authError.message?.toLowerCase().includes('already been registered')) {
+      this.logger.warn(`Ghost user detected for ${dto.email} — cleaning up stale Supabase Auth entry`);
+
+      const { data: listData } = await this.supabase.auth.admin.listUsers();
+      const ghostUser = listData?.users?.find((u) => u.email === dto.email);
+
+      if (ghostUser) {
+        await this.supabase.auth.admin.deleteUser(ghostUser.id);
+
+        // Retry registration after deleting the ghost user
+        const retry = await this.supabase.auth.admin.createUser({
+          email: dto.email,
+          password: dto.password,
+          email_confirm: true,
+          user_metadata: { name: dto.name },
+        });
+        authData = retry.data;
+        authError = retry.error;
+      }
+    }
 
     if (authError || !authData.user) {
       this.logger.error(`Supabase registration error: ${authError?.message}`);
@@ -107,9 +129,13 @@ export class AuthService {
     });
 
     if (error || !data.user || !data.session) {
+      const isEmailNotConfirmed = error?.message?.includes('not confirmed') ||
+                                   error?.message?.includes('Email not confirmed');
       throw new UnauthorizedException({
-        error: 'Invalid credentials',
-        code: 'INVALID_CREDENTIALS',
+        error: isEmailNotConfirmed
+          ? 'Please verify your email before logging in'
+          : 'Invalid email or password',
+        code: isEmailNotConfirmed ? 'EMAIL_NOT_VERIFIED' : 'INVALID_CREDENTIALS',
       });
     }
 
