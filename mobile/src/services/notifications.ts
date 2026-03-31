@@ -147,7 +147,7 @@ export async function scheduleFutureSelfDelivery(accountCreatedAt: string): Prom
  */
 export async function registerPushToken(token: string): Promise<void> {
   try {
-    await notificationsApi.updatePreferences({ push_token: token });
+    await notificationsApi.updatePreferences({ expo_push_token: token });
   } catch (error) {
     console.log('Error registering push token:', error);
   }
