@@ -34,7 +34,17 @@ export const useMilestonesStore = create<MilestonesStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const { data } = await milestonesApi.getAll();
-      const unlocked = safeArray<MilestoneUnlock>(data, 'milestones');
+      const all = safeArray(data, 'milestones');
+      // Filter to only actually-unlocked, and map field names
+      const unlocked: MilestoneUnlock[] = all
+        .filter((m: any) => m.unlocked === true)
+        .map((m: any) => ({
+          id: m.key || '',
+          user_id: '',
+          milestone_key: m.key || '',
+          unlocked_at: m.unlocked_at || '',
+          celebrated: m.celebrated || false,
+        }));
       set({ unlocked, isLoading: false });
     } catch {
       set({ isLoading: false });
@@ -44,7 +54,17 @@ export const useMilestonesStore = create<MilestonesStore>((set, get) => ({
   checkMilestones: async () => {
     try {
       const { data } = await milestonesApi.check();
-      const newUnlocks: MilestoneUnlock[] = safeArray(data, 'new_unlocks');
+      // Backend returns string[] of newly unlocked keys
+      const rawKeys = Array.isArray(data) ? data : safeArray(data, 'new_unlocks');
+      const newUnlocks: MilestoneUnlock[] = rawKeys
+        .filter((k: any): k is string => typeof k === 'string')
+        .map((k: string) => ({
+          id: k,
+          user_id: '',
+          milestone_key: k,
+          unlocked_at: new Date().toISOString(),
+          celebrated: false,
+        }));
 
       if (newUnlocks.length > 0) {
         set((state) => ({
