@@ -18,6 +18,11 @@ interface User {
   [key: string]: any;
 }
 
+interface PendingVerification {
+  email: string;
+  password: string;
+}
+
 interface AuthState {
   user: User | null;
   profile: UserProfile | null;
@@ -26,6 +31,7 @@ interface AuthState {
   isAuthenticated: boolean;
   hasCompletedOnboarding: boolean;
   error: string | null;
+  pendingVerification: PendingVerification | null;
 
   initialize: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
@@ -39,6 +45,7 @@ interface AuthState {
   logout: () => Promise<void>;
   selectRole: (role: string, coachAccessCode?: string) => Promise<void>;
   refreshUser: () => Promise<void>;
+  checkVerification: () => Promise<boolean>;
   clearError: () => void;
 }
 
@@ -79,6 +86,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
   hasCompletedOnboarding: false,
   error: null,
+  pendingVerification: null,
 
   clearError: () => set({ error: null }),
 
@@ -156,6 +164,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // Registration returns { user: { id, email, name }, message }
       // User is NOT authenticated yet — they must verify email first
       // Store the user info for the verify-email screen to display
+      // Also store credentials so we can attempt login to check verification status
       if (data?.user) {
         set({
           user: {
@@ -163,10 +172,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             email: data.user.email || dto.email,
             name: data.user.name || dto.name,
           },
+          pendingVerification: { email: dto.email, password: dto.password },
           isLoading: false,
         });
       } else {
-        set({ isLoading: false });
+        set({
+          pendingVerification: { email: dto.email, password: dto.password },
+          isLoading: false,
+        });
       }
     } catch (error: any) {
       const message =
@@ -196,6 +209,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isAuthenticated: false,
       hasCompletedOnboarding: false,
       error: null,
+      pendingVerification: null,
     });
   },
 
@@ -237,6 +251,40 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
     } catch (error) {
       // Silently fail — user data will be stale but app won't crash
+    }
+  },
+
+  checkVerification: async () => {
+    const { pendingVerification } = get();
+    if (!pendingVerification) return false;
+
+    try {
+      // Attempt login — backend checks email_confirmed_at and rejects unverified users
+      // If login succeeds, the user has verified their email
+      const { data } = await authApi.login(pendingVerification.email, pendingVerification.password);
+      const token = data?.access_token || data?.token || '';
+      if (!token) return false;
+
+      await AsyncStorage.setItem('auth_token', token);
+      set({ token });
+
+      // Fetch full user profile
+      const { data: raw } = await authApi.me();
+      const { user, profile, onboardingComplete } = extractMe(raw);
+      set({
+        user,
+        profile,
+        hasCompletedOnboarding: onboardingComplete,
+        isAuthenticated: true,
+        pendingVerification: null,
+      });
+      return true;
+    } catch (error: any) {
+      const code = error.response?.data?.code;
+      // EMAIL_NOT_VERIFIED means user hasn't verified yet — expected during polling
+      if (code === 'EMAIL_NOT_VERIFIED') return false;
+      // INVALID_CREDENTIALS or other errors — also not verified or some other issue
+      return false;
     }
   },
 }));

@@ -1,5 +1,5 @@
-// Email verification — auto-polls every 5 seconds
-import React, { useEffect, useState } from 'react';
+// Email verification — polls backend login to detect verified state
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Button } from '../../src/components/ui/Button';
@@ -7,42 +7,61 @@ import { Colors, Typography, Spacing } from '../../src/theme/finance';
 import { supabase } from '../../src/services/supabase';
 import { useAuthStore } from '../../src/stores/authStore';
 
+const POLL_INTERVAL_MS = 5000;
+
 export default function VerifyEmailScreen() {
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user, checkVerification, pendingVerification } = useAuthStore();
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState('');
+  const [resent, setResent] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Auto-poll every 5 seconds
+  // Auto-poll every 5 seconds by attempting login via backend
   useEffect(() => {
-    const interval = setInterval(async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session?.user?.email_confirmed_at) {
-        clearInterval(interval);
+    if (!pendingVerification) return;
+
+    const poll = async () => {
+      const verified = await checkVerification();
+      if (verified) {
+        if (intervalRef.current) clearInterval(intervalRef.current);
         router.replace('/(auth)/role-select');
       }
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
+    };
+
+    intervalRef.current = setInterval(poll, POLL_INTERVAL_MS);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [pendingVerification]);
 
   const handleManualCheck = async () => {
     setChecking(true);
     setError('');
     try {
-      const { data } = await supabase.auth.getSession();
-      if (data.session?.user?.email_confirmed_at) {
+      const verified = await checkVerification();
+      if (verified) {
         router.replace('/(auth)/role-select');
       } else {
         setError('Email not yet verified. Please check your inbox and click the link.');
       }
+    } catch {
+      setError('Unable to check verification status. Please try again.');
     } finally {
       setChecking(false);
     }
   };
 
   const handleResend = async () => {
-    if (!user?.email) return;
-    await supabase.auth.resend({ type: 'signup', email: user.email });
+    const email = pendingVerification?.email || user?.email;
+    if (!email) return;
+    try {
+      await supabase.auth.resend({ type: 'signup', email });
+      setResent(true);
+      setTimeout(() => setResent(false), 5000);
+    } catch {
+      setError('Failed to resend verification email.');
+    }
   };
 
   return (
@@ -51,7 +70,7 @@ export default function VerifyEmailScreen() {
       <Text style={styles.title}>Check Your Email</Text>
       <Text style={styles.description}>
         We sent a verification link to{'\n'}
-        <Text style={styles.email}>{user?.email || 'your email'}</Text>
+        <Text style={styles.email}>{pendingVerification?.email || user?.email || 'your email'}</Text>
         {'\n\n'}
         Click the link in the email to verify your account, then return here.
       </Text>
@@ -59,6 +78,12 @@ export default function VerifyEmailScreen() {
       {error ? (
         <View style={styles.errorBanner}>
           <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : null}
+
+      {resent ? (
+        <View style={styles.successBanner}>
+          <Text style={styles.successText}>Verification email resent!</Text>
         </View>
       ) : null}
 
@@ -88,6 +113,8 @@ const styles = StyleSheet.create({
   email: { fontFamily: 'Inter_600SemiBold', color: Colors.accentGold },
   errorBanner: { backgroundColor: 'rgba(230,57,70,0.12)', borderRadius: 8, borderWidth: 1, borderColor: Colors.debtCrimson, padding: Spacing.md, marginBottom: Spacing.base, width: '100%' },
   errorText: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodySmall, color: Colors.debtCrimson, textAlign: 'center' },
+  successBanner: { backgroundColor: 'rgba(0,200,83,0.12)', borderRadius: 8, borderWidth: 1, borderColor: Colors.profitGreen, padding: Spacing.md, marginBottom: Spacing.base, width: '100%' },
+  successText: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodySmall, color: Colors.profitGreen, textAlign: 'center' },
   btn: { marginBottom: Spacing.xl },
   resendRow: { marginBottom: Spacing.xl },
   resendText: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodySmall, color: Colors.slateGray },
