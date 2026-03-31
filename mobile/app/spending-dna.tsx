@@ -17,7 +17,6 @@ interface DNAReport {
   paragraph_action: string;
   avg_daily_card_spend: number;
   savings_rate_pct: number;
-  biggest_leak_account?: string;
 }
 
 export default function SpendingDNAScreen() {
@@ -35,7 +34,16 @@ export default function SpendingDNAScreen() {
     setIsLoading(true);
     try {
       const { data } = await aiApi.getSpendingDNA(currentMonth);
-      if (data.report) setReports([data.report, ...reports]);
+      const paragraphs = (data.report_text || '').split(/\n\n+/);
+      const parsed: DNAReport = {
+        month: data.month || currentMonth,
+        paragraph_pattern: paragraphs[0] || '',
+        paragraph_leak: paragraphs[1] || '',
+        paragraph_action: paragraphs[2] || '',
+        avg_daily_card_spend: data.key_metrics?.avg_daily_card_spend ?? 0,
+        savings_rate_pct: data.key_metrics?.avg_savings_rate_pct ?? 0,
+      };
+      setReports([parsed, ...reports]);
     } catch {
       // Silent failure
     } finally {
