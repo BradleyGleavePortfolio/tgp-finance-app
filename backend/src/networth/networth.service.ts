@@ -47,6 +47,13 @@ export class NetWorthService {
 
     const net_worth = total_assets - total_debt;
 
+    // Get previous net worth from most recent EOD submission
+    const latestEOD = await this.prisma.eODSubmission.findFirst({
+      where: { user_id: userId },
+      orderBy: { submission_date: 'desc' },
+      select: { net_worth_computed: true },
+    });
+
     // Compute monthly cash flow estimate
     const monthly_income = profile?.monthly_income_gross || 0;
     const monthly_minimums = accounts
@@ -71,6 +78,7 @@ export class NetWorthService {
 
     return {
       net_worth,
+      previous_net_worth: latestEOD?.net_worth_computed ?? net_worth,
       total_assets,
       total_debt,
       total_cash,

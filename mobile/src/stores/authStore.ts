@@ -61,9 +61,14 @@ function extractMe(raw: any): { user: User; profile: UserProfile | null; onboard
 
   const user: User = {
     id: raw.id || '',
+    supabase_id: raw.supabase_id || '',
     email: raw.email || '',
     name: raw.name || '',
+    phone: raw.phone || undefined,
+    referral_code: raw.referral_code || undefined,
     role: raw.role || undefined,
+    coach_id: raw.coach_id || undefined,
+    created_at: raw.created_at || '',
     onboarding_complete: raw.onboarding_complete || raw.profile?.onboarding_complete || false,
   };
 
