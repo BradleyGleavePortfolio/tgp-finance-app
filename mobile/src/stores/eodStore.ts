@@ -22,7 +22,7 @@ interface EodState {
   fetchHistory: (limit?: number) => Promise<void>;
 }
 
-export const useEodStore = create<EodState>((set) => ({
+export const useEODStore = create<EodState>((set) => ({
   todaySubmission: null,
   history: [],
   isLoading: false,

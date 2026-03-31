@@ -26,12 +26,21 @@ function CoachDashboard() {
   const router = useRouter();
   const { students, alerts, fetchStudents, fetchAlerts, isLoading } = useCoachStore();
   const [search, setSearch] = useState('');
+  const [emailSearch, setEmailSearch] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'velocity' | 'streak' | 'net_worth'>('velocity');
 
   useEffect(() => {
     fetchStudents();
     fetchAlerts();
   }, []);
+
+  const handleEmailSearch = () => {
+    if (emailSearch.trim()) {
+      fetchStudents(emailSearch.trim());
+    } else {
+      fetchStudents();
+    }
+  };
 
   const safeStudents = Array.isArray(students) ? students : [];
   const safeAlerts = Array.isArray(alerts) ? alerts : [];
@@ -93,10 +102,35 @@ function CoachDashboard() {
         {/* Student list */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Students</Text>
+
+          {/* Email search with server-side filtering */}
+          <View style={styles.emailSearchRow}>
+            <TextInput
+              value={emailSearch}
+              onChangeText={setEmailSearch}
+              placeholder="Search by email..."
+              placeholderTextColor={Colors.slateGray}
+              style={[styles.searchInput, { flex: 1, marginBottom: 0 }]}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              returnKeyType="search"
+              onSubmitEditing={handleEmailSearch}
+            />
+            <TouchableOpacity style={styles.searchBtn} onPress={handleEmailSearch}>
+              <Text style={styles.searchBtnText}>Search</Text>
+            </TouchableOpacity>
+            {emailSearch.trim() !== '' && (
+              <TouchableOpacity style={styles.clearBtn} onPress={() => { setEmailSearch(''); fetchStudents(); }}>
+                <Text style={styles.clearBtnText}>Clear</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Local name filter */}
           <TextInput
             value={search}
             onChangeText={setSearch}
-            placeholder="Search students..."
+            placeholder="Filter by name..."
             placeholderTextColor={Colors.slateGray}
             style={styles.searchInput}
           />
@@ -172,6 +206,11 @@ const styles = StyleSheet.create({
   alertCard: { padding: Spacing.md, marginBottom: Spacing.sm },
   alertStudent: { fontFamily: 'Inter_700Bold', fontSize: Typography.bodySmall, color: Colors.debtCrimson },
   alertMessage: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodySmall, color: Colors.frostWhite },
+  emailSearchRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.md },
+  searchBtn: { backgroundColor: Colors.accentGold, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.md },
+  searchBtnText: { fontFamily: 'Inter_600SemiBold', fontSize: Typography.bodySmall, color: Colors.backgroundDeepNavy },
+  clearBtn: { paddingHorizontal: Spacing.sm, paddingVertical: Spacing.md },
+  clearBtnText: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodySmall, color: Colors.slateGray },
   searchInput: { backgroundColor: Colors.cardSurfaceNavy, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.graphiteBorder, padding: Spacing.md, fontFamily: 'Inter_400Regular', fontSize: Typography.bodyMedium, color: Colors.frostWhite, marginBottom: Spacing.md },
   sortRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
   sortBtn: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderRadius: BorderRadius.full, borderWidth: 1, borderColor: Colors.graphiteBorder },
