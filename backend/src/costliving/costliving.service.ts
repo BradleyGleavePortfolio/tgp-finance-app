@@ -12,10 +12,10 @@ export class CostLivingService {
 
     // Try multiple paths to find the data file
     const paths = [
+      path.resolve(process.cwd(), 'data', 'cost_of_living_2026.json'),
       path.resolve(__dirname, '..', '..', '..', '..', 'data', 'cost_of_living_2026.json'),
       path.resolve(__dirname, '..', '..', '..', 'data', 'cost_of_living_2026.json'),
       path.resolve(process.cwd(), '..', 'data', 'cost_of_living_2026.json'),
-      path.resolve(process.cwd(), 'data', 'cost_of_living_2026.json'),
     ];
 
     for (const dataPath of paths) {

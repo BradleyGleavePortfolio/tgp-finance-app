@@ -40,6 +40,9 @@ RUN npx prisma generate
 # Copy built app from builder
 COPY --from=builder /app/dist ./dist
 
+# Copy data files for cost of living service
+COPY --from=builder /app/data ./data
+
 # Expose port
 EXPOSE 3000
 

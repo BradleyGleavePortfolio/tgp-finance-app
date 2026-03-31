@@ -11,12 +11,12 @@ import { useProfileStore } from '../src/stores/profileStore';
 
 export default function FutureLetterScreen() {
   const router = useRouter();
-  const { profile } = useAuthStore();
+  const { user, profile } = useAuthStore();
   const { updateProfile, isLoading } = useProfileStore();
   const [editing, setEditing] = useState(false);
   const [letter, setLetter] = useState(profile?.future_self_letter || '');
 
-  const accountCreated = profile?.updated_at;
+  const accountCreated = user?.created_at;
   const daysSinceCreation = accountCreated
     ? Math.floor((Date.now() - new Date(accountCreated).getTime()) / (1000 * 60 * 60 * 24))
     : 0;
