@@ -166,23 +166,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       await authApi.register(dto);
-      // Email is auto-confirmed — log in immediately with the new credentials
-      const { data: loginData } = await authApi.login(dto.email, dto.password);
-      const token = loginData?.access_token || loginData?.token || '';
-      if (!token) {
-        throw new Error('No token received after registration');
-      }
-      await AsyncStorage.setItem('auth_token', token);
-      set({ token });
-
-      const { data: raw } = await authApi.me();
-      const { user, profile, onboardingComplete } = extractMe(raw);
+      // Save pending verification state — do NOT try to login yet
       set({
-        user,
-        profile,
-        hasCompletedOnboarding: onboardingComplete,
-        isAuthenticated: true,
-        pendingVerification: null,
+        pendingVerification: { email: dto.email, password: dto.password },
         isLoading: false,
       });
     } catch (error: any) {

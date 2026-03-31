@@ -51,8 +51,8 @@ export default function RegisterScreen() {
     if (!validate()) return;
     try {
       await register({ name, email, password, phone: phone || undefined, referral_code: referral || undefined });
-      // Email is auto-confirmed and user is auto-logged in — go straight to role selection
-      router.replace('/(auth)/role-select');
+      // Navigate to email verification screen
+      router.replace('/(auth)/verify-email');
     } catch {}
   };
 

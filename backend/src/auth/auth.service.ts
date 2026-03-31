@@ -54,7 +54,7 @@ export class AuthService {
     let { data: authData, error: authError } = await this.supabase.auth.admin.createUser({
       email: dto.email,
       password: dto.password,
-      email_confirm: true,
+      email_confirm: false,
       user_metadata: { name: dto.name },
     });
 
@@ -72,7 +72,7 @@ export class AuthService {
         const retry = await this.supabase.auth.admin.createUser({
           email: dto.email,
           password: dto.password,
-          email_confirm: true,
+          email_confirm: false,
           user_metadata: { name: dto.name },
         });
         authData = retry.data;
@@ -102,7 +102,7 @@ export class AuthService {
 
     return {
       user: { id: user.id, email: user.email, name: user.name },
-      message: 'Registration successful. You can now log in.',
+      message: 'Verification email sent. Please verify your email to continue.',
     };
   }
 
