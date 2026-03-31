@@ -16,7 +16,7 @@ import { useEODStore } from '../../src/stores/eodStore';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useNetWorthStore } from '../../src/stores/networthStore';
 import { DAILY_HABITS } from '../../src/utils/constants';
-import type { AccountSnapshot, HabitEntry } from '../../src/types';
+import type { AccountSnapshot } from '../../src/types';
 
 type Step = 'accounts' | 'mood' | 'notes' | 'habits' | 'result';
 
@@ -68,12 +68,12 @@ export default function EODScreen() {
 
   const handleSubmit = async () => {
     try {
-      const habitEntries: HabitEntry[] = DAILY_HABITS.map(h => ({ habit_key: h.key, completed: habits[h.key] || false }));
       const submission = await submitEOD({
+        submission_date: new Date().toISOString().slice(0, 10),
         account_snapshots: snapshots,
         mood,
         notes: notes || undefined,
-        habits: habitEntries,
+        habits_checked: DAILY_HABITS.filter(h => habits[h.key]).map(h => h.key),
       });
       setResult(submission);
       setStep('result');
