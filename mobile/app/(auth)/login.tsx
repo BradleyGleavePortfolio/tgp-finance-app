@@ -1,14 +1,14 @@
 // Login screen — email/password + Google Sign-In
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity,
+  View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Input } from '../../src/components/ui/Input';
 import { Button } from '../../src/components/ui/Button';
 import { Colors, Typography, Spacing } from '../../src/theme/finance';
 import { useAuthStore } from '../../src/stores/authStore';
-import { sendPasswordResetEmail } from '../../src/services/supabase';
+import { sendPasswordResetEmail, signInWithGoogle } from '../../src/services/supabase';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -17,6 +17,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [resetSent, setResetSent] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({ email: '', password: '' });
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const validate = () => {
     const errors = { email: '', password: '' };
@@ -35,6 +36,17 @@ export default function LoginScreen() {
       router.replace('/');
     } catch {
       // Error shown from store
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+    } catch (err: any) {
+      Alert.alert('Google Sign-In Failed', err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -122,8 +134,13 @@ export default function LoginScreen() {
           <View style={styles.dividerLine} />
         </View>
 
-        <TouchableOpacity style={styles.googleBtn} activeOpacity={0.8}>
-          <Text style={styles.googleText}>Continue with Google</Text>
+        <TouchableOpacity
+          style={[styles.googleBtn, googleLoading && { opacity: 0.6 }]}
+          activeOpacity={0.8}
+          onPress={handleGoogleSignIn}
+          disabled={googleLoading}
+        >
+          <Text style={styles.googleText}>{googleLoading ? 'Signing in...' : 'Continue with Google'}</Text>
         </TouchableOpacity>
 
         <View style={styles.signupRow}>

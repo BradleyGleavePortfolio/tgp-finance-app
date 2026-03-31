@@ -54,7 +54,9 @@ export const useEODStore = create<EodState>((set) => ({
     set({ isLoading: true, error: null });
     try {
       const { data } = await eodApi.submitToday(submissionData);
-      set({ todaySubmission: data.submission || data, isLoading: false });
+      const result = data.submission || data;
+      set({ todaySubmission: result, isLoading: false });
+      return result;
     } catch (error: any) {
       set({
         error: error.response?.data?.message || 'Failed to submit check-in',
