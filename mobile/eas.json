@@ -3,34 +3,25 @@
     "version": ">= 3.0.0"
   },
   "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal",
-      "node": "20.18.3",
+    "production": {
+      "distribution": "store",
       "android": {
-        "image": "sdk-51"
+        "buildType": "app-bundle"
       }
     },
     "preview": {
       "distribution": "internal",
-      "node": "20.18.3",
       "android": {
-        "image": "sdk-51",
         "buildType": "apk"
-      }
-    },
-    "production": {
-      "node": "20.18.3",
-      "android": {
-        "image": "sdk-51",
-        "buildType": "apk"
-      },
-      "ios": {
-        "autoIncrement": true
       }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "./pc-api-key.json",
+        "track": "production"
+      }
+    }
   }
 }
