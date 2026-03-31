@@ -160,27 +160,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   register: async (dto) => {
     set({ isLoading: true, error: null });
     try {
-      const { data } = await authApi.register(dto);
-      // Registration returns { user: { id, email, name }, message }
-      // User is NOT authenticated yet — they must verify email first
-      // Store the user info for the verify-email screen to display
-      // Also store credentials so we can attempt login to check verification status
-      if (data?.user) {
-        set({
-          user: {
-            id: data.user.id || '',
-            email: data.user.email || dto.email,
-            name: data.user.name || dto.name,
-          },
-          pendingVerification: { email: dto.email, password: dto.password },
-          isLoading: false,
-        });
-      } else {
-        set({
-          pendingVerification: { email: dto.email, password: dto.password },
-          isLoading: false,
-        });
+      await authApi.register(dto);
+      // Email is auto-confirmed — log in immediately with the new credentials
+      const { data: loginData } = await authApi.login(dto.email, dto.password);
+      const token = loginData?.access_token || loginData?.token || '';
+      if (!token) {
+        throw new Error('No token received after registration');
       }
+      await AsyncStorage.setItem('auth_token', token);
+      set({ token });
+
+      const { data: raw } = await authApi.me();
+      const { user, profile, onboardingComplete } = extractMe(raw);
+      set({
+        user,
+        profile,
+        hasCompletedOnboarding: onboardingComplete,
+        isAuthenticated: true,
+        pendingVerification: null,
+        isLoading: false,
+      });
     } catch (error: any) {
       const message =
         error.response?.data?.message ||
