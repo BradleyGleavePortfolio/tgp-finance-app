@@ -82,13 +82,13 @@ export default function EODScreen() {
     }
   };
 
-  if (step === 'result' && result) {
+  if (step === 'result') {
     return (
       <SubmissionResult
-        newNetWorth={result.net_worth_computed}
+        newNetWorth={result?.net_worth_computed ?? currentNetWorth ?? 0}
         previousNetWorth={previousNetWorth || 0}
-        streak={profile?.streak_days || 0}
-        aiInsight={result.ai_insight}
+        streak={result?.streak_days ?? profile?.streak_days ?? 0}
+        aiInsight={result?.ai_insight}
         onDismiss={() => router.back()}
       />
     );
