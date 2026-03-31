@@ -1,5 +1,6 @@
 import {
-  Controller, Get, Post, Body, Param, UseGuards, BadRequestException,
+  Controller, Get, Post, Body, Param, Query, UseGuards, BadRequestException,
+  DefaultValuePipe, ParseIntPipe,
 } from '@nestjs/common';
 import { CoachService } from './coach.service';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
@@ -15,13 +16,22 @@ export class CoachController {
   constructor(private readonly coachService: CoachService) {}
 
   @Get('students')
-  async getStudents(@CurrentUser() user: any) {
-    return this.coachService.getStudents(user.id);
+  async getStudents(@CurrentUser() user: any, @Query('search') search?: string) {
+    return this.coachService.getStudents(user.id, search);
   }
 
   @Get('students/:id')
   async getStudentDetail(@Param('id') id: string, @CurrentUser() user: any) {
     return this.coachService.getStudentDetail(user.id, id);
+  }
+
+  @Get('students/:id/detail')
+  async getStudentDetailWithHistory(
+    @Param('id') id: string,
+    @Query('days', new DefaultValuePipe(90), ParseIntPipe) days: number,
+    @CurrentUser() user: any,
+  ) {
+    return this.coachService.getStudentDetailWithHistory(user.id, id, days);
   }
 
   @Get('alerts')

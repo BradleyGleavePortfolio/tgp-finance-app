@@ -22,6 +22,7 @@ import { useNetWorthStore } from '../../src/stores/networthStore';
 import { usePriorityStore } from '../../src/stores/priorityStore';
 import { useMilestonesStore } from '../../src/stores/milestonesStore';
 import { useEODStore } from '../../src/stores/eodStore';
+import { NetWorthChart } from '../../src/components/charts/NetWorthChart';
 import { formatChange, getGreeting } from '../../src/utils/formatters';
 import { computeDTI, computeSavingsRate } from '../../src/utils/financial';
 
@@ -29,7 +30,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { user, profile } = useAuthStore();
   const { accounts, netWorth, totalDebt, dailyInterest, fetchAccounts, isLoading } = useAccountsStore();
-  const { currentNetWorth, previousNetWorth, fetchHistory } = useNetWorthStore();
+  const { history: nwHistory, currentNetWorth, previousNetWorth, fetchHistory } = useNetWorthStore();
   const { currentPriority, fetchCurrent } = usePriorityStore();
   const { pendingCelebration, dismissCelebration } = useMilestonesStore();
   const { todaySubmission, fetchToday } = useEODStore();
@@ -103,6 +104,13 @@ export default function HomeScreen() {
             {changeText}
           </Text>
         </View>
+
+        {/* Net Worth 90-Day Chart */}
+        {Array.isArray(nwHistory) && nwHistory.length > 0 && (
+          <View style={styles.section}>
+            <NetWorthChart history={nwHistory} height={180} showIndicator />
+          </View>
+        )}
 
         {/* Financial Vital Signs */}
         <View style={styles.section}>
