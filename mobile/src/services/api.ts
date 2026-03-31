@@ -121,7 +121,7 @@ export const milestonesApi = {
 // What-If API
 export const whatifApi = {
   run: (type: string, parameters: any) =>
-    api.post('/api/whatif/run', { type, parameters }),
+    api.post('/api/whatif/run', { scenario_type: type, parameters }),
   getSaved: () => api.get('/api/whatif/saved'),
   save: (scenario: any) => api.post('/api/whatif/save', scenario),
   delete: (id: string) => api.delete(`/api/whatif/${id}`),

@@ -66,6 +66,26 @@ export default function HomeScreen() {
   const monthlyDebts = safeAccounts.filter(a => a?.is_debt).reduce((s, a) => s + (Number(a?.minimum_payment) || 0), 0);
   const cashFlow = isFinite(monthlyIncome - monthlyDebts) ? monthlyIncome - monthlyDebts : 0;
 
+  // Compute Time to Freedom metrics from actual financial data
+  const totalDebtVal = safeAccounts.filter(a => a?.is_debt).reduce((s, a) => s + (Number(a?.balance) || 0), 0);
+  const debtFreeMonths = totalDebtVal > 0 && monthlyDebts > 0
+    ? Math.ceil(totalDebtVal / monthlyDebts)
+    : totalDebtVal <= 0 ? 0 : undefined;
+  const totalCash = safeAccounts
+    .filter(a => !a?.is_debt && ['checking', 'savings'].includes(a?.account_type))
+    .reduce((s, a) => s + (Number(a?.balance) || 0), 0);
+  const emergencyTarget = monthlyIncome > 0 ? monthlyIncome * 3 : 10000;
+  const emergencyGap = Math.max(0, emergencyTarget - totalCash);
+  const monthlySurplus = Math.max(0, cashFlow - monthlyDebts);
+  const emergencyFundMonths = emergencyGap <= 0 ? 0
+    : monthlySurplus > 0 ? Math.ceil(emergencyGap / monthlySurplus) : undefined;
+  const dreamCost = isFinite(profile?.dream_lifestyle_cost_mo as number) ? (profile?.dream_lifestyle_cost_mo || 5000) : 5000;
+  const fiNumber = dreamCost * 12 / 0.04;
+  const fiGap = Math.max(0, fiNumber - Math.max(0, displayNetWorth));
+  const annualSavings = monthlySurplus * 12;
+  const dreamLifestyleMonths = fiGap <= 0 ? 0
+    : annualSavings > 0 ? Math.ceil(fiGap / annualSavings * 12) : undefined;
+
   if (isLoading && safeAccounts.length === 0) {
     return <LoadingSpinner fullScreen text="Loading your command center..." />;
   }
@@ -125,7 +145,9 @@ export default function HomeScreen() {
         {/* Time to Freedom */}
         <View style={styles.section}>
           <TimeToFreedom
-            debtFreeMonths={currentPriority?.index === 1 ? currentPriority.estimatedCompletionDate ? 12 : undefined : undefined}
+            debtFreeMonths={debtFreeMonths}
+            emergencyFundMonths={emergencyFundMonths}
+            dreamLifestyleMonths={dreamLifestyleMonths}
           />
         </View>
 
@@ -133,7 +155,7 @@ export default function HomeScreen() {
         <View style={styles.section}>
           <PriorityCard
             priority={currentPriority}
-            onNextStep={() => router.push('/whatif/index')}
+            onNextStep={() => router.push('/whatif')}
             onViewAll={() => router.push('/(tabs)/goals')}
           />
         </View>
@@ -152,8 +174,8 @@ export default function HomeScreen() {
         {/* Quick Actions */}
         <View style={styles.section}>
           <QuickActions
-            onEOD={() => router.push('/eod/index')}
-            onWhatIf={() => router.push('/whatif/index')}
+            onEOD={() => router.push('/eod')}
+            onWhatIf={() => router.push('/whatif')}
             onAddAccount={() => router.push('/accounts/add')}
             onAICoach={() => router.push('/(tabs)/coach')}
           />

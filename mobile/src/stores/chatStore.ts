@@ -65,11 +65,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
         isLoading: false,
       }));
     } catch (error: any) {
-      const errorMsg =
+      const rawError =
         error.response?.data?.error ||
         error.response?.data?.message ||
         error.message ||
         'Something went wrong. Try again.';
+      // Never show raw HTTP exception class names to the user
+      const errorMsg = rawError.includes('Exception') || rawError.includes('exception')
+        ? 'AI service is temporarily unavailable. Please try again in a moment.'
+        : rawError;
 
       // Add an error message as an assistant response so user sees it in chat
       const errorBubble: ChatMessage = {

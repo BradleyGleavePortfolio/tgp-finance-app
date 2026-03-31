@@ -34,7 +34,7 @@ export default function WhatIfCompare() {
             title="Need at least 2 scenarios"
             description="Save at least 2 What-If scenarios to compare them side by side."
             actionText="Run a Scenario"
-            onAction={() => router.push('/whatif/index')}
+            onAction={() => router.push('/whatif')}
           />
         ) : (
           <View>
