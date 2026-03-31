@@ -151,8 +151,14 @@ export default function WhatIfScenario() {
               {(type === 'extra_debt_payment' || type === 'pay_off_debt_early') && (
                 <NumberInput label="Extra Monthly Payment" value={String(params.extra_monthly || '')} onChangeValue={(v, n) => setParams({ ...params, extra_monthly: n })} placeholder="200" />
               )}
-              {(type === 'income_increase' || type === 'salary_negotiation') && (
+              {(type === 'income_increase') && (
                 <NumberInput label="New Monthly Gross Income" value={String(params.new_monthly_income || '')} onChangeValue={(v, n) => setParams({ ...params, new_monthly_income: n })} placeholder={String(Math.round(monthlyIncome * 1.2))} />
+              )}
+              {(type === 'salary_negotiation') && (
+                <>
+                  <NumberInput label="Target Annual Salary" value={String(params.target_annual || '')} onChangeValue={(v, n) => setParams({ ...params, target_annual: n })} placeholder={String(Math.round(monthlyIncome * 12 * 1.2))} />
+                  <NumberInput label="Probability (1=likely, 2=possible, 3=longshot)" value={String(params.probability || '')} onChangeValue={(v, n) => setParams({ ...params, probability: n })} placeholder="2" />
+                </>
               )}
               {type === 'invest_lump_sum' && (
                 <>
@@ -161,14 +167,31 @@ export default function WhatIfScenario() {
                 </>
               )}
               {(type === 'cut_expense') && (
-                <NumberInput label="Monthly Expense to Cut" value={String(params.monthly_expense || '')} onChangeValue={(v, n) => setParams({ ...params, monthly_expense: n })} placeholder="180" />
+                <NumberInput label="Monthly Expense to Cut" value={String(params.monthly_amount || '')} onChangeValue={(v, n) => setParams({ ...params, monthly_amount: n })} placeholder="180" />
               )}
               {(type === 'retire_early') && (
                 <NumberInput label="Target Savings Rate (%)" value={String(params.savings_rate || '')} onChangeValue={(v, n) => setParams({ ...params, savings_rate: n })} prefix="" suffix="%" placeholder="25" />
               )}
-              {/* Generic fallback inputs for other scenario types */}
-              {!['extra_debt_payment', 'pay_off_debt_early', 'income_increase', 'salary_negotiation', 'invest_lump_sum', 'cut_expense', 'retire_early'].includes(type) && (
-                <NumberInput label="Primary Input" value={String(params.value || '')} onChangeValue={(v, n) => setParams({ ...params, value: n })} placeholder="Enter amount" />
+              {(type === 'relocate_country') && (
+                <NumberInput label="Target City or Country" value={String(params.city || '')} onChangeValue={(v, n) => setParams({ ...params, city: n })} placeholder="Medellin" />
+              )}
+              {(type === 'relocate_city') && (
+                <NumberInput label="Target US State" value={String(params.to_state || '')} onChangeValue={(v, n) => setParams({ ...params, to_state: n })} placeholder="Texas" />
+              )}
+              {(type === 'sell_asset') && (
+                <NumberInput label="Lump Sum to Apply to Debt" value={String(params.sale_price || '')} onChangeValue={(v, n) => setParams({ ...params, sale_price: n })} placeholder="5000" />
+              )}
+              {(type === 'start_business') && (
+                <>
+                  <NumberInput label="Startup Cost" value={String(params.startup_cost || '')} onChangeValue={(v, n) => setParams({ ...params, startup_cost: n })} placeholder="5000" />
+                  <NumberInput label="Monthly Revenue (Realistic)" value={String(params.monthly_revenue_realistic || '')} onChangeValue={(v, n) => setParams({ ...params, monthly_revenue_realistic: n })} placeholder="2000" />
+                </>
+              )}
+              {(type === 'tax_optimization') && (
+                <>
+                  <NumberInput label="401k Annual Contribution" value={String(params.k401_contribution || '')} onChangeValue={(v, n) => setParams({ ...params, k401_contribution: n })} placeholder="23500" />
+                  <NumberInput label="IRA Annual Contribution" value={String(params.ira_contribution || '')} onChangeValue={(v, n) => setParams({ ...params, ira_contribution: n })} placeholder="7000" />
+                </>
               )}
 
               <Button title={isRunning ? 'Calculating...' : 'Run Scenario'} onPress={runLocal} loading={isRunning} variant="primary" fullWidth size="lg" style={styles.runBtn} />

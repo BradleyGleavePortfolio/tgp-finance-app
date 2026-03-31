@@ -40,17 +40,18 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
   },
   chip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.base,
+    paddingVertical: Spacing.md,
     backgroundColor: Colors.cardSurfaceNavy,
-    borderRadius: BorderRadius.full,
+    borderRadius: BorderRadius.lg,
     borderWidth: 1,
     borderColor: Colors.graphiteBorder,
+    minHeight: 40,
+    justifyContent: 'center' as const,
   },
   chipText: {
     fontFamily: 'Inter_400Regular',
     fontSize: Typography.bodySmall,
     color: Colors.frostWhite,
-    whiteSpace: 'nowrap',
   },
 });
