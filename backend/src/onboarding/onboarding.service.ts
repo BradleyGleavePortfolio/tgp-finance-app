@@ -10,6 +10,7 @@ export class OnboardingService {
     const riskTolerance = this.mapRiskTolerance(answers.risk_tolerance);
     const goalTimelineMonths = this.mapInvestmentHorizon(answers.investment_horizon);
     const annualIncomeGross = this.mapIncomeRange(answers.income_range);
+    const monthlyIncomeGross = Math.round(annualIncomeGross / 12);
 
     await this.prisma.financialProfile.upsert({
       where: { user_id: userId },
@@ -17,6 +18,7 @@ export class OnboardingService {
         risk_tolerance: riskTolerance,
         primary_goal: answers.financial_goal,
         annual_income_gross: annualIncomeGross,
+        monthly_income_gross: monthlyIncomeGross,
         goal_timeline_months: goalTimelineMonths,
         onboarding_complete: true,
         updated_at: new Date(),
@@ -26,6 +28,7 @@ export class OnboardingService {
         risk_tolerance: riskTolerance,
         primary_goal: answers.financial_goal,
         annual_income_gross: annualIncomeGross,
+        monthly_income_gross: monthlyIncomeGross,
         goal_timeline_months: goalTimelineMonths,
         onboarding_complete: true,
       },

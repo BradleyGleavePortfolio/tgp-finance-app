@@ -28,6 +28,11 @@ export class ProfileService {
       data.annual_income_gross = data.monthly_income_gross * 12;
     }
 
+    // Compute monthly from annual if only annual provided
+    if (data.annual_income_gross && !data.monthly_income_gross) {
+      data.monthly_income_gross = Math.round(data.annual_income_gross / 12);
+    }
+
     const profile = await this.prisma.financialProfile.upsert({
       where: { user_id: userId },
       update: { ...data, updated_at: new Date() },

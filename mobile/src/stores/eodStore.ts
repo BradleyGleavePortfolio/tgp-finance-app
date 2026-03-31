@@ -3,10 +3,10 @@ import { eodApi } from '../services/api';
 
 interface EodSubmission {
   id: string;
-  date: string;
+  submission_date: string;
   mood: number;
-  accomplishments: string[];
-  challenges: string[];
+  account_snapshots: { account_id: string; balance: number }[];
+  habits_checked: string[];
   notes?: string;
   createdAt: string;
 }
@@ -18,7 +18,13 @@ interface EodState {
   error: string | null;
 
   fetchToday: () => Promise<void>;
-  submitToday: (data: Omit<EodSubmission, 'id' | 'date' | 'createdAt'>) => Promise<void>;
+  submitToday: (data: {
+    submission_date: string;
+    account_snapshots: { account_id: string; balance: number }[];
+    mood?: number;
+    notes?: string;
+    habits_checked: string[];
+  }) => Promise<any>;
   fetchHistory: (limit?: number) => Promise<void>;
 }
 
