@@ -24,7 +24,7 @@ export const usePriorityStore = create<PriorityState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const { data } = await priorityApi.getCurrent();
-      const raw = data.priority || data;
+      const raw = data.current || data.priority || data;
       const priority: Priority = {
         index: raw.index ?? 0,
         title: raw.title || '',

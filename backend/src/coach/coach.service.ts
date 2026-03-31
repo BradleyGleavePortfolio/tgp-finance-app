@@ -32,17 +32,27 @@ export class CoachService {
       orderBy: { created_at: 'desc' },
     });
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const todayUTC = new Date().toISOString().split('T')[0];
 
-    return students.map((s) => ({
-      id: s.id,
-      email: s.email,
-      name: s.name,
-      created_at: s.created_at,
-      profile: s.profile,
-      eod_count: s._count.eod_submissions,
-    }));
+    return students.map((s) => {
+      const profile = s.profile;
+      const lastEodDate = profile?.last_eod_date ?? null;
+      const submittedToday = lastEodDate != null && String(lastEodDate).startsWith(todayUTC);
+
+      return {
+        user: { id: s.id, email: s.email, name: s.name },
+        profile: {
+          streak_days: profile?.streak_days ?? 0,
+          wealth_velocity_score: profile?.wealth_velocity_score ?? 0,
+          net_worth_snapshot: profile?.net_worth_snapshot ?? 0,
+          current_priority_index: profile?.current_priority_index ?? 0,
+          last_eod_date: lastEodDate,
+        },
+        submitted_today: submittedToday,
+        last_submission: lastEodDate ? String(lastEodDate) : null,
+        red_flags: [],
+      };
+    });
   }
 
   async getStudentDetail(coachId: string, studentId: string) {
