@@ -1,9 +1,10 @@
-// Root layout with auth guard, font loading, and navigation setup
+// Root layout with auth guard, font loading, deep link handling, and navigation setup
 import React, { useEffect } from 'react';
 import { View, Text } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
+import * as Linking from 'expo-linking';
 import {
   useFonts,
   Inter_400Regular,
@@ -55,11 +56,35 @@ export default function RootLayout() {
     JetBrainsMono_700Bold,
   });
 
-  const { initialize, isLoading } = useAuthStore();
+  const { initialize, isLoading, checkVerification, pendingVerification } = useAuthStore();
+  const router = useRouter();
 
   useEffect(() => {
     initialize().catch(console.log);
   }, []);
+
+  // Handle deep links (tgp-finance://auth/callback) from email verification
+  useEffect(() => {
+    const handleDeepLink = async (event: { url: string }) => {
+      const { url } = event;
+      if (url && url.includes('auth/callback') && pendingVerification) {
+        // User returned from verification email — trigger verification check
+        const verified = await checkVerification();
+        if (verified) {
+          router.replace('/(auth)/role-select');
+        }
+      }
+    };
+
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+
+    // Also check if the app was opened via a deep link (cold start)
+    Linking.getInitialURL().then((url) => {
+      if (url) handleDeepLink({ url });
+    });
+
+    return () => subscription.remove();
+  }, [pendingVerification]);
 
   useEffect(() => {
     if ((fontsLoaded || fontError) && !isLoading) {
