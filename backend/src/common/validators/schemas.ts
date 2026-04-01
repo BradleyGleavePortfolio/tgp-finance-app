@@ -202,6 +202,7 @@ export const SubmitQuizSchema = z.object({
     investment_horizon: z.string().min(1, 'Investment horizon is required'),
     financial_goal: z.string().min(1, 'Financial goal is required'),
     income_range: z.string().min(1, 'Income range is required'),
+    monthly_take_home: z.string().optional(),
   }),
 });
 

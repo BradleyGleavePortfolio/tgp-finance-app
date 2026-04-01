@@ -66,10 +66,37 @@ export class NetWorthService {
     // Debt to income ratio (total monthly minimums / gross monthly income)
     const dti_ratio = monthly_income > 0 ? monthly_minimums / monthly_income : 0;
 
-    // Savings rate (take_home - expenses) / take_home
-    const savings_rate = monthly_income > 0
-      ? Math.max(0, (monthly_income - estimated_expenses) / monthly_income)
-      : 0;
+    // Compute REAL savings rate from savings + investment account growth (not checking)
+    // Checking accounts fluctuate with daily spending — savings/investment growth = actual saving
+    let savings_rate = 0;
+    if (monthly_income > 0) {
+      const savingsAccounts = accounts.filter(
+        (a) => !a.is_debt && ['savings', 'investment', 'retirement'].includes(a.account_type),
+      );
+
+      if (savingsAccounts.length > 0) {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const savingsAccountIds = savingsAccounts.map((a) => a.id);
+
+        // Get earliest balance log per savings/investment account in last 30 days
+        const oldBalances = await this.prisma.accountBalanceLog.findMany({
+          where: {
+            account_id: { in: savingsAccountIds },
+            date: { gte: thirtyDaysAgo },
+          },
+          orderBy: { date: 'asc' },
+          distinct: ['account_id'],
+          select: { account_id: true, balance: true },
+        });
+
+        const currentSavingsTotal = savingsAccounts.reduce((s, a) => s + a.balance, 0);
+        const oldSavingsTotal = oldBalances.reduce((s, b) => s + b.balance, 0);
+        const savingsGrowth = currentSavingsTotal - oldSavingsTotal;
+
+        savings_rate = Math.max(0, Math.min(1, savingsGrowth / monthly_income));
+      }
+    }
 
     // Interest bleed per day
     const interest_bleed_daily = accounts
