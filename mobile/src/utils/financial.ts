@@ -278,13 +278,16 @@ export function computeDTI(accounts: FinancialAccount[], monthlyGrossIncome: num
 }
 
 /**
- * Savings Rate = (take_home - estimated expenses) / take_home
- * Estimate expenses as 70% of take-home (conservative)
+ * Savings Rate = (take_home - observed expenses) / take_home
+ * Returns 0 if no observed expense data is available.
  */
 export function computeSavingsRate(takeHomeMonthly: number, observedExpenses?: number): number {
   if (!takeHomeMonthly) return 0;
-  const expenses = observedExpenses ?? takeHomeMonthly * 0.7;
-  return Math.max(0, ((takeHomeMonthly - expenses) / takeHomeMonthly) * 100);
+  if (observedExpenses !== undefined) {
+    return Math.max(0, ((takeHomeMonthly - observedExpenses) / takeHomeMonthly) * 100);
+  }
+  // No data yet — return 0 instead of fake estimate
+  return 0;
 }
 
 // ─── Tax Burden Estimator ─────────────────────────────────────────────────────
