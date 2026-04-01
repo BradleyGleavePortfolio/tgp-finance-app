@@ -15,7 +15,7 @@ Notifications.setNotificationHandler({
 
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
   if (!Device.isDevice) {
-    console.log('Push notifications require a physical device');
+    // Push notifications require a physical device
     return null;
   }
 
@@ -28,7 +28,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
   }
 
   if (finalStatus !== 'granted') {
-    console.log('Push notification permission denied');
+    // Push notification permission denied
     return null;
   }
 
@@ -52,7 +52,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     const token = (await Notifications.getExpoPushTokenAsync()).data;
     return token;
   } catch (error) {
-    console.log('Error getting push token:', error);
+    // Failed to get push token
     return null;
   }
 }
@@ -150,6 +150,6 @@ export async function registerPushToken(token: string): Promise<void> {
   try {
     await notificationsApi.updatePreferences({ expo_push_token: token });
   } catch (error) {
-    console.log('Error registering push token:', error);
+    // Failed to register push token
   }
 }

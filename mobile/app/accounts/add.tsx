@@ -1,6 +1,6 @@
 // Add account form
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Input } from '../../src/components/ui/Input';
@@ -54,7 +54,9 @@ export default function AddAccountScreen() {
         is_active: true,
       });
       router.back();
-    } catch {}
+    } catch {
+      Alert.alert('Error', 'Failed to add account. Please try again.');
+    }
   };
 
   return (

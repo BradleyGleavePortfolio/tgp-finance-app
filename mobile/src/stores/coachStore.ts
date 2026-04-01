@@ -93,7 +93,7 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
       const alerts = safeArray<CoachAlert>(data, 'alerts');
       set({ alerts });
     } catch {
-      // Silent failure
+      /* Non-critical — alerts will show empty */
     }
   },
 
@@ -103,7 +103,7 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
       const templates = safeArray<ProgramTemplate>(data, 'templates');
       set({ templates });
     } catch {
-      // Silent failure
+      /* Non-critical — templates will show empty */
     }
   },
 
