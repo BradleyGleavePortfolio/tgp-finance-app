@@ -66,21 +66,35 @@ export class NetWorthService {
     // Debt to income ratio (total monthly minimums / gross monthly income)
     const dti_ratio = monthly_income > 0 ? monthly_minimums / monthly_income : 0;
 
-    // Compute REAL savings rate from EOD history (cash change over 30 days)
+    // Compute REAL savings rate from savings + investment account growth (not checking)
+    // Checking accounts fluctuate with daily spending — savings/investment growth = actual saving
     let savings_rate = 0;
     if (monthly_income > 0) {
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const savingsAccounts = accounts.filter(
+        (a) => !a.is_debt && ['savings', 'investment', 'retirement'].includes(a.account_type),
+      );
 
-      const oldestEOD = await this.prisma.eODSubmission.findFirst({
-        where: { user_id: userId, submitted_at: { gte: thirtyDaysAgo } },
-        orderBy: { submission_date: 'asc' },
-        select: { total_cash_computed: true },
-      });
+      if (savingsAccounts.length > 0) {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const savingsAccountIds = savingsAccounts.map((a) => a.id);
 
-      if (oldestEOD) {
-        const cashChange = total_cash - (oldestEOD.total_cash_computed || 0);
-        savings_rate = Math.max(0, Math.min(100, (cashChange / monthly_income) * 100)) / 100;
+        // Get earliest balance log per savings/investment account in last 30 days
+        const oldBalances = await this.prisma.accountBalanceLog.findMany({
+          where: {
+            account_id: { in: savingsAccountIds },
+            date: { gte: thirtyDaysAgo },
+          },
+          orderBy: { date: 'asc' },
+          distinct: ['account_id'],
+          select: { account_id: true, balance: true },
+        });
+
+        const currentSavingsTotal = savingsAccounts.reduce((s, a) => s + a.balance, 0);
+        const oldSavingsTotal = oldBalances.reduce((s, b) => s + b.balance, 0);
+        const savingsGrowth = currentSavingsTotal - oldSavingsTotal;
+
+        savings_rate = Math.max(0, Math.min(1, savingsGrowth / monthly_income));
       }
     }
 
