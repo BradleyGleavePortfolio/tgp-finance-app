@@ -16,7 +16,9 @@ export default function RoleSelectScreen() {
     try {
       await selectRole('student');
       router.replace('/(onboarding)/quiz');
-    } catch {}
+    } catch {
+      Alert.alert('Error', 'Failed to select role. Please try again.');
+    }
   };
 
   const handleCoachCodeSubmit = async () => {

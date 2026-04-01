@@ -192,6 +192,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // Ignore logout API errors
     }
     await AsyncStorage.removeItem('auth_token');
+    await AsyncStorage.removeItem('quiz_answers');
     set({
       user: null,
       profile: null,

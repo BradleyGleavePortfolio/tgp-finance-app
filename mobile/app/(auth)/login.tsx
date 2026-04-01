@@ -8,7 +8,7 @@ import { Input } from '../../src/components/ui/Input';
 import { Button } from '../../src/components/ui/Button';
 import { Colors, Typography, Spacing } from '../../src/theme/finance';
 import { useAuthStore } from '../../src/stores/authStore';
-import { sendPasswordResetEmail, signInWithGoogle } from '../../src/services/supabase';
+import { sendPasswordResetEmail } from '../../src/services/supabase';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -60,7 +60,9 @@ export default function LoginScreen() {
     try {
       await sendPasswordResetEmail(email);
       setResetSent(true);
-    } catch {}
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Failed to send reset email. Please try again.');
+    }
   };
 
   return (
