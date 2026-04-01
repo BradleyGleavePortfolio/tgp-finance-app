@@ -21,7 +21,7 @@ export default function AccountDetailScreen() {
 
   useEffect(() => {
     if (id) {
-      getAccountHistory(id, 30).then(setHistory);
+      getAccountHistory(id, 30).then(setHistory).catch(() => {});
     }
   }, [id]);
 

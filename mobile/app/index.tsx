@@ -37,7 +37,7 @@ export default function Index() {
         router.replace('/(tabs)');
       }
     } catch (e) {
-      console.log('Navigation error:', e);
+      // Navigation error — non-critical
     }
   }, [isAuthenticated, isLoading, hasCompletedOnboarding, routerReady, quizDone, user?.role]);
 

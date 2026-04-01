@@ -60,7 +60,7 @@ export default function RootLayout() {
   const router = useRouter();
 
   useEffect(() => {
-    initialize().catch(console.log);
+    initialize().catch(() => {});
   }, []);
 
   // Handle deep links (tgp-finance://auth/callback) from email verification
@@ -81,14 +81,14 @@ export default function RootLayout() {
     // Also check if the app was opened via a deep link (cold start)
     Linking.getInitialURL().then((url) => {
       if (url) handleDeepLink({ url });
-    });
+    }).catch(() => {});
 
     return () => subscription.remove();
   }, [pendingVerification]);
 
   useEffect(() => {
     if ((fontsLoaded || fontError) && !isLoading) {
-      SplashScreen.hideAsync().catch(console.log);
+      SplashScreen.hideAsync().catch(() => {});
     }
   }, [fontsLoaded, fontError, isLoading]);
 
