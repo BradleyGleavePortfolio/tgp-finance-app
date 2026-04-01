@@ -41,13 +41,14 @@ const styles = StyleSheet.create({
   },
   chip: {
     paddingHorizontal: Spacing.base,
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.sm,
     backgroundColor: Colors.cardSurfaceNavy,
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.full,
     borderWidth: 1,
     borderColor: Colors.graphiteBorder,
-    minHeight: 40,
+    height: 40,
     justifyContent: 'center' as const,
+    alignSelf: 'center' as const,
   },
   chipText: {
     fontFamily: 'Inter_400Regular',

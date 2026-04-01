@@ -84,8 +84,12 @@ export function ChatPanel() {
         )}
       </ScrollView>
 
-      {/* Quick suggestions — only show when no messages */}
-      {messages.length === 0 && <QuickSuggestions onSelect={handleSuggestion} />}
+      {/* Quick suggestions — only show when no messages, constrained height */}
+      {messages.length === 0 && (
+        <View style={{ maxHeight: 60 }}>
+          <QuickSuggestions onSelect={handleSuggestion} />
+        </View>
+      )}
 
       {/* Input bar — clear separation, no overlap */}
       <View style={styles.inputBarContainer}>
