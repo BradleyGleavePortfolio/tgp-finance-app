@@ -66,10 +66,23 @@ export class NetWorthService {
     // Debt to income ratio (total monthly minimums / gross monthly income)
     const dti_ratio = monthly_income > 0 ? monthly_minimums / monthly_income : 0;
 
-    // Savings rate (take_home - expenses) / take_home
-    const savings_rate = monthly_income > 0
-      ? Math.max(0, (monthly_income - estimated_expenses) / monthly_income)
-      : 0;
+    // Compute REAL savings rate from EOD history (cash change over 30 days)
+    let savings_rate = 0;
+    if (monthly_income > 0) {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const oldestEOD = await this.prisma.eODSubmission.findFirst({
+        where: { user_id: userId, submitted_at: { gte: thirtyDaysAgo } },
+        orderBy: { submission_date: 'asc' },
+        select: { total_cash_computed: true },
+      });
+
+      if (oldestEOD) {
+        const cashChange = total_cash - (oldestEOD.total_cash_computed || 0);
+        savings_rate = Math.max(0, Math.min(100, (cashChange / monthly_income) * 100)) / 100;
+      }
+    }
 
     // Interest bleed per day
     const interest_bleed_daily = accounts

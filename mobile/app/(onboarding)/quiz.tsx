@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { onboardingApi } from '../../src/services/api';
@@ -42,11 +42,16 @@ export default function QuizScreen() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showIncomeInput, setShowIncomeInput] = useState(false);
+  const [monthlyTakeHome, setMonthlyTakeHome] = useState('');
 
   const handleAnswer = (questionId: string, answer: string) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: answer }));
+    const updated = { ...answers, [questionId]: answer };
+    setAnswers(updated);
     if (currentQuestion < QUIZ_QUESTIONS.length - 1) {
       setCurrentQuestion((prev) => prev + 1);
+    } else if (Object.keys(updated).length === QUIZ_QUESTIONS.length) {
+      setShowIncomeInput(true);
     }
   };
 
@@ -54,8 +59,12 @@ export default function QuizScreen() {
     setIsSubmitting(true);
     setError(null);
     try {
-      await AsyncStorage.setItem('quiz_answers', JSON.stringify(answers));
-      await onboardingApi.submitQuiz(answers);
+      const finalAnswers = { ...answers };
+      if (monthlyTakeHome) {
+        finalAnswers.monthly_take_home = monthlyTakeHome;
+      }
+      await AsyncStorage.setItem('quiz_answers', JSON.stringify(finalAnswers));
+      await onboardingApi.submitQuiz(finalAnswers);
       await refreshUser();
       router.replace('/(tabs)');
     } catch (err: any) {
@@ -67,7 +76,6 @@ export default function QuizScreen() {
   };
 
   const question = QUIZ_QUESTIONS[currentQuestion];
-  const allAnswered = Object.keys(answers).length === QUIZ_QUESTIONS.length;
 
   return (
     <ScrollView style={styles.container}>
@@ -76,79 +84,104 @@ export default function QuizScreen() {
         <Text style={styles.subtitle}>Help us personalize your experience</Text>
       </View>
 
-      <Text style={styles.progress}>
-        Question {currentQuestion + 1} of {QUIZ_QUESTIONS.length}
-      </Text>
+      {!showIncomeInput ? (
+        <>
+          <Text style={styles.progress}>
+            Question {currentQuestion + 1} of {QUIZ_QUESTIONS.length}
+          </Text>
 
-      {/* Progress dots */}
-      <View style={styles.dotsRow}>
-        {QUIZ_QUESTIONS.map((_, i) => (
-          <View
-            key={i}
-            style={[
-              styles.dot,
-              i <= currentQuestion ? styles.dotActive : null,
-              answers[QUIZ_QUESTIONS[i].id] ? styles.dotCompleted : null,
-            ]}
-          />
-        ))}
-      </View>
+          {/* Progress dots */}
+          <View style={styles.dotsRow}>
+            {QUIZ_QUESTIONS.map((_, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.dot,
+                  i <= currentQuestion ? styles.dotActive : null,
+                  answers[QUIZ_QUESTIONS[i].id] ? styles.dotCompleted : null,
+                ]}
+              />
+            ))}
+          </View>
 
-      <View style={styles.questionContainer}>
-        <Text style={styles.question}>{question.question}</Text>
-        {question.options.map((option) => (
-          <TouchableOpacity
-            key={option}
-            style={[
-              styles.option,
-              answers[question.id] === option && styles.selectedOption,
-            ]}
-            onPress={() => handleAnswer(question.id, option)}
-          >
-            <Text
-              style={[
-                styles.optionText,
-                answers[question.id] === option && styles.selectedOptionText,
-              ]}
-            >
-              {option}
+          <View style={styles.questionContainer}>
+            <Text style={styles.question}>{question.question}</Text>
+            {question.options.map((option) => (
+              <TouchableOpacity
+                key={option}
+                style={[
+                  styles.option,
+                  answers[question.id] === option && styles.selectedOption,
+                ]}
+                onPress={() => handleAnswer(question.id, option)}
+              >
+                <Text
+                  style={[
+                    styles.optionText,
+                    answers[question.id] === option && styles.selectedOptionText,
+                  ]}
+                >
+                  {option}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View style={styles.navigation}>
+            {currentQuestion > 0 && (
+              <TouchableOpacity
+                style={styles.navButton}
+                onPress={() => setCurrentQuestion((prev) => prev - 1)}
+              >
+                <Text style={styles.navButtonText}>← Previous</Text>
+              </TouchableOpacity>
+            )}
+            <View style={{ flex: 1 }} />
+            {currentQuestion < QUIZ_QUESTIONS.length - 1 && answers[question.id] && (
+              <TouchableOpacity
+                style={styles.navButton}
+                onPress={() => setCurrentQuestion((prev) => prev + 1)}
+              >
+                <Text style={styles.navButtonText}>Next →</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </>
+      ) : (
+        <>
+          <View style={styles.questionContainer}>
+            <Text style={styles.question}>One more thing</Text>
+            <Text style={styles.incomeSubtitle}>
+              What's your monthly take-home pay? (after taxes)
             </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+            <TextInput
+              style={styles.incomeInput}
+              keyboardType="numeric"
+              placeholder="e.g. 4500"
+              placeholderTextColor={Colors.slateGray}
+              value={monthlyTakeHome}
+              onChangeText={setMonthlyTakeHome}
+            />
+            <TouchableOpacity
+              style={styles.skipLink}
+              onPress={handleSubmit}
+            >
+              <Text style={styles.skipText}>Skip</Text>
+            </TouchableOpacity>
+          </View>
 
-      <View style={styles.navigation}>
-        {currentQuestion > 0 && (
           <TouchableOpacity
-            style={styles.navButton}
-            onPress={() => setCurrentQuestion((prev) => prev - 1)}
+            style={[styles.submitButton, isSubmitting && styles.disabledButton]}
+            onPress={handleSubmit}
+            disabled={isSubmitting}
           >
-            <Text style={styles.navButtonText}>← Previous</Text>
+            {isSubmitting ? (
+              <ActivityIndicator color={Colors.backgroundDeepNavy} />
+            ) : (
+              <Text style={styles.submitButtonText}>Go to Command Center →</Text>
+            )}
           </TouchableOpacity>
-        )}
-        <View style={{ flex: 1 }} />
-        {currentQuestion < QUIZ_QUESTIONS.length - 1 && answers[question.id] && (
-          <TouchableOpacity
-            style={styles.navButton}
-            onPress={() => setCurrentQuestion((prev) => prev + 1)}
-          >
-            <Text style={styles.navButtonText}>Next →</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {allAnswered && (
-        <TouchableOpacity
-          style={[styles.submitButton, isSubmitting && styles.disabledButton]}
-          onPress={handleSubmit}
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? (
-            <ActivityIndicator color={Colors.backgroundDeepNavy} />
-          ) : (
-            <Text style={styles.submitButtonText}>Go to Command Center →</Text>
-          )}
-        </TouchableOpacity>
+        </>
       )}
 
       {error && <Text style={styles.error}>{error}</Text>}
@@ -259,6 +292,33 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_700Bold',
     color: Colors.backgroundDeepNavy,
     fontSize: Typography.titleSmall,
+  },
+  incomeSubtitle: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: Typography.bodyMedium,
+    color: Colors.slateGray,
+    marginBottom: Spacing.base,
+  },
+  incomeInput: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: Typography.titleSmall,
+    color: Colors.frostWhite,
+    backgroundColor: Colors.cardSurfaceNavy,
+    borderWidth: 1.5,
+    borderColor: Colors.graphiteBorder,
+    borderRadius: 12,
+    padding: Spacing.base,
+    marginBottom: Spacing.base,
+  },
+  skipLink: {
+    alignItems: 'center',
+    marginBottom: Spacing.xl,
+  },
+  skipText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: Typography.bodyMedium,
+    color: Colors.slateGray,
+    textDecorationLine: 'underline',
   },
   error: {
     fontFamily: 'Inter_400Regular',

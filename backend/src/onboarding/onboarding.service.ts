@@ -10,14 +10,22 @@ export class OnboardingService {
     const riskTolerance = this.mapRiskTolerance(answers.risk_tolerance);
     const goalTimelineMonths = this.mapInvestmentHorizon(answers.investment_horizon);
     const annualIncomeGross = this.mapIncomeRange(answers.income_range);
-    const monthlyIncomeGross = Math.round(annualIncomeGross / 12);
+
+    // Use exact income if provided, otherwise fall back to range estimate
+    const exactTakeHome = answers.monthly_take_home ? parseFloat(answers.monthly_take_home) : null;
+    const monthlyIncomeGross = exactTakeHome
+      ? Math.round(exactTakeHome / 0.75)
+      : Math.round(annualIncomeGross / 12);
+    const annualFinal = exactTakeHome
+      ? monthlyIncomeGross * 12
+      : annualIncomeGross;
 
     await this.prisma.financialProfile.upsert({
       where: { user_id: userId },
       update: {
         risk_tolerance: riskTolerance,
         primary_goal: answers.financial_goal,
-        annual_income_gross: annualIncomeGross,
+        annual_income_gross: annualFinal,
         monthly_income_gross: monthlyIncomeGross,
         goal_timeline_months: goalTimelineMonths,
         onboarding_complete: true,
@@ -27,7 +35,7 @@ export class OnboardingService {
         user_id: userId,
         risk_tolerance: riskTolerance,
         primary_goal: answers.financial_goal,
-        annual_income_gross: annualIncomeGross,
+        annual_income_gross: annualFinal,
         monthly_income_gross: monthlyIncomeGross,
         goal_timeline_months: goalTimelineMonths,
         onboarding_complete: true,
