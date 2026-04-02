@@ -80,7 +80,7 @@ export default function HomeScreen() {
   const emergencyFundMonths = emergencyGap <= 0 ? 0
     : monthlySurplus > 0 ? Math.ceil(emergencyGap / monthlySurplus) : undefined;
   const dreamCost = isFinite(profile?.dream_lifestyle_cost_mo as number) ? (profile?.dream_lifestyle_cost_mo || 5000) : 5000;
-  const fiNumber = dreamCost * 12 / 0.04;
+  const fiNumber = (dreamCost * 12 / 0.04) * 1.20; // +20% inflation buffer
   const fiGap = Math.max(0, fiNumber - Math.max(0, displayNetWorth));
   const annualSavings = monthlySurplus * 12;
   const dreamLifestyleMonths = fiGap <= 0 ? 0

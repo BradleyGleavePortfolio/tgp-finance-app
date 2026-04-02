@@ -1,5 +1,5 @@
 // Individual What-If scenario form + results
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,12 +19,17 @@ import type { ScenarioType } from '../../src/types';
 export default function WhatIfScenario() {
   const { type } = useLocalSearchParams<{ type: string }>();
   const router = useRouter();
-  const { runScenario, saveScenario, currentResult, isRunning } = useWhatIfStore();
+  const { runScenario, saveScenario, currentResult, isRunning, clearResult } = useWhatIfStore();
   const { accounts, totalDebt, netWorth } = useAccountsStore();
   const { profile } = useAuthStore();
 
   const [params, setParams] = useState<Record<string, number>>({});
   const [localResult, setLocalResult] = useState<any>(null);
+
+  useEffect(() => {
+    clearResult();
+    setLocalResult(null);
+  }, [type]);
 
   const scenarioConfig = WHATIF_SCENARIOS.find(s => s.type === type);
   if (!scenarioConfig) return null;
