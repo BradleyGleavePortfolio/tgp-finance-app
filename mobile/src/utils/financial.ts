@@ -204,7 +204,7 @@ export function projectNetWorth(
  * FI Number: (dream_lifestyle_cost_mo × 12) / 0.04
  */
 export function computeFINumber(dreamMonthlyExpenses: number): number {
-  return (dreamMonthlyExpenses * 12) / 0.04;
+  return (dreamMonthlyExpenses * 12 / 0.04) * 1.20; // 4% rule + 20% inflation buffer
 }
 
 /**
