@@ -35,6 +35,8 @@ const QUIZ_QUESTIONS: QuizQuestion[] = [
   },
 ];
 
+type OnboardingStep = 'quiz' | 'income' | 'dream_description' | 'dream_cost' | 'future_letter';
+
 export default function QuizScreen() {
   const router = useRouter();
   const refreshUser = useAuthStore((s) => s.refreshUser);
@@ -42,8 +44,11 @@ export default function QuizScreen() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showIncomeInput, setShowIncomeInput] = useState(false);
   const [monthlyTakeHome, setMonthlyTakeHome] = useState('');
+  const [step, setStep] = useState<OnboardingStep>('quiz');
+  const [dreamDescription, setDreamDescription] = useState('');
+  const [monthlyDreamCost, setMonthlyDreamCost] = useState('');
+  const [futureSelfLetter, setFutureSelfLetter] = useState('');
 
   const handleAnswer = (questionId: string, answer: string) => {
     const updated = { ...answers, [questionId]: answer };
@@ -51,7 +56,7 @@ export default function QuizScreen() {
     if (currentQuestion < QUIZ_QUESTIONS.length - 1) {
       setCurrentQuestion((prev) => prev + 1);
     } else if (Object.keys(updated).length === QUIZ_QUESTIONS.length) {
-      setShowIncomeInput(true);
+      setStep('income');
     }
   };
 
@@ -63,6 +68,9 @@ export default function QuizScreen() {
       if (monthlyTakeHome) {
         finalAnswers.monthly_take_home = monthlyTakeHome;
       }
+      finalAnswers.dream_description = dreamDescription || undefined as any;
+      finalAnswers.monthly_dream_cost = monthlyDreamCost || undefined as any;
+      finalAnswers.future_self_letter = futureSelfLetter || undefined as any;
       await AsyncStorage.setItem('quiz_answers', JSON.stringify(finalAnswers));
       await onboardingApi.submitQuiz(finalAnswers);
       await refreshUser();
@@ -75,6 +83,14 @@ export default function QuizScreen() {
     }
   };
 
+  const totalSteps = QUIZ_QUESTIONS.length + 4; // 4 MC + income + dream desc + dream cost + future letter
+  const currentStepNumber =
+    step === 'quiz' ? currentQuestion + 1 :
+    step === 'income' ? QUIZ_QUESTIONS.length + 1 :
+    step === 'dream_description' ? QUIZ_QUESTIONS.length + 2 :
+    step === 'dream_cost' ? QUIZ_QUESTIONS.length + 3 :
+    totalSteps;
+
   const question = QUIZ_QUESTIONS[currentQuestion];
 
   return (
@@ -84,26 +100,26 @@ export default function QuizScreen() {
         <Text style={styles.subtitle}>Help us personalize your experience</Text>
       </View>
 
-      {!showIncomeInput ? (
+      <Text style={styles.progress}>
+        Step {currentStepNumber} of {totalSteps}
+      </Text>
+
+      {/* Progress dots */}
+      <View style={styles.dotsRow}>
+        {Array.from({ length: totalSteps }).map((_, i) => (
+          <View
+            key={i}
+            style={[
+              styles.dot,
+              i < currentStepNumber ? styles.dotCompleted : null,
+              i === currentStepNumber - 1 ? styles.dotActive : null,
+            ]}
+          />
+        ))}
+      </View>
+
+      {step === 'quiz' && (
         <>
-          <Text style={styles.progress}>
-            Question {currentQuestion + 1} of {QUIZ_QUESTIONS.length}
-          </Text>
-
-          {/* Progress dots */}
-          <View style={styles.dotsRow}>
-            {QUIZ_QUESTIONS.map((_, i) => (
-              <View
-                key={i}
-                style={[
-                  styles.dot,
-                  i <= currentQuestion ? styles.dotActive : null,
-                  answers[QUIZ_QUESTIONS[i].id] ? styles.dotCompleted : null,
-                ]}
-              />
-            ))}
-          </View>
-
           <View style={styles.questionContainer}>
             <Text style={styles.question}>{question.question}</Text>
             {question.options.map((option) => (
@@ -147,7 +163,9 @@ export default function QuizScreen() {
             )}
           </View>
         </>
-      ) : (
+      )}
+
+      {step === 'income' && (
         <>
           <View style={styles.questionContainer}>
             <Text style={styles.question}>One more thing</Text>
@@ -161,6 +179,106 @@ export default function QuizScreen() {
               placeholderTextColor={Colors.slateGray}
               value={monthlyTakeHome}
               onChangeText={setMonthlyTakeHome}
+            />
+            <TouchableOpacity
+              style={styles.skipLink}
+              onPress={() => setStep('dream_description')}
+            >
+              <Text style={styles.skipText}>Skip</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={styles.submitButton}
+            onPress={() => setStep('dream_description')}
+          >
+            <Text style={styles.submitButtonText}>Continue →</Text>
+          </TouchableOpacity>
+        </>
+      )}
+
+      {step === 'dream_description' && (
+        <>
+          <View style={styles.questionContainer}>
+            <Text style={styles.question}>Describe your dream lifestyle</Text>
+            <Text style={styles.incomeSubtitle}>
+              In 3 sentences, paint the picture. Where do you live? What does your day look like?
+            </Text>
+            <TextInput
+              style={[styles.incomeInput, styles.multilineInput]}
+              multiline
+              numberOfLines={4}
+              placeholder="e.g. I live on the beach in Portugal, working 4 hours a day on projects I love. I travel monthly, eat well, and never check my bank account with worry..."
+              placeholderTextColor={Colors.slateGray}
+              value={dreamDescription}
+              onChangeText={setDreamDescription}
+              textAlignVertical="top"
+            />
+            <TouchableOpacity
+              style={styles.skipLink}
+              onPress={() => setStep('dream_cost')}
+            >
+              <Text style={styles.skipText}>Skip</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={styles.submitButton}
+            onPress={() => setStep('dream_cost')}
+          >
+            <Text style={styles.submitButtonText}>Continue →</Text>
+          </TouchableOpacity>
+        </>
+      )}
+
+      {step === 'dream_cost' && (
+        <>
+          <View style={styles.questionContainer}>
+            <Text style={styles.question}>What would that lifestyle cost per month?</Text>
+            <Text style={styles.incomeSubtitle}>
+              Be honest — this sets your real Financial Independence target
+            </Text>
+            <TextInput
+              style={styles.incomeInput}
+              keyboardType="numeric"
+              placeholder="e.g. 15000"
+              placeholderTextColor={Colors.slateGray}
+              value={monthlyDreamCost}
+              onChangeText={setMonthlyDreamCost}
+            />
+            <TouchableOpacity
+              style={styles.skipLink}
+              onPress={() => setStep('future_letter')}
+            >
+              <Text style={styles.skipText}>Skip</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={styles.submitButton}
+            onPress={() => setStep('future_letter')}
+          >
+            <Text style={styles.submitButtonText}>Continue →</Text>
+          </TouchableOpacity>
+        </>
+      )}
+
+      {step === 'future_letter' && (
+        <>
+          <View style={styles.questionContainer}>
+            <Text style={styles.question}>Write a letter to your future self</Text>
+            <Text style={styles.incomeSubtitle}>
+              You'll open this in 90 days. Tell future-you what you're feeling right now and what you hope to achieve.
+            </Text>
+            <TextInput
+              style={[styles.incomeInput, styles.letterInput]}
+              multiline
+              numberOfLines={6}
+              placeholder="Dear future me..."
+              placeholderTextColor={Colors.slateGray}
+              value={futureSelfLetter}
+              onChangeText={setFutureSelfLetter}
+              textAlignVertical="top"
             />
             <TouchableOpacity
               style={styles.skipLink}
@@ -178,7 +296,7 @@ export default function QuizScreen() {
             {isSubmitting ? (
               <ActivityIndicator color={Colors.backgroundDeepNavy} />
             ) : (
-              <Text style={styles.submitButtonText}>Go to Command Center →</Text>
+              <Text style={styles.submitButtonText}>Finish →</Text>
             )}
           </TouchableOpacity>
         </>
@@ -319,6 +437,14 @@ const styles = StyleSheet.create({
     fontSize: Typography.bodyMedium,
     color: Colors.slateGray,
     textDecorationLine: 'underline',
+  },
+  multilineInput: {
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  letterInput: {
+    minHeight: 150,
+    textAlignVertical: 'top',
   },
   error: {
     fontFamily: 'Inter_400Regular',

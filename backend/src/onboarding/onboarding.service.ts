@@ -20,6 +20,12 @@ export class OnboardingService {
       ? monthlyIncomeGross * 12
       : annualIncomeGross;
 
+    const dreamFields = {
+      dream_lifestyle_cost_mo: answers.monthly_dream_cost ? parseFloat(answers.monthly_dream_cost) : undefined,
+      dream_description: answers.dream_description || undefined,
+      future_self_letter: answers.future_self_letter || undefined,
+    };
+
     await this.prisma.financialProfile.upsert({
       where: { user_id: userId },
       update: {
@@ -30,6 +36,7 @@ export class OnboardingService {
         goal_timeline_months: goalTimelineMonths,
         onboarding_complete: true,
         updated_at: new Date(),
+        ...dreamFields,
       },
       create: {
         user_id: userId,
@@ -39,6 +46,7 @@ export class OnboardingService {
         monthly_income_gross: monthlyIncomeGross,
         goal_timeline_months: goalTimelineMonths,
         onboarding_complete: true,
+        ...dreamFields,
       },
     });
 

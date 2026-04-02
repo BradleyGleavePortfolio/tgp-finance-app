@@ -59,7 +59,11 @@ export default function FutureLetterScreen() {
 
         {editing ? (
           <View>
-            <Text style={styles.letterLabel}>Write your letter to future you:</Text>
+            {profile?.future_self_letter ? (
+              <Text style={styles.letterLabel}>Letter from Day 1</Text>
+            ) : (
+              <Text style={styles.letterLabel}>Write your letter to future you:</Text>
+            )}
             <TextInput
               value={letter}
               onChangeText={setLetter}
@@ -77,6 +81,9 @@ export default function FutureLetterScreen() {
           <View>
             {letter ? (
               <Card style={styles.letterCard}>
+                {profile?.future_self_letter && (
+                  <Text style={styles.day1Label}>Letter from Day 1</Text>
+                )}
                 <Text style={styles.letterFrom}>Dear Future Me,</Text>
                 <Text style={styles.letterText}>{letter}</Text>
               </Card>
@@ -111,6 +118,7 @@ const styles = StyleSheet.create({
   charCount: { fontFamily: 'Inter_400Regular', fontSize: Typography.microLabel, color: Colors.slateGray, textAlign: 'right', marginTop: 4 },
   saveBtn: { marginTop: Spacing.base },
   letterCard: { padding: Spacing.xl, gap: Spacing.md },
+  day1Label: { fontFamily: 'Inter_600SemiBold', fontSize: Typography.microLabel, color: Colors.slateGray, textTransform: 'uppercase', letterSpacing: 1 },
   letterFrom: { fontFamily: 'Inter_700Bold', fontSize: Typography.bodyMedium, color: Colors.accentGold },
   letterText: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodyMedium, color: Colors.frostWhite, lineHeight: 26 },
   emptyLetter: { alignItems: 'center', padding: Spacing.xxl, gap: Spacing.xl },
