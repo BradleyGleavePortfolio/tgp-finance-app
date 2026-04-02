@@ -44,6 +44,10 @@ export default function QuizScreen() {
   const [error, setError] = useState<string | null>(null);
   const [showIncomeInput, setShowIncomeInput] = useState(false);
   const [monthlyTakeHome, setMonthlyTakeHome] = useState('');
+  const [bonusStep, setBonusStep] = useState(0); // 0=income, 1=future letter, 2=dream description, 3=dream cost
+  const [futureSelfLetter, setFutureSelfLetter] = useState('');
+  const [dreamDescription, setDreamDescription] = useState('');
+  const [monthlyDreamCost, setMonthlyDreamCost] = useState('');
 
   const handleAnswer = (questionId: string, answer: string) => {
     const updated = { ...answers, [questionId]: answer };
@@ -63,6 +67,9 @@ export default function QuizScreen() {
       if (monthlyTakeHome) {
         finalAnswers.monthly_take_home = monthlyTakeHome;
       }
+      if (futureSelfLetter) finalAnswers.future_self_letter = futureSelfLetter;
+      if (dreamDescription) finalAnswers.dream_description = dreamDescription;
+      if (monthlyDreamCost) finalAnswers.monthly_dream_cost = monthlyDreamCost;
       await AsyncStorage.setItem('quiz_answers', JSON.stringify(finalAnswers));
       await onboardingApi.submitQuiz(finalAnswers);
       await refreshUser();
@@ -147,7 +154,7 @@ export default function QuizScreen() {
             )}
           </View>
         </>
-      ) : (
+      ) : bonusStep === 0 ? (
         <>
           <View style={styles.questionContainer}>
             <Text style={styles.question}>One more thing</Text>
@@ -161,6 +168,98 @@ export default function QuizScreen() {
               placeholderTextColor={Colors.slateGray}
               value={monthlyTakeHome}
               onChangeText={setMonthlyTakeHome}
+            />
+            <TouchableOpacity
+              style={styles.skipLink}
+              onPress={() => setBonusStep(1)}
+            >
+              <Text style={styles.skipText}>Skip</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={styles.submitButton}
+            onPress={() => setBonusStep(1)}
+          >
+            <Text style={styles.submitButtonText}>Continue →</Text>
+          </TouchableOpacity>
+        </>
+      ) : bonusStep === 1 ? (
+        <>
+          <View style={styles.questionContainer}>
+            <Text style={styles.question}>Write a letter to your future self</Text>
+            <Text style={styles.incomeSubtitle}>
+              You'll open this in 90 days. Tell future-you what you're feeling right now and what you hope to achieve.
+            </Text>
+            <TextInput
+              style={[styles.incomeInput, { minHeight: 150, textAlignVertical: 'top' }]}
+              multiline={true}
+              numberOfLines={6}
+              placeholder="Dear future me..."
+              placeholderTextColor={Colors.slateGray}
+              value={futureSelfLetter}
+              onChangeText={setFutureSelfLetter}
+            />
+            <TouchableOpacity
+              style={styles.skipLink}
+              onPress={() => setBonusStep(2)}
+            >
+              <Text style={styles.skipText}>Skip</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={styles.submitButton}
+            onPress={() => setBonusStep(2)}
+          >
+            <Text style={styles.submitButtonText}>Continue →</Text>
+          </TouchableOpacity>
+        </>
+      ) : bonusStep === 2 ? (
+        <>
+          <View style={styles.questionContainer}>
+            <Text style={styles.question}>Describe your dream lifestyle</Text>
+            <Text style={styles.incomeSubtitle}>
+              In 3 sentences, paint the picture. Where do you live? What does your day look like?
+            </Text>
+            <TextInput
+              style={[styles.incomeInput, { minHeight: 120, textAlignVertical: 'top' }]}
+              multiline={true}
+              numberOfLines={4}
+              placeholder="I live on the coast, work 4 hours a day on passion projects, travel monthly..."
+              placeholderTextColor={Colors.slateGray}
+              value={dreamDescription}
+              onChangeText={setDreamDescription}
+            />
+            <TouchableOpacity
+              style={styles.skipLink}
+              onPress={() => setBonusStep(3)}
+            >
+              <Text style={styles.skipText}>Skip</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={styles.submitButton}
+            onPress={() => setBonusStep(3)}
+          >
+            <Text style={styles.submitButtonText}>Continue →</Text>
+          </TouchableOpacity>
+        </>
+      ) : (
+        <>
+          <View style={styles.questionContainer}>
+            <Text style={styles.question}>What would that lifestyle cost per month?</Text>
+            <Text style={styles.incomeSubtitle}>
+              Be real — this sets your Financial Independence target.
+            </Text>
+            <TextInput
+              style={styles.incomeInput}
+              keyboardType="numeric"
+              placeholder="e.g. 15000"
+              placeholderTextColor={Colors.slateGray}
+              value={monthlyDreamCost}
+              onChangeText={setMonthlyDreamCost}
             />
             <TouchableOpacity
               style={styles.skipLink}
@@ -178,7 +277,7 @@ export default function QuizScreen() {
             {isSubmitting ? (
               <ActivityIndicator color={Colors.backgroundDeepNavy} />
             ) : (
-              <Text style={styles.submitButtonText}>Go to Command Center →</Text>
+              <Text style={styles.submitButtonText}>Finish Setup →</Text>
             )}
           </TouchableOpacity>
         </>
