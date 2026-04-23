@@ -1,7 +1,7 @@
 // Supabase client configuration for The Growth Project: Finance
 import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { secureStorage } from '../lib/secureStorage';
 
 // SECURITY: previously these fell back to a hardcoded Supabase project URL + anon key,
 // which meant every debug/preview build pointed at the production project by default.
@@ -18,21 +18,19 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
-    storage: AsyncStorage,
+    // Tokens go to the OS keychain via expo-secure-store on native, with
+    // AsyncStorage fallback on web (see lib/secureStorage.ts).
+    storage: secureStorage,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
   },
 });
 
-// GMAIL_EXTENSION_READY: extend scopes here for Gmail API access
-// Add scope: 'https://www.googleapis.com/auth/gmail.readonly' in signInWithGoogle call
-
 export async function signInWithGoogle(): Promise<void> {
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      // GMAIL_EXTENSION_READY: add 'https://www.googleapis.com/auth/gmail.readonly' to extend scopes
       scopes: 'email profile',
       redirectTo: 'tgp-finance://auth/callback',
     },

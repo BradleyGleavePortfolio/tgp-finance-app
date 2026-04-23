@@ -6,6 +6,7 @@ class TooManyRequestsException extends HttpException {
 }
 import OpenAI from 'openai';
 import { PrismaService } from '../prisma/prisma.service';
+import { toN } from '../common/money';
 
 // Rate limiting: track requests per user per hour
 const requestCounts = new Map<string, { count: number; resetAt: number }>();
@@ -313,17 +314,19 @@ export class AIService {
 
     if (!profile) return { profile: null, financials: null };
 
-    const totalAssets = accounts.filter((a) => !a.is_debt).reduce((s, a) => s + a.balance, 0);
-    const totalDebt = accounts.filter((a) => a.is_debt).reduce((s, a) => s + a.balance, 0);
+    // Money fields are Prisma.Decimal after the round-2 migration; collapse to
+    // Number with toN before arithmetic.
+    const totalAssets = accounts.filter((a) => !a.is_debt).reduce((s, a) => s + toN(a.balance), 0);
+    const totalDebt = accounts.filter((a) => a.is_debt).reduce((s, a) => s + toN(a.balance), 0);
     const totalCash = accounts
       .filter((a) => ['checking', 'savings'].includes(a.account_type) && !a.is_debt)
-      .reduce((s, a) => s + a.balance, 0);
+      .reduce((s, a) => s + toN(a.balance), 0);
     const monthlyMinPayments = accounts
       .filter((a) => a.is_debt && a.minimum_payment)
-      .reduce((s, a) => s + (a.minimum_payment || 0), 0);
+      .reduce((s, a) => s + toN(a.minimum_payment), 0);
 
     // Approximate take-home (22% effective tax rate)
-    const takeHomeMonthly = (profile.monthly_income_gross || 0) * 0.78;
+    const takeHomeMonthly = toN(profile.monthly_income_gross) * 0.78;
 
     return {
       profile: {
@@ -348,15 +351,15 @@ export class AIService {
         monthly_debt_cost: Math.round(monthlyMinPayments),
       },
       top_debts: accounts
-        .filter((a) => a.is_debt && a.balance > 0)
-        .sort((a, b) => b.balance - a.balance)
+        .filter((a) => a.is_debt && toN(a.balance) > 0)
+        .sort((a, b) => toN(b.balance) - toN(a.balance))
         .slice(0, 3)
-        .map((a) => ({ name: a.name, balance: a.balance, apr: a.apr_percent })),
+        .map((a) => ({ name: a.name, balance: toN(a.balance), apr: a.apr_percent })),
       top_assets: accounts
         .filter((a) => !a.is_debt)
-        .sort((a, b) => b.balance - a.balance)
+        .sort((a, b) => toN(b.balance) - toN(a.balance))
         .slice(0, 3)
-        .map((a) => ({ name: a.name, balance: a.balance, type: a.account_type })),
+        .map((a) => ({ name: a.name, balance: toN(a.balance), type: a.account_type })),
       recent_eod: recentEODs.map((e) => ({
         date: e.submission_date,
         net_worth: e.net_worth_computed,
@@ -376,10 +379,10 @@ export class AIService {
 
     const userContext = await this.buildUserContext(userId);
 
-    const prompt = `Based on this EOD submission data, generate ONE sentence of specific, actionable financial insight. 
-Net worth: $${submission.net_worth_computed.toLocaleString()}
-Total debt: $${submission.total_debt_computed.toLocaleString()}
-Total assets: $${submission.total_assets_computed.toLocaleString()}
+    const prompt = `Based on this EOD submission data, generate ONE sentence of specific, actionable financial insight.
+Net worth: $${toN(submission.net_worth_computed).toLocaleString()}
+Total debt: $${toN(submission.total_debt_computed).toLocaleString()}
+Total assets: $${toN(submission.total_assets_computed).toLocaleString()}
 User mood: ${submission.mood || 'not recorded'}/5
 User goal: ${userContext.profile?.primary_goal || 'get out of debt'}
 Keep it under 30 words. Be direct, specific, and forward-looking.`;
@@ -432,14 +435,17 @@ Keep it under 30 words. Be direct, specific, and forward-looking.`;
 
     const profile = await this.prisma.financialProfile.findUnique({ where: { user_id: userId } });
 
-    const avgNetWorth = submissions.reduce((s, e) => s + e.net_worth_computed, 0) / submissions.length;
-    const startNetWorth = submissions[0].net_worth_computed;
-    const endNetWorth = submissions[submissions.length - 1].net_worth_computed;
+    const avgNetWorth =
+      submissions.reduce((s, e) => s + toN(e.net_worth_computed), 0) / submissions.length;
+    const startNetWorth = toN(submissions[0].net_worth_computed);
+    const endNetWorth = toN(submissions[submissions.length - 1].net_worth_computed);
     const netWorthChange = endNetWorth - startNetWorth;
 
-    const avgDebt = submissions.reduce((s, e) => s + e.total_debt_computed, 0) / submissions.length;
-    const avgCash = submissions.reduce((s, e) => s + e.total_cash_computed, 0) / submissions.length;
-    const monthlyIncome = profile?.monthly_income_gross || 0;
+    const avgDebt =
+      submissions.reduce((s, e) => s + toN(e.total_debt_computed), 0) / submissions.length;
+    const avgCash =
+      submissions.reduce((s, e) => s + toN(e.total_cash_computed), 0) / submissions.length;
+    const monthlyIncome = toN(profile?.monthly_income_gross);
     const avgSavingsRate = monthlyIncome > 0 ? ((avgCash / monthlyIncome) * 100).toFixed(1) : '0';
 
     const prompt = `You are FP, a financial coach. Generate a 3-paragraph Spending DNA Report for this user's ${month} data.

@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { toN } from '../common/money';
 
 @Injectable()
 export class ProfileService {
@@ -47,17 +48,19 @@ export class ProfileService {
       where: { user_id: userId, is_active: true },
     });
 
+    // a.balance is Prisma.Decimal after the money-field migration; collapse to
+    // Number via toN for safe arithmetic (DECIMAL(14,2) fits in Number precision).
     const total_assets = accounts
       .filter((a) => !a.is_debt)
-      .reduce((sum, a) => sum + a.balance, 0);
+      .reduce((sum, a) => sum + toN(a.balance), 0);
 
     const total_debt = accounts
       .filter((a) => a.is_debt)
-      .reduce((sum, a) => sum + a.balance, 0);
+      .reduce((sum, a) => sum + toN(a.balance), 0);
 
     const total_cash = accounts
       .filter((a) => ['checking', 'savings'].includes(a.account_type) && !a.is_debt)
-      .reduce((sum, a) => sum + a.balance, 0);
+      .reduce((sum, a) => sum + toN(a.balance), 0);
 
     const net_worth_snapshot = total_assets - total_debt;
 

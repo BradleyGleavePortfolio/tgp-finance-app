@@ -11,23 +11,28 @@ import { Button } from '../../src/components/ui/Button';
 import { Colors, Typography, Spacing, BorderRadius } from '../../src/theme/finance';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useAccountsStore } from '../../src/stores/accountsStore';
+import { signOut } from '../../src/lib/signOut';
 import { formatCurrency } from '../../src/utils/formatters';
 import { computeFINumber } from '../../src/utils/financial';
 import { ScreenErrorBoundary } from '../../src/components/ui/ScreenErrorBoundary';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, profile, logout } = useAuthStore();
+  const { user, profile } = useAuthStore();
   const { accounts, netWorth, totalDebt, totalAssets } = useAccountsStore();
 
   const handleLogout = () => {
     Alert.alert('Log Out', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Log Out', style: 'destructive', onPress: async () => {
-          await logout();
+        text: 'Log Out',
+        style: 'destructive',
+        onPress: async () => {
+          // Central helper resets every Zustand store so the next user never
+          // sees the previous user's data on a shared device.
+          await signOut();
           router.replace('/(auth)/login');
-        }
+        },
       },
     ]);
   };

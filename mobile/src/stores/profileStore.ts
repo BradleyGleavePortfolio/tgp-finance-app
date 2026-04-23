@@ -61,12 +61,17 @@ interface ProfileStore {
   fetchProfile: () => Promise<void>;
   updateProfile: (data: Partial<FinancialProfile>) => Promise<void>;
   clearError: () => void;
+  reset: () => void;
 }
 
-export const useProfileStore = create<ProfileStore>((set) => ({
-  profile: null,
+const initialProfileState = {
+  profile: null as FinancialProfile | null,
   isLoading: false,
-  error: null,
+  error: null as string | null,
+};
+
+export const useProfileStore = create<ProfileStore>((set) => ({
+  ...initialProfileState,
 
   fetchProfile: async () => {
     set({ isLoading: true, error: null });
@@ -94,4 +99,5 @@ export const useProfileStore = create<ProfileStore>((set) => ({
   },
 
   clearError: () => set({ error: null }),
+  reset: () => set(initialProfileState),
 }));
