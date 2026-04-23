@@ -88,14 +88,19 @@ interface WhatIfStore {
   deleteScenario: (id: string) => Promise<void>;
   clearResult: () => void;
   clearError: () => void;
+  reset: () => void;
 }
 
-export const useWhatIfStore = create<WhatIfStore>((set, get) => ({
-  savedScenarios: [],
-  currentResult: null,
+const initialWhatIfState = {
+  savedScenarios: [] as WhatIfScenario[],
+  currentResult: null as ScenarioResult | null,
   isRunning: false,
   isLoading: false,
-  error: null,
+  error: null as string | null,
+};
+
+export const useWhatIfStore = create<WhatIfStore>((set, get) => ({
+  ...initialWhatIfState,
 
   runScenario: async (type, parameters) => {
     set({ isRunning: true, error: null, currentResult: null });
@@ -153,4 +158,5 @@ export const useWhatIfStore = create<WhatIfStore>((set, get) => ({
 
   clearResult: () => set({ currentResult: null }),
   clearError: () => set({ error: null }),
+  reset: () => set(initialWhatIfState),
 }));

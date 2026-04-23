@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { toN } from '../common/money';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -54,9 +55,11 @@ export class WhatIfService {
       this.prisma.financialAccount.findMany({ where: { user_id: userId, is_active: true } }),
     ]);
 
-    const monthlyIncome = profile?.monthly_income_gross || 0;
-    const totalDebt = accounts.filter((a) => a.is_debt).reduce((s, a) => s + a.balance, 0);
-    const totalAssets = accounts.filter((a) => !a.is_debt).reduce((s, a) => s + a.balance, 0);
+    // Prisma returns Decimal for money fields; toN collapses to Number which
+    // keeps arithmetic safe inside DECIMAL(14, 2) precision.
+    const monthlyIncome = toN(profile?.monthly_income_gross);
+    const totalDebt = accounts.filter((a) => a.is_debt).reduce((s, a) => s + toN(a.balance), 0);
+    const totalAssets = accounts.filter((a) => !a.is_debt).reduce((s, a) => s + toN(a.balance), 0);
     const netWorth = totalAssets - totalDebt;
 
     switch (scenarioType) {

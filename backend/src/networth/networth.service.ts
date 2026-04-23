@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { toN } from '../common/money';
 
 @Injectable()
 export class NetWorthService {
@@ -21,6 +22,8 @@ export class NetWorthService {
       },
     });
 
+    // Decimal fields are converted to Number by the DecimalToNumberInterceptor
+    // on the outbound response; we return them as-is here.
     return submissions.map((s) => ({
       date: s.submission_date,
       net_worth: s.net_worth_computed,
@@ -39,11 +42,11 @@ export class NetWorthService {
       where: { user_id: userId, is_active: true },
     });
 
-    const total_assets = accounts.filter((a) => !a.is_debt).reduce((s, a) => s + a.balance, 0);
-    const total_debt = accounts.filter((a) => a.is_debt).reduce((s, a) => s + a.balance, 0);
+    const total_assets = accounts.filter((a) => !a.is_debt).reduce((s, a) => s + toN(a.balance), 0);
+    const total_debt = accounts.filter((a) => a.is_debt).reduce((s, a) => s + toN(a.balance), 0);
     const total_cash = accounts
       .filter((a) => ['checking', 'savings'].includes(a.account_type) && !a.is_debt)
-      .reduce((s, a) => s + a.balance, 0);
+      .reduce((s, a) => s + toN(a.balance), 0);
 
     const net_worth = total_assets - total_debt;
 
@@ -55,10 +58,10 @@ export class NetWorthService {
     });
 
     // Compute monthly cash flow estimate
-    const monthly_income = profile?.monthly_income_gross || 0;
+    const monthly_income = toN(profile?.monthly_income_gross);
     const monthly_minimums = accounts
       .filter((a) => a.is_debt && a.minimum_payment)
-      .reduce((s, a) => s + (a.minimum_payment || 0), 0);
+      .reduce((s, a) => s + toN(a.minimum_payment), 0);
 
     const estimated_expenses = monthly_income * 0.6;
     const monthly_cash_flow = monthly_income - monthly_minimums - estimated_expenses;
@@ -66,12 +69,20 @@ export class NetWorthService {
     // Debt to income ratio (total monthly minimums / gross monthly income)
     const dti_ratio = monthly_income > 0 ? monthly_minimums / monthly_income : 0;
 
-    // Compute REAL savings rate from savings + investment account growth (not checking)
-    // Checking accounts fluctuate with daily spending — savings/investment growth = actual saving
+    // Compute REAL savings rate from savings + investment account growth (not checking).
+    // BUG FIX (round-2 stability PR): the previous filter used enum values
+    // ['savings', 'investment', 'retirement'] which did NOT match the real
+    // AccountType enum (savings / investment_brokerage / retirement_401k /
+    // retirement_ira). That meant savings_rate was effectively always 0 for
+    // users with retirement or brokerage accounts. See audit item H11.
     let savings_rate = 0;
     if (monthly_income > 0) {
       const savingsAccounts = accounts.filter(
-        (a) => !a.is_debt && ['savings', 'investment', 'retirement'].includes(a.account_type),
+        (a) =>
+          !a.is_debt &&
+          ['savings', 'investment_brokerage', 'retirement_401k', 'retirement_ira'].includes(
+            a.account_type,
+          ),
       );
 
       if (savingsAccounts.length > 0) {
@@ -90,8 +101,8 @@ export class NetWorthService {
           select: { account_id: true, balance: true },
         });
 
-        const currentSavingsTotal = savingsAccounts.reduce((s, a) => s + a.balance, 0);
-        const oldSavingsTotal = oldBalances.reduce((s, b) => s + b.balance, 0);
+        const currentSavingsTotal = savingsAccounts.reduce((s, a) => s + toN(a.balance), 0);
+        const oldSavingsTotal = oldBalances.reduce((s, b) => s + toN(b.balance), 0);
         const savingsGrowth = currentSavingsTotal - oldSavingsTotal;
 
         savings_rate = Math.max(0, Math.min(1, savingsGrowth / monthly_income));
@@ -101,11 +112,11 @@ export class NetWorthService {
     // Interest bleed per day
     const interest_bleed_daily = accounts
       .filter((a) => a.is_debt && a.apr_percent)
-      .reduce((s, a) => s + (a.balance * (a.apr_percent || 0)) / 100 / 365, 0);
+      .reduce((s, a) => s + (toN(a.balance) * (a.apr_percent || 0)) / 100 / 365, 0);
 
     return {
       net_worth,
-      previous_net_worth: latestEOD?.net_worth_computed ?? net_worth,
+      previous_net_worth: latestEOD ? toN(latestEOD.net_worth_computed) : net_worth,
       total_assets,
       total_debt,
       total_cash,

@@ -1,7 +1,7 @@
 import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import { secureStorage } from '../lib/secureStorage';
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl || 'https://tgp-finance-api.fly.dev';
 
@@ -17,7 +17,9 @@ const api = axios.create({
 // Request interceptor to attach auth token
 api.interceptors.request.use(
   async (config) => {
-    const token = await AsyncStorage.getItem('auth_token');
+    // Tokens live in SecureStore on native; the adapter transparently migrates
+    // any legacy AsyncStorage copy on first read.
+    const token = await secureStorage.getItem('auth_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -37,7 +39,7 @@ api.interceptors.response.use(
   },
   async (error) => {
     if (error.response?.status === 401) {
-      await AsyncStorage.removeItem('auth_token');
+      await secureStorage.removeItem('auth_token');
       // Navigation to login will be handled by auth state listener
     }
     return Promise.reject(error);

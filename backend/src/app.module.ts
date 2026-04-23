@@ -24,6 +24,7 @@ import { OnboardingModule } from './onboarding/onboarding.module';
 import { HealthController } from './health/health.controller';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import { DecimalToNumberInterceptor } from './common/interceptors/decimal-to-number.interceptor';
 import { TenantGuard } from './auth/guards/tenant.guard';
 
 @Module({
@@ -66,6 +67,12 @@ import { TenantGuard } from './auth/guards/tenant.guard';
   providers: [
     // Global exception filter — structured errors, no stack traces
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
+
+    // Decimal → Number conversion runs BEFORE the envelope wrap so the mobile
+    // client continues to receive numeric JSON for money fields after the
+    // Float→Decimal schema migration. Safe because money columns are capped at
+    // DECIMAL(14, 2) which fits inside JS Number precision.
+    { provide: APP_INTERCEPTOR, useClass: DecimalToNumberInterceptor },
 
     // Global response transform — wraps all responses in { data, success, timestamp }
     { provide: APP_INTERCEPTOR, useClass: TransformInterceptor },

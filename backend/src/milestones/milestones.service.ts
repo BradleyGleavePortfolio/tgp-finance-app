@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { toN } from '../common/money';
 
 // All 15 milestone definitions with unlock conditions
 export const MILESTONES = [
@@ -95,7 +96,7 @@ export class MilestonesService {
     });
 
     if (!earliest) {
-      return accounts.filter((a) => a.is_debt).reduce((s, a) => s + a.balance, 0);
+      return accounts.filter((a) => a.is_debt).reduce((s, a) => s + toN(a.balance), 0);
     }
 
     const onboardingLogs = await this.prisma.accountBalanceLog.findMany({
@@ -105,7 +106,7 @@ export class MilestonesService {
 
     return onboardingLogs
       .filter((l) => l.account.is_debt)
-      .reduce((s, l) => s + l.balance, 0);
+      .reduce((s, l) => s + toN(l.balance), 0);
   }
 
   async markCelebrated(userId: string, milestoneKey: string) {

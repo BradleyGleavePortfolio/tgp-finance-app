@@ -199,7 +199,7 @@ export class CoachService {
           student_name: student.name,
           alert_type: 'missed_checkin',
           message: `${student.name} hasn't submitted in ${daysSinceEOD ?? 'unknown'} days`,
-          severity: daysSinceEOD >= 7 ? 'high' : 'medium',
+          severity: daysSinceEOD !== null && daysSinceEOD >= 7 ? 'high' : 'medium',
           days_since_last: daysSinceEOD,
         });
       }

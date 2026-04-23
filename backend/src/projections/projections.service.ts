@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { toN } from '../common/money';
 
 function fvAnnuity(pmt: number, r: number, n: number): number {
   if (r === 0) return pmt * n;
@@ -39,13 +40,14 @@ export class ProjectionsService {
     const extraDebtPayment = params.extra_debt_payment ?? 0;
     const years = params.years ?? 10;
 
-    const currentNetWorth = (profile?.net_worth_snapshot ?? 0);
-    const monthlyIncome = profile?.monthly_income_gross ?? 0;
-    const totalDebt = accounts.filter((a) => a.is_debt).reduce((s, a) => s + a.balance, 0);
-    const totalAssets = accounts.filter((a) => !a.is_debt).reduce((s, a) => s + a.balance, 0);
+    // Money fields are Prisma.Decimal — collapse to Number for arithmetic.
+    const currentNetWorth = toN(profile?.net_worth_snapshot);
+    const monthlyIncome = toN(profile?.monthly_income_gross);
+    const totalDebt = accounts.filter((a) => a.is_debt).reduce((s, a) => s + toN(a.balance), 0);
+    const totalAssets = accounts.filter((a) => !a.is_debt).reduce((s, a) => s + toN(a.balance), 0);
     const totalMinPayments = accounts
       .filter((a) => a.is_debt && a.minimum_payment)
-      .reduce((s, a) => s + (a.minimum_payment || 0), 0);
+      .reduce((s, a) => s + toN(a.minimum_payment), 0);
 
     const r_invest = investmentReturnPct / 100 / 12;
     const r_income = incomeGrowthPct / 100 / 12;
@@ -90,7 +92,7 @@ export class ProjectionsService {
     const optimistic = this.computeScenario(currentNetWorth, monthlyIncome, totalDebt, 10, 30, 12, extraDebtPayment * 2, years);
 
     // FI Number
-    const dreamMonthly = profile?.dream_lifestyle_cost_mo || monthlyIncome;
+    const dreamMonthly = toN(profile?.dream_lifestyle_cost_mo) || monthlyIncome;
     const fiNumber = (dreamMonthly * 12) / 0.04;
 
     return {
