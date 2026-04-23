@@ -119,7 +119,13 @@ export default function LoginScreen() {
           placeholder="Your password"
         />
 
-        <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotRow}>
+        <TouchableOpacity
+          onPress={handleForgotPassword}
+          style={styles.forgotRow}
+          accessibilityRole="button"
+          accessibilityLabel="Forgot password"
+          accessibilityHint="Sends a password reset email to the address you entered above"
+        >
           <Text style={styles.forgotText}>Forgot password?</Text>
         </TouchableOpacity>
 
@@ -150,7 +156,11 @@ export default function LoginScreen() {
 
         <View style={styles.signupRow}>
           <Text style={styles.signupText}>Don't have an account? </Text>
-          <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
+          <TouchableOpacity
+            onPress={() => router.push('/(auth)/register')}
+            accessibilityRole="link"
+            accessibilityLabel="Create a new account"
+          >
             <Text style={styles.signupLink}>Create account →</Text>
           </TouchableOpacity>
         </View>

@@ -32,31 +32,11 @@ export function MonoText({
   );
 }
 
-// Hero net worth number — 48sp, Gold, center-aligned
-export function HeroNumber({
-  children,
-  style,
-}: {
-  children: React.ReactNode;
-  style?: TextStyle;
-}) {
-  return (
-    <Text style={[styles.hero, style]}>{children}</Text>
-  );
-}
-
 const styles = StyleSheet.create({
   mono: {
     fontFamily: 'JetBrainsMono_400Regular',
   },
   bold: {
     fontFamily: 'JetBrainsMono_700Bold',
-  },
-  hero: {
-    fontFamily: 'JetBrainsMono_700Bold',
-    fontSize: Typography.heroNumber,
-    color: Colors.accentGold,
-    textAlign: 'center',
-    lineHeight: Typography.lineHeightHero,
   },
 });

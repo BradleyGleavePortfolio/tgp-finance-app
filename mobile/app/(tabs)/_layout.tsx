@@ -33,6 +33,7 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: 'Home',
+          tabBarAccessibilityLabel: 'Home tab',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="grid-outline" size={size} color={color} />
           ),
@@ -42,6 +43,7 @@ export default function TabsLayout() {
         name="accounts"
         options={{
           title: 'Accounts',
+          tabBarAccessibilityLabel: 'Accounts tab',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="bar-chart-outline" size={size} color={color} />
           ),
@@ -51,6 +53,7 @@ export default function TabsLayout() {
         name="goals"
         options={{
           title: 'Goals',
+          tabBarAccessibilityLabel: 'Goals tab',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="flag-outline" size={size} color={color} />
           ),
@@ -60,6 +63,7 @@ export default function TabsLayout() {
         name="coach"
         options={{
           title: isCoach ? 'Coach' : 'AI Coach',
+          tabBarAccessibilityLabel: isCoach ? 'Coach dashboard tab' : 'AI Coach tab',
           tabBarIcon: ({ color, size }) => (
             <Ionicons
               name={isCoach ? 'people-outline' : 'chatbubble-ellipses-outline'}
@@ -73,6 +77,7 @@ export default function TabsLayout() {
         name="profile"
         options={{
           title: 'Profile',
+          tabBarAccessibilityLabel: 'Profile tab',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person-outline" size={size} color={color} />
           ),

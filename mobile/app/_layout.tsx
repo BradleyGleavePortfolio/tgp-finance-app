@@ -31,7 +31,10 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
     return { hasError: true, error: error.message };
   }
   componentDidCatch(error: Error) {
-    console.log('App Error:', error);
+    // Diagnostic: surface top-level app crashes to the JS console; __DEV__-gated to avoid noise in prod builds.
+    if (__DEV__) {
+      console.log('App Error:', error);
+    }
   }
   render() {
     if (this.state.hasError) {
@@ -60,6 +63,7 @@ export default function RootLayout() {
   const router = useRouter();
 
   useEffect(() => {
+    // Read-only init (hydrate session from storage). authStore surfaces failures via its own error state.
     initialize().catch(() => {});
   }, []);
 
@@ -79,6 +83,7 @@ export default function RootLayout() {
     const subscription = Linking.addEventListener('url', handleDeepLink);
 
     // Also check if the app was opened via a deep link (cold start)
+    // Read-only: failing to resolve a cold-start deep link just means the user lands on the default route.
     Linking.getInitialURL().then((url) => {
       if (url) handleDeepLink({ url });
     }).catch(() => {});
@@ -88,6 +93,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     if ((fontsLoaded || fontError) && !isLoading) {
+      // If the splash screen is already hidden / never mounted, the hide call throws harmlessly.
       SplashScreen.hideAsync().catch(() => {});
     }
   }, [fontsLoaded, fontError, isLoading]);

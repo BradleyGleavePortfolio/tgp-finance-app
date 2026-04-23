@@ -45,7 +45,12 @@ export default function AccountsScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>Accounts</Text>
-        <TouchableOpacity onPress={() => router.push('/accounts/add')} style={styles.addBtn}>
+        <TouchableOpacity
+          onPress={() => router.push('/accounts/add')}
+          style={styles.addBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Add account"
+        >
           <Text style={styles.addBtnText}>+ Add</Text>
         </TouchableOpacity>
       </View>
@@ -58,6 +63,9 @@ export default function AccountsScreen() {
             style={[styles.tab, activeTab === tab && styles.tabActive]}
             onPress={() => setActiveTab(tab)}
             activeOpacity={0.8}
+            accessibilityRole="tab"
+            accessibilityLabel={`${tab.charAt(0).toUpperCase() + tab.slice(1)} accounts`}
+            accessibilityState={{ selected: activeTab === tab }}
           >
             <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
               {tab.charAt(0).toUpperCase() + tab.slice(1)}

@@ -21,6 +21,7 @@ export default function AccountDetailScreen() {
 
   useEffect(() => {
     if (id) {
+      // Read-only fetch: if it fails the screen just shows no history rows — the account view itself still renders.
       getAccountHistory(id, 30).then(setHistory).catch(() => {});
     }
   }, [id]);
@@ -48,11 +49,16 @@ export default function AccountDetailScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back">
           <Text style={styles.back}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.title} numberOfLines={1}>{account.name}</Text>
-        <TouchableOpacity onPress={handleDelete}>
+        <TouchableOpacity
+          onPress={handleDelete}
+          accessibilityRole="button"
+          accessibilityLabel="Delete account"
+          accessibilityHint="Prompts for confirmation before deleting this account"
+        >
           <Text style={styles.deleteBtn}>Delete</Text>
         </TouchableOpacity>
       </View>

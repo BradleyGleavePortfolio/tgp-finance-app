@@ -132,20 +132,3 @@ export const Shadows = {
   },
 } as const;
 
-// Common card style used throughout the app
-export const cardStyle = {
-  backgroundColor: Colors.cardSurfaceNavy,
-  borderWidth: 1,
-  borderColor: Colors.graphiteBorder,
-  borderRadius: BorderRadius.lg,
-  ...Shadows.card,
-} as const;
-
-// Gold card style for priority/featured items
-export const goldCardStyle = {
-  backgroundColor: Colors.cardSurfaceNavy,
-  borderWidth: 1.5,
-  borderColor: Colors.accentGold,
-  borderRadius: BorderRadius.lg,
-  ...Shadows.glow,
-} as const;

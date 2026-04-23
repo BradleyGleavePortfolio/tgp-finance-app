@@ -19,7 +19,13 @@ function MetricCard({ label, value, trend, onPress }: VitalMetric) {
   const trendIcon = trend === 'up' ? 'trending-up' : trend === 'down' ? 'trending-down' : 'remove';
 
   return (
-    <TouchableOpacity onPress={onPress} style={styles.metricCard} activeOpacity={0.8}>
+    <TouchableOpacity
+      onPress={onPress}
+      style={styles.metricCard}
+      activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}: ${value}, trend ${trend}`}
+    >
       <Card style={styles.card}>
         <Text style={styles.label}>{label}</Text>
         <MonoText size={Typography.titleSmall} color={trendColor} bold style={styles.value}>

@@ -38,6 +38,9 @@ cp .env.example .env
 npm run install:all
 
 # 5. Run Prisma migrations (creates database tables)
+#    NOTE: migrations are now required — `backend/prisma/migrations/` is checked in.
+#    Use `npm run migrate` for dev (creates new migrations from schema changes) or
+#    `npm run migrate:deploy` in production (applies committed migrations only).
 npm run migrate
 
 # 6. Seed demo data
@@ -72,20 +75,30 @@ tgp-finance/
 
 Do **NOT** put `.env` inside `backend/` or `mobile/`. The backend is configured to read from the project root.
 
-## API Keys
+## Environment Variables
 
-Fill these in your `.env` file:
+Fill these in your root `.env` file. **Required** keys must be set or the backend will refuse to start.
 
-| Key | Where to get it |
-|-----|----------------|
-| `DATABASE_URL` | Supabase dashboard → Settings → Database → Connection String (URI format) |
-| `SUPABASE_URL` | Supabase dashboard → Settings → API → Project URL |
-| `SUPABASE_ANON_KEY` | Supabase dashboard → Settings → API → `anon` public key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase dashboard → Settings → API → `service_role` secret key |
-| `PERPLEXITY_API_KEY` | perplexity.ai → Settings → API → Generate Key |
-| `JWT_SECRET` | Generate with: `openssl rand -hex 32` (or any 32+ char random string) |
-| `GOOGLE_CLIENT_ID_*` | console.cloud.google.com → Credentials → OAuth 2.0 (optional for dev) |
-| `NUMBEO_API_KEY` | numbeo.com/api (optional; fallback data is bundled) |
+| Key | Required | Where to get it / notes |
+|-----|----------|-------------------------|
+| `DATABASE_URL` | ✅ | Supabase dashboard → Settings → Database → Connection String (URI format) |
+| `SUPABASE_URL` | ✅ | Supabase dashboard → Settings → API → Project URL |
+| `SUPABASE_ANON_KEY` | ✅ | Supabase dashboard → Settings → API → `anon` public key |
+| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Supabase dashboard → Settings → API → `service_role` secret key |
+| `JWT_SECRET` | ✅ | Generate with: `openssl rand -hex 32` (32+ char random string). No fallback. |
+| `CORS_ORIGINS` | ✅ (prod) | Comma-separated list of allowed origins (e.g. `https://app.example.com,https://staging.example.com`). Required in production. |
+| `COACH_ACCESS_CODE` | ✅ | Secret code coaches enter during role selection. Rotate from the `.env.example` placeholder before deploying. |
+| `PERPLEXITY_API_KEY` | ✅ | perplexity.ai → Settings → API → Generate Key |
+| `GOOGLE_CLIENT_ID_*` | optional | console.cloud.google.com → Credentials → OAuth 2.0 (off by default in the mobile app) |
+| `NUMBEO_API_KEY` | optional | numbeo.com/api (fallback data is bundled in `data/cost_of_living_2026.json`) |
+
+The **mobile** app also requires two public (`EXPO_PUBLIC_*`) env vars. Put them in `mobile/.env` or your Expo config:
+
+| Key | Required | Notes |
+|-----|----------|-------|
+| `EXPO_PUBLIC_SUPABASE_URL` | ✅ | Same project URL as the backend's `SUPABASE_URL`. No hardcoded fallback — the app throws on startup if missing. |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | ✅ | Supabase anon key. Safe to ship in the client, but required explicitly. |
+| `EXPO_PUBLIC_API_URL` | optional | Override for the backend base URL (defaults to `http://localhost:3000`). |
 
 ## Individual Commands
 
@@ -107,8 +120,9 @@ Fill these in your `.env` file:
 - Student: `student@tgp-finance.demo` / `Demo1234!`
 
 Coach role is granted by an administrator out-of-band. For local development only, a
-self-promotion backdoor is available behind an env flag — see `ENABLE_DEV_BACKDOOR` in
-`.env.example`. **Never set this flag in production.**
+self-promotion backdoor is available behind an env flag — set `ENABLE_DEV_BACKDOOR=true`
+and a valid `COACH_ACCESS_CODE` (see `.env.example`). **Never set this flag in production.**
+Rotate `COACH_ACCESS_CODE` before shipping; do not reuse the example value.
 
 ## Troubleshooting
 
@@ -161,7 +175,6 @@ cd ../mobile && npm install
 ## Extending
 - Add What-If scenario: Add to `ScenarioType` enum in `prisma/schema.prisma` → handler in `whatif.service.ts` → UI in `mobile/app/whatif/`
 - Update cost-of-living: Replace `data/cost_of_living_2026.json`
-- Gmail Integration: Google OAuth pre-wired. Extend to Gmail API by adding scope in `mobile/src/services/supabase.ts`
 
 ## Disclaimer
 This app provides financial education and tracking tools for informational purposes only. Nothing in this app constitutes financial, tax, or investment advice. Consult a licensed financial professional before making financial decisions.
