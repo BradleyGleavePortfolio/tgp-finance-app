@@ -21,7 +21,7 @@ export default function MilestonesScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back">
           <Text style={styles.back}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Milestones</Text>

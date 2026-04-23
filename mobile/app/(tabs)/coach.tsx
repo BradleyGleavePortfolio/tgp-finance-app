@@ -116,11 +116,21 @@ function CoachDashboard() {
               returnKeyType="search"
               onSubmitEditing={handleEmailSearch}
             />
-            <TouchableOpacity style={styles.searchBtn} onPress={handleEmailSearch}>
+            <TouchableOpacity
+              style={styles.searchBtn}
+              onPress={handleEmailSearch}
+              accessibilityRole="button"
+              accessibilityLabel="Search students by email"
+            >
               <Text style={styles.searchBtnText}>Search</Text>
             </TouchableOpacity>
             {emailSearch.trim() !== '' && (
-              <TouchableOpacity style={styles.clearBtn} onPress={() => { setEmailSearch(''); fetchStudents(); }}>
+              <TouchableOpacity
+                style={styles.clearBtn}
+                onPress={() => { setEmailSearch(''); fetchStudents(); }}
+                accessibilityRole="button"
+                accessibilityLabel="Clear email search"
+              >
                 <Text style={styles.clearBtnText}>Clear</Text>
               </TouchableOpacity>
             )}
@@ -141,6 +151,9 @@ function CoachDashboard() {
                 key={s}
                 style={[styles.sortBtn, sortBy === s && styles.sortBtnActive]}
                 onPress={() => setSortBy(s)}
+                accessibilityRole="button"
+                accessibilityLabel={`Sort by ${s.replace('_', ' ')}`}
+                accessibilityState={{ selected: sortBy === s }}
               >
                 <Text style={[styles.sortBtnText, sortBy === s && styles.sortBtnTextActive]}>
                   {s.replace('_', ' ')}
@@ -158,6 +171,8 @@ function CoachDashboard() {
                 style={styles.studentRow}
                 onPress={() => router.push(`/coach/student/${student.user.id}` as any)}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel={`Open ${student.user.name}'s student profile`}
               >
                 <View style={styles.studentLeft}>
                   <Text style={styles.studentName}>{student.user.name}</Text>

@@ -62,6 +62,9 @@ export default function GoalsScreen() {
             style={[styles.tab, activeTab === tab.key && styles.tabActive]}
             onPress={() => setActiveTab(tab.key)}
             activeOpacity={0.8}
+            accessibilityRole="tab"
+            accessibilityLabel={tab.label}
+            accessibilityState={{ selected: activeTab === tab.key }}
           >
             <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>{tab.label}</Text>
           </TouchableOpacity>
@@ -107,6 +110,9 @@ export default function GoalsScreen() {
                 style={styles.scenarioCard}
                 onPress={() => router.push(`/whatif/${scenario.type}`)}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel={`Run ${scenario.title} what-if scenario`}
+                accessibilityHint={scenario.description}
               >
                 <Text style={styles.scenarioIcon}>{scenario.icon}</Text>
                 <Text style={styles.scenarioTitle}>{scenario.title}</Text>

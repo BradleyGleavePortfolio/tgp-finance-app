@@ -19,6 +19,7 @@ export default function Index() {
 
   // Check if quiz was completed locally (fallback for when backend doesn't track it)
   useEffect(() => {
+    // Read-only AsyncStorage lookup — treat failure as "quiz not done" and let the backend state drive.
     AsyncStorage.getItem('quiz_answers').then((val) => {
       if (val) setQuizDone(true);
     }).catch(() => {});

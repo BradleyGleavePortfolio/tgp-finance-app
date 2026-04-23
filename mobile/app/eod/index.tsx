@@ -99,7 +99,11 @@ export default function EODScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel="Close check-in"
+          >
             <Text style={styles.closeBtn}>✕</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Daily Check-in</Text>
@@ -188,6 +192,9 @@ export default function EODScreen() {
                   style={[styles.habitRow, habits[habit.key] && styles.habitDone]}
                   onPress={() => setHabits({ ...habits, [habit.key]: !habits[habit.key] })}
                   activeOpacity={0.8}
+                  accessibilityRole="checkbox"
+                  accessibilityLabel={habit.label}
+                  accessibilityState={{ checked: !!habits[habit.key] }}
                 >
                   <Text style={styles.habitCheck}>{habits[habit.key] ? '☑' : '☐'}</Text>
                   <Text style={[styles.habitLabel, habits[habit.key] && styles.habitLabelDone]}>

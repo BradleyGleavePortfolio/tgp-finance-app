@@ -40,7 +40,13 @@ export function InterestBleedTicker({ dailyInterest, onPress }: InterestBleedTic
   if (dailyInterest <= 0) return null;
 
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityLabel="Open interest bleed detail"
+      accessibilityHint="Shows how much interest your debts are accumulating right now"
+    >
       <View style={styles.container}>
         <Animated.View style={[styles.dot, { opacity: pulseAnim }]} />
         <Text style={styles.label}>Debt costs you </Text>

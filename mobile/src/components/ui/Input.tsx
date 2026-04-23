@@ -70,6 +70,8 @@ export function Input({
             setIsFocused(false);
             props.onBlur?.(e);
           }}
+          accessibilityLabel={props.accessibilityLabel || label || (typeof props.placeholder === 'string' ? props.placeholder : undefined)}
+          accessibilityHint={error || props.accessibilityHint}
         />
 
         {secureToggle && (
@@ -77,6 +79,8 @@ export function Input({
             onPress={() => setIsSecure(!isSecure)}
             style={styles.rightIconBtn}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel={isSecure ? 'Show password' : 'Hide password'}
           >
             <Ionicons
               name={isSecure ? 'eye-off-outline' : 'eye-outline'}
@@ -91,6 +95,8 @@ export function Input({
             onPress={onRightIconPress}
             style={styles.rightIconBtn}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel={`${label || 'Input'} action`}
           >
             <Ionicons name={rightIcon as any} size={18} color={Colors.slateGray} />
           </TouchableOpacity>

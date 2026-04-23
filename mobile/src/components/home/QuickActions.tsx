@@ -34,6 +34,8 @@ export function QuickActions({ onEOD, onWhatIf, onAddAccount, onAICoach }: Quick
           style={[styles.action, action.highlighted && styles.highlighted]}
           onPress={action.onPress}
           activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={action.label}
         >
           <Ionicons
             name={action.icon as any}
