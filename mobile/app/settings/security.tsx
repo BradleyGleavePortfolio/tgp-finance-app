@@ -59,14 +59,6 @@ export default function SecurityScreen() {
           />
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Google Account</Text>
-          <Text style={styles.desc}>
-            Google OAuth is pre-wired. To extend to Gmail API, add scope
-            'https://www.googleapis.com/auth/gmail.readonly' in /mobile/src/services/supabase.ts
-          </Text>
-          <Text style={[styles.desc, { color: Colors.accentGold }]}>✓ GMAIL_EXTENSION_READY</Text>
-        </View>
       </ScrollView>
     </SafeAreaView>
   );

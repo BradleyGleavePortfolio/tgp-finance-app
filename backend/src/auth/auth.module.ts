@@ -12,10 +12,22 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET', 'fallback_secret'),
-        signOptions: { expiresIn: '7d' },
-      }),
+      useFactory: (config: ConfigService) => {
+        // SECURITY: fail-fast at boot. A missing JWT_SECRET previously fell back to a
+        // hardcoded literal shipped in the source tree; any attacker with source access
+        // could mint valid tokens. We now refuse to start without a real secret.
+        const secret = config.get<string>('JWT_SECRET');
+        if (!secret || secret.length < 16) {
+          throw new Error(
+            'JWT_SECRET env var is required and must be at least 16 characters. ' +
+              'Set it in your .env file (generate with: openssl rand -hex 32).',
+          );
+        }
+        return {
+          secret,
+          signOptions: { expiresIn: '7d' },
+        };
+      },
     }),
   ],
   controllers: [AuthController],

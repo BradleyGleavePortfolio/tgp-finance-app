@@ -11,6 +11,7 @@ import {
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Public } from '../common/decorators/public.decorator';
 import {
   RegisterSchema,
   LoginSchema,
@@ -23,6 +24,7 @@ import {
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Public()
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   async register(@Body() body: any) {
@@ -36,6 +38,7 @@ export class AuthController {
     return this.authService.register(parsed.data as any);
   }
 
+  @Public()
   @Post('verify-email')
   @HttpCode(HttpStatus.OK)
   async verifyEmail(@Body() body: any) {
@@ -46,6 +49,7 @@ export class AuthController {
     return this.authService.verifyEmail(parsed.data.token, parsed.data.type);
   }
 
+  @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() body: any) {
@@ -59,6 +63,7 @@ export class AuthController {
     return this.authService.login(parsed.data.email, parsed.data.password);
   }
 
+  @Public()
   @Post('google')
   @HttpCode(HttpStatus.OK)
   async googleAuth(@Body() body: any) {

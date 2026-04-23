@@ -8,10 +8,15 @@ dist/
 build/
 *.tsbuildinfo
 
-# Environment
+# Environment — note the bare `env` rule: a file literally named `env` (no dot) slips past
+# `.env*` and that's how live secrets were previously committed. Keep this line.
+env
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+
+# MCP — local AUTH_TOKEN lives in .mcp.json; commit .mcp.json.example instead.
+.mcp.json
 
 # IDE
 .idea/

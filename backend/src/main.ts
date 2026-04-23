@@ -12,9 +12,15 @@ async function bootstrap() {
     logger: ['error', 'warn', 'log'],
   });
 
-  // CORS — allow mobile app and web
+  // SECURITY: CORS must NOT reflect arbitrary origins. Use an env-driven allow-list
+  // (comma-separated in CORS_ORIGINS). Default to local Expo dev origins when unset so
+  // developers can still run the app locally without extra config.
+  const corsOrigins = (process.env.CORS_ORIGINS || 'http://localhost:8081,http://localhost:19006')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
   app.enableCors({
-    origin: true, // Allow all origins in dev; restrict to specific domains in production
+    origin: corsOrigins,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,

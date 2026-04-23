@@ -72,11 +72,25 @@ export class CoachService {
     });
 
     if (!student) throw new NotFoundException({ error: 'Student not found', code: 'NOT_FOUND' });
-    if (student.coach_id !== coachId && student.role !== 'student') {
+    // SECURITY: previously used `&&` which let any coach read any student (role is always 'student').
+    // Deny unless the target actually belongs to this coach OR the target isn't a student at all.
+    if (student.coach_id !== coachId || student.role !== 'student') {
       throw new ForbiddenException({ error: 'Access denied', code: 'FORBIDDEN' });
     }
 
     return student;
+  }
+
+  // SECURITY: shared ownership check used by any coach action that targets a specific student.
+  private async assertCoachOwnsStudent(coachId: string, studentId: string): Promise<void> {
+    const student = await this.prisma.user.findUnique({
+      where: { id: studentId },
+      select: { id: true, coach_id: true, role: true },
+    });
+    if (!student) throw new NotFoundException({ error: 'Student not found', code: 'NOT_FOUND' });
+    if (student.coach_id !== coachId || student.role !== 'student') {
+      throw new ForbiddenException({ error: 'Access denied', code: 'FORBIDDEN' });
+    }
   }
 
   async getStudentDetailWithHistory(coachId: string, studentId: string, days: number = 90) {
@@ -206,6 +220,8 @@ export class CoachService {
   }
 
   async createNote(coachId: string, studentId: string, note: string, is_private: boolean = false) {
+    // SECURITY: verify the target student actually belongs to this coach before writing a note.
+    await this.assertCoachOwnsStudent(coachId, studentId);
     return this.prisma.coachNote.create({
       data: { coach_id: coachId, student_id: studentId, note, is_private },
     });
@@ -269,6 +285,10 @@ export class CoachService {
     if (!template || template.coach_id !== coachId) {
       throw new NotFoundException({ error: 'Template not found', code: 'NOT_FOUND' });
     }
+
+    // SECURITY: verify the target student actually belongs to this coach before mutating their
+    // priority index or attaching a coach note.
+    await this.assertCoachOwnsStudent(coachId, studentId);
 
     const phases = template.phases as any[];
     if (phases && phases.length > 0) {

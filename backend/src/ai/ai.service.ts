@@ -366,8 +366,10 @@ export class AIService {
   }
 
   async generateEODInsight(userId: string, eodSubmissionId: string) {
-    const submission = await this.prisma.eODSubmission.findUnique({
-      where: { id: eodSubmissionId },
+    // SECURITY: scope by user_id so a user can't trigger AI generation on another user's
+    // submission or overwrite their ai_insight field with attacker-controlled text.
+    const submission = await this.prisma.eODSubmission.findFirst({
+      where: { id: eodSubmissionId, user_id: userId },
     });
 
     if (!submission) return { insight: null };
@@ -395,10 +397,11 @@ Keep it under 30 words. Be direct, specific, and forward-looking.`;
 
       const insight = response.choices[0]?.message?.content || null;
 
-      // Update submission with AI insight
+      // Update submission with AI insight — use updateMany with user_id filter so we can never
+      // overwrite a different user's submission even if findFirst above somehow returned one.
       if (insight) {
-        await this.prisma.eODSubmission.update({
-          where: { id: eodSubmissionId },
+        await this.prisma.eODSubmission.updateMany({
+          where: { id: eodSubmissionId, user_id: userId },
           data: { ai_insight: insight },
         });
       }

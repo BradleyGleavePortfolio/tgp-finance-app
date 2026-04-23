@@ -17,7 +17,7 @@ const BCRYPT_SALT_ROUNDS = 12;
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private supabase: SupabaseClient;
-  private coachAccessCode: string;
+  private coachAccessCode: string | null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -25,7 +25,23 @@ export class AuthService {
   ) {
     const supabaseUrl = this.config.get<string>('SUPABASE_URL', '');
     const supabaseKey = this.config.get<string>('SUPABASE_SERVICE_ROLE_KEY', '');
-    this.coachAccessCode = this.config.get<string>('COACH_ACCESS_CODE', 'CaboRules');
+    // SECURITY: the coach-access-code path is a dev-only self-promotion backdoor. It is now
+    // gated behind an explicit env flag and MUST NOT be enabled in production. Legitimate
+    // coach promotion should be performed via an admin-only tool (see PR description for
+    // the follow-up `is_coach` admin toggle plan).
+    // NEVER set ENABLE_DEV_BACKDOOR=true in production. If unset or not "true", the
+    // select-role coach path is disabled entirely.
+    const backdoorEnabled = process.env.ENABLE_DEV_BACKDOOR === 'true';
+    const rawCode = this.config.get<string>('COACH_ACCESS_CODE');
+    if (backdoorEnabled && rawCode && process.env.NODE_ENV !== 'production') {
+      this.coachAccessCode = rawCode;
+      this.logger.warn(
+        'DEV BACKDOOR ENABLED: coach-access-code self-promotion is active. ' +
+          'This must never be enabled in production.',
+      );
+    } else {
+      this.coachAccessCode = null;
+    }
 
     if (!supabaseUrl || !supabaseKey) {
       this.logger.warn(
@@ -225,6 +241,15 @@ export class AuthService {
 
   async selectRole(userId: string, role: 'coach' | 'student', coach_access_code?: string) {
     if (role === 'coach') {
+      // SECURITY: the coach-access-code backdoor is disabled unless the dev env explicitly
+      // opts in. In production, coach role must be granted by an administrator out-of-band
+      // (DB toggle) — this endpoint will never grant it.
+      if (!this.coachAccessCode) {
+        throw new ForbiddenException({
+          error: 'Coach self-registration is not available. Contact your administrator.',
+          code: 'COACH_SELF_REGISTRATION_DISABLED',
+        });
+      }
       if (!coach_access_code || coach_access_code !== this.coachAccessCode) {
         throw new ForbiddenException({
           error: 'Incorrect access code. Contact your administrator.',
