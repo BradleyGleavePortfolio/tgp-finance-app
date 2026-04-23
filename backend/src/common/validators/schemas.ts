@@ -213,8 +213,11 @@ export const SubmitQuizSchema = z.object({
 // AI SCHEMAS
 // ============================================================
 
+// SECURITY: `role` previously allowed 'system', which let a client inject a fake system
+// message into the conversation history and override the server-owned system prompt (prompt
+// injection). The server always owns the system role; clients may only send user/assistant.
 const MessageSchema = z.object({
-  role: z.enum(['user', 'assistant', 'system']),
+  role: z.enum(['user', 'assistant']),
   content: z.string(),
 });
 
