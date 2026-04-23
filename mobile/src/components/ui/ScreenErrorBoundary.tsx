@@ -27,6 +27,7 @@ export class ScreenErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     const screen = this.props.screenName || 'Unknown';
+    // Diagnostic for a real issue: preserved across builds so Sentry/native log capture can pick it up.
     console.warn(
       `[ScreenErrorBoundary] ${screen} crashed:`,
       error?.message,

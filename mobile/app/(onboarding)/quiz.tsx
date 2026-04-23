@@ -106,6 +106,8 @@ export default function QuizScreen() {
               <TouchableOpacity
                 style={styles.skipLink}
                 onPress={() => setExtraStep('future_letter')}
+                accessibilityRole="button"
+                accessibilityLabel="Skip this step"
               >
                 <Text style={styles.skipText}>Skip</Text>
               </TouchableOpacity>
@@ -114,6 +116,8 @@ export default function QuizScreen() {
             <TouchableOpacity
               style={styles.submitButton}
               onPress={() => setExtraStep('future_letter')}
+              accessibilityRole="button"
+              accessibilityLabel="Continue"
             >
               <Text style={styles.submitButtonText}>Continue →</Text>
             </TouchableOpacity>
@@ -142,12 +146,16 @@ export default function QuizScreen() {
               <TouchableOpacity
                 style={styles.skipLink}
                 onPress={() => setExtraStep('dream_description')}
+                accessibilityRole="button"
+                accessibilityLabel="Skip this step"
               >
                 <Text style={styles.skipText}>Skip</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.submitButton}
                 onPress={() => setExtraStep('dream_description')}
+                accessibilityRole="button"
+                accessibilityLabel="Continue"
               >
                 <Text style={styles.submitButtonText}>Continue →</Text>
               </TouchableOpacity>
@@ -177,12 +185,16 @@ export default function QuizScreen() {
               <TouchableOpacity
                 style={styles.skipLink}
                 onPress={() => setExtraStep('dream_cost')}
+                accessibilityRole="button"
+                accessibilityLabel="Skip this step"
               >
                 <Text style={styles.skipText}>Skip</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.submitButton}
                 onPress={() => setExtraStep('dream_cost')}
+                accessibilityRole="button"
+                accessibilityLabel="Continue"
               >
                 <Text style={styles.submitButtonText}>Continue →</Text>
               </TouchableOpacity>
@@ -211,6 +223,8 @@ export default function QuizScreen() {
               <TouchableOpacity
                 style={styles.skipLink}
                 onPress={handleSubmit}
+                accessibilityRole="button"
+                accessibilityLabel="Skip and finish quiz"
               >
                 <Text style={styles.skipText}>Skip</Text>
               </TouchableOpacity>
@@ -271,6 +285,9 @@ export default function QuizScreen() {
                   answers[question.id] === option && styles.selectedOption,
                 ]}
                 onPress={() => handleAnswer(question.id, option)}
+                accessibilityRole="radio"
+                accessibilityLabel={option}
+                accessibilityState={{ selected: answers[question.id] === option }}
               >
                 <Text
                   style={[
@@ -289,6 +306,8 @@ export default function QuizScreen() {
               <TouchableOpacity
                 style={styles.navButton}
                 onPress={() => setCurrentQuestion((prev) => prev - 1)}
+                accessibilityRole="button"
+                accessibilityLabel="Previous question"
               >
                 <Text style={styles.navButtonText}>← Previous</Text>
               </TouchableOpacity>
@@ -298,6 +317,8 @@ export default function QuizScreen() {
               <TouchableOpacity
                 style={styles.navButton}
                 onPress={() => setCurrentQuestion((prev) => prev + 1)}
+                accessibilityRole="button"
+                accessibilityLabel="Next question"
               >
                 <Text style={styles.navButtonText}>Next →</Text>
               </TouchableOpacity>

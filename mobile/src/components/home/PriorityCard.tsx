@@ -28,7 +28,11 @@ export function PriorityCard({ priority, onNextStep, onViewAll }: PriorityCardPr
     <Card variant="gold" style={styles.card}>
       <View style={styles.header}>
         <Text style={styles.priorityLabel}>CURRENT PRIORITY</Text>
-        <TouchableOpacity onPress={onViewAll}>
+        <TouchableOpacity
+          onPress={onViewAll}
+          accessibilityRole="button"
+          accessibilityLabel="View all priorities"
+        >
           <Text style={styles.viewAll}>View all →</Text>
         </TouchableOpacity>
       </View>

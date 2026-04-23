@@ -53,7 +53,9 @@ export default function RegisterScreen() {
       await register({ name, email, password, phone: phone || undefined, referral_code: referral || undefined });
       // Navigate to email verification screen
       router.replace('/(auth)/verify-email');
-    } catch {}
+    } catch {
+      // Intentional: authStore.register surfaces the failure via setError; UI reads it from state.
+    }
   };
 
   return (
@@ -149,7 +151,11 @@ export default function RegisterScreen() {
 
         <View style={styles.loginRow}>
           <Text style={styles.loginText}>Already have an account? </Text>
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            accessibilityRole="link"
+            accessibilityLabel="Go back to log in"
+          >
             <Text style={styles.loginLink}>Log in →</Text>
           </TouchableOpacity>
         </View>

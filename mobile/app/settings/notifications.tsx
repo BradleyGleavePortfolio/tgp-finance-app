@@ -23,6 +23,7 @@ export default function NotificationsScreen() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    // Read-only fetch: fall back to the local defaults if the server call fails.
     notificationsApi.getPreferences().then(({ data }) => {
       if (data) setPrefs(data.preferences || data);
     }).catch(() => {});
@@ -51,7 +52,7 @@ export default function NotificationsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back">
           <Text style={styles.back}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Notifications</Text>
