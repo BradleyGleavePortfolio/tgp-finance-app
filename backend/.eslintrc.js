@@ -1,3 +1,8 @@
+// Cleanup (round 5): file was missing its `module.exports = {` opener, so Node
+// evaluated it as a bare expression block and ESLint never saw this config. Also
+// flipped `prefer-const` from warn→error now that the stability PR's
+// `let targetAccounts` has been switched to `const`.
+module.exports = {
   parser: '@typescript-eslint/parser',
   parserOptions: {
     project: 'tsconfig.json',
@@ -22,6 +27,6 @@
     '@typescript-eslint/no-var-requires': 'off',
     'no-empty': ['error', { allowEmptyCatch: false }],
     'no-console': 'off',
-    'prefer-const': 'warn',
+    'prefer-const': 'error',
   },
 };
