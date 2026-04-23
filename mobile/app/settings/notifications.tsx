@@ -46,7 +46,7 @@ export default function NotificationsScreen() {
   };
 
   const togglePref = (key: keyof NotificationPreferences) => {
-    setPrefs((p) => ({ ...p, [key]: !p[key as string] }));
+    setPrefs((p) => ({ ...p, [key]: !(p as Record<string, any>)[key as string] }));
   };
 
   return (

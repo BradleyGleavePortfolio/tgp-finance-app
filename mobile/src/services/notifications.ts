@@ -73,9 +73,9 @@ export async function scheduleEODReminder(time: string, timezone: string): Promi
       data: { type: 'eod_reminder', screen: '/eod' },
     },
     trigger: {
-      type: 'daily',
       hour: hours,
       minute: minutes,
+      repeats: true,
     },
   });
 }
@@ -100,9 +100,9 @@ export async function scheduleStreakRiskReminder(): Promise<void> {
       data: { type: 'streak_risk', screen: '/eod' },
     },
     trigger: {
-      type: 'daily',
       hour: 21,
       minute: 0,
+      repeats: true,
     },
   });
 }
@@ -136,8 +136,7 @@ export async function scheduleFutureSelfDelivery(accountCreatedAt: string): Prom
         data: { type: 'future_self', screen: '/future-letter' },
       },
       trigger: {
-        type: 'date',
-        timestamp: deliveryDate.getTime(),
+        date: deliveryDate,
       },
     });
   }

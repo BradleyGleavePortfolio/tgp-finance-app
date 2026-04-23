@@ -9,6 +9,11 @@ primary_region = 'sjc'
 [build]
   dockerfile = 'Dockerfile'
 
+[deploy]
+  # Run database migrations once per release, before new VMs boot.
+  # Fly runs this in a temporary VM with full app env/secrets injected.
+  release_command = 'npx prisma migrate deploy'
+
 [env]
   NODE_ENV = 'production'
   PORT = '3000'

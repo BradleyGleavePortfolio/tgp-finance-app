@@ -176,5 +176,47 @@ cd ../mobile && npm install
 - Add What-If scenario: Add to `ScenarioType` enum in `prisma/schema.prisma` → handler in `whatif.service.ts` → UI in `mobile/app/whatif/`
 - Update cost-of-living: Replace `data/cost_of_living_2026.json`
 
+## CI & Tests
+
+GitHub Actions runs on every pull request and push to `main` (`.github/workflows/ci.yml`):
+
+- **backend** — `npm ci`, lint, `tsc --noEmit`, `npm run build`, `npm test`
+- **mobile** — `npm ci`, `tsc --noEmit`, `npm test`
+
+Local test runs:
+
+```bash
+cd backend && npm test
+cd mobile  && npm test
+```
+
+Dependabot (`.github/dependabot.yml`) opens weekly grouped minor/patch update PRs for `backend/`, `mobile/`, and the workflows themselves.
+
+## Production Deploy (Fly.io)
+
+The backend deploys via `fly.toml` in `backend/`. Database migrations are wired
+into the release process and run automatically on every deploy, before new VMs
+start:
+
+```toml
+[deploy]
+  release_command = 'npx prisma migrate deploy'
+```
+
+Fly runs this in a temporary VM with the app's secrets (`DATABASE_URL`, etc.)
+injected. If the migration fails, the release is aborted and no traffic is
+shifted. The `prisma` CLI is bundled into the production image for this purpose
+(see `backend/Dockerfile`).
+
+To author a new migration locally:
+
+```bash
+cd backend
+npx prisma migrate dev --name <descriptive_name>
+git add prisma/migrations
+```
+
+Do **not** commit the auto-generated `prisma/migrations` shadow DB.
+
 ## Disclaimer
 This app provides financial education and tracking tools for informational purposes only. Nothing in this app constitutes financial, tax, or investment advice. Consult a licensed financial professional before making financial decisions.
