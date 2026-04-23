@@ -105,7 +105,10 @@ Fill these in your `.env` file:
 ## Demo Accounts
 - Coach: `coach@tgp-finance.demo` / `Demo1234!`
 - Student: `student@tgp-finance.demo` / `Demo1234!`
-- Coach backdoor code: `6678345`
+
+Coach role is granted by an administrator out-of-band. For local development only, a
+self-promotion backdoor is available behind an env flag — see `ENABLE_DEV_BACKDOOR` in
+`.env.example`. **Never set this flag in production.**
 
 ## Troubleshooting
 

@@ -3,8 +3,18 @@ import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://vqimnnqmvviqveviivwe.supabase.co';
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxaW1ubnFtdnZpcXZldmlpdndlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MjgxMjIsImV4cCI6MjA4OTEwNDEyMn0.aNEt_yquX0HYWW2a2dw0pyOD_MHOTD4gVnxxyTc7RA4';
+// SECURITY: previously these fell back to a hardcoded Supabase project URL + anon key,
+// which meant every debug/preview build pointed at the production project by default.
+// Require the env vars — fail loudly at module load if either is missing.
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error(
+    'EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY must be set. ' +
+      'Add them to mobile/.env (or your Expo config) before running the app.',
+  );
+}
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
