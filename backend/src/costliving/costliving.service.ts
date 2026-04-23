@@ -20,8 +20,9 @@ export class CostLivingService {
 
     for (const dataPath of paths) {
       if (fs.existsSync(dataPath)) {
-        this.colData = JSON.parse(fs.readFileSync(dataPath, 'utf-8'));
-        return this.colData;
+        const parsed = JSON.parse(fs.readFileSync(dataPath, 'utf-8'));
+        this.colData = parsed;
+        return parsed;
       }
     }
 

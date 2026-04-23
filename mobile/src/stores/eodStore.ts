@@ -26,13 +26,18 @@ interface EodState {
     habits_checked: string[];
   }) => Promise<any>;
   fetchHistory: (limit?: number) => Promise<void>;
+  reset: () => void;
 }
 
-export const useEODStore = create<EodState>((set) => ({
-  todaySubmission: null,
-  history: [],
+const initialEodState = {
+  todaySubmission: null as EodSubmission | null,
+  history: [] as EodSubmission[],
   isLoading: false,
-  error: null,
+  error: null as string | null,
+};
+
+export const useEODStore = create<EodState>((set) => ({
+  ...initialEodState,
 
   fetchToday: async () => {
     set({ isLoading: true, error: null });
@@ -78,4 +83,6 @@ export const useEODStore = create<EodState>((set) => ({
       });
     }
   },
+
+  reset: () => set(initialEodState),
 }));

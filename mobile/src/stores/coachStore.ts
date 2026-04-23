@@ -41,16 +41,21 @@ interface CoachStore {
   createTemplate: (data: Partial<ProgramTemplate>) => Promise<void>;
   applyTemplate: (templateId: string, studentId: string) => Promise<void>;
   clearError: () => void;
+  reset: () => void;
 }
 
-export const useCoachStore = create<CoachStore>((set, get) => ({
-  students: [],
-  selectedStudent: null,
-  studentDetail: null,
-  alerts: [],
-  templates: [],
+const initialCoachState = {
+  students: [] as CoachStudentSummary[],
+  selectedStudent: null as CoachStudentSummary | null,
+  studentDetail: null as StudentDetailData | null,
+  alerts: [] as CoachAlert[],
+  templates: [] as ProgramTemplate[],
   isLoading: false,
-  error: null,
+  error: null as string | null,
+};
+
+export const useCoachStore = create<CoachStore>((set, get) => ({
+  ...initialCoachState,
 
   fetchStudents: async (search?: string) => {
     set({ isLoading: true, error: null });
@@ -143,4 +148,5 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
+  reset: () => set(initialCoachState),
 }));

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authApi } from '../services/api';
+import { secureStorage } from '../lib/secureStorage';
 
 interface UserProfile {
   monthly_income_gross?: number;
@@ -34,6 +35,7 @@ interface AuthState {
   pendingVerification: PendingVerification | null;
 
   initialize: () => Promise<void>;
+  reset: () => void;
   login: (email: string, password: string) => Promise<void>;
   register: (data: {
     name: string;
@@ -95,9 +97,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   clearError: () => set({ error: null }),
 
+  reset: () =>
+    set({
+      user: null,
+      profile: null,
+      token: null,
+      isLoading: false,
+      isAuthenticated: false,
+      hasCompletedOnboarding: false,
+      error: null,
+      pendingVerification: null,
+    }),
+
   initialize: async () => {
     try {
-      const token = await AsyncStorage.getItem('auth_token');
+      const token = await secureStorage.getItem('auth_token');
       if (token) {
         set({ token });
         const { data: raw } = await authApi.me();
@@ -113,7 +127,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ isLoading: false });
       }
     } catch (error) {
-      await AsyncStorage.removeItem('auth_token');
+      await secureStorage.removeItem('auth_token');
       set({
         token: null,
         user: null,
@@ -135,7 +149,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (!token) {
         throw new Error('No token received from server');
       }
-      await AsyncStorage.setItem('auth_token', token);
+      await secureStorage.setItem('auth_token', token);
       set({ token });
 
       // Fetch full user profile
@@ -191,7 +205,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch {
       // Ignore logout API errors
     }
-    await AsyncStorage.removeItem('auth_token');
+    await secureStorage.removeItem('auth_token');
     await AsyncStorage.removeItem('quiz_answers');
     set({
       user: null,
@@ -256,7 +270,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const token = data?.access_token || data?.token || '';
       if (!token) return false;
 
-      await AsyncStorage.setItem('auth_token', token);
+      await secureStorage.setItem('auth_token', token);
       set({ token });
 
       // Fetch full user profile

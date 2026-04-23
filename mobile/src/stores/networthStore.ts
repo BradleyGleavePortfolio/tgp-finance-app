@@ -27,14 +27,19 @@ interface NetWorthStore {
   fetchHistory: (days?: number) => Promise<void>;
   fetchCurrent: () => Promise<void>;
   setCurrentNetWorth: (value: number) => void;
+  reset: () => void;
 }
 
-export const useNetWorthStore = create<NetWorthStore>((set, get) => ({
-  history: [],
+const initialNetWorthState = {
+  history: [] as NetWorthHistory[],
   currentNetWorth: 0,
   previousNetWorth: 0,
   isLoading: false,
-  error: null,
+  error: null as string | null,
+};
+
+export const useNetWorthStore = create<NetWorthStore>((set, get) => ({
+  ...initialNetWorthState,
 
   fetchHistory: async (days = 90) => {
     set({ isLoading: true, error: null });
@@ -78,4 +83,6 @@ export const useNetWorthStore = create<NetWorthStore>((set, get) => ({
     const safe = safeNum(value);
     set((state) => ({ previousNetWorth: state.currentNetWorth, currentNetWorth: safe }));
   },
+
+  reset: () => set(initialNetWorthState),
 }));

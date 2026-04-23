@@ -22,13 +22,18 @@ interface MilestonesStore {
   checkMilestones: () => Promise<MilestoneUnlock[]>;
   dismissCelebration: () => void;
   isUnlocked: (key: string) => boolean;
+  reset: () => void;
 }
 
-export const useMilestonesStore = create<MilestonesStore>((set, get) => ({
-  unlocked: [],
-  pendingCelebration: null,
+const initialMilestonesState = {
+  unlocked: [] as MilestoneUnlock[],
+  pendingCelebration: null as MilestoneUnlock | null,
   isLoading: false,
-  error: null,
+  error: null as string | null,
+};
+
+export const useMilestonesStore = create<MilestonesStore>((set, get) => ({
+  ...initialMilestonesState,
 
   fetchMilestones: async () => {
     set({ isLoading: true, error: null });
@@ -85,4 +90,6 @@ export const useMilestonesStore = create<MilestonesStore>((set, get) => ({
     const unlocked = get().unlocked;
     return Array.isArray(unlocked) ? unlocked.some((m) => m?.milestone_key === key) : false;
   },
+
+  reset: () => set(initialMilestonesState),
 }));

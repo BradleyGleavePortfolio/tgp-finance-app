@@ -47,10 +47,11 @@ interface AccountsStore {
   getAccountHistory: (id: string, days?: number) => Promise<AccountBalanceLog[]>;
   updateLocalBalance: (id: string, balance: number) => void;
   clearError: () => void;
+  reset: () => void;
 }
 
-export const useAccountsStore = create<AccountsStore>((set, get) => ({
-  accounts: [],
+const initialAccountsState = {
+  accounts: [] as FinancialAccount[],
   isLoading: false,
   error: null,
   netWorth: 0,
@@ -58,7 +59,11 @@ export const useAccountsStore = create<AccountsStore>((set, get) => ({
   totalDebt: 0,
   totalCash: 0,
   dailyInterest: 0,
-  lastFetched: null,
+  lastFetched: null as number | null,
+};
+
+export const useAccountsStore = create<AccountsStore>((set, get) => ({
+  ...initialAccountsState,
 
   fetchAccounts: async () => {
     set({ isLoading: true, error: null });
@@ -140,4 +145,5 @@ export const useAccountsStore = create<AccountsStore>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
+  reset: () => set(initialAccountsState),
 }));

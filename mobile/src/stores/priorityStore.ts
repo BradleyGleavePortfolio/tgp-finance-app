@@ -11,14 +11,19 @@ interface PriorityState {
 
   fetchCurrent: () => Promise<void>;
   fetchAll: () => Promise<void>;
+  reset: () => void;
 }
 
-export const usePriorityStore = create<PriorityState>((set, get) => ({
-  currentPriority: null,
-  allPriorities: [],
+const initialPriorityState = {
+  currentPriority: null as Priority | null,
+  allPriorities: [] as Priority[],
   currentIndex: 0,
   isLoading: false,
-  error: null,
+  error: null as string | null,
+};
+
+export const usePriorityStore = create<PriorityState>((set, get) => ({
+  ...initialPriorityState,
 
   fetchCurrent: async () => {
     set({ isLoading: true, error: null });
@@ -70,4 +75,5 @@ export const usePriorityStore = create<PriorityState>((set, get) => ({
     }
   },
 
+  reset: () => set(initialPriorityState),
 }));

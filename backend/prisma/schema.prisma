@@ -107,24 +107,24 @@ model FinancialProfile {
   state                   String?
   city                    String?
   country                 String          @default("United States")
-  monthly_income_gross    Float?
-  annual_income_gross     Float?
+  monthly_income_gross    Decimal?        @db.Decimal(14, 2)
+  annual_income_gross     Decimal?        @db.Decimal(14, 2)
   income_sources          Json? // array of { source, amount, frequency }
   primary_goal            String?
   goal_timeline_months    Int?
-  dream_lifestyle_cost_mo Float?
+  dream_lifestyle_cost_mo Decimal?        @db.Decimal(14, 2)
   dream_description       String?
   future_self_letter      String? // Written during onboarding, revealed at day 90
   risk_tolerance          RiskTolerance   @default(moderate)
   is_self_employed        Boolean         @default(false)
   has_business            Boolean         @default(false)
   motivation_style        MotivationStyle @default(big_picture)
-  net_worth_snapshot      Float? // Updated on every EOD submission
-  total_debt              Float? // Computed sum of all debt balances
-  total_assets            Float? // Computed sum of all asset balances
-  total_cash              Float? // Computed sum of checking + savings
+  net_worth_snapshot      Decimal?        @db.Decimal(14, 2) // Updated on every EOD submission
+  total_debt              Decimal?        @db.Decimal(14, 2) // Computed sum of all debt balances
+  total_assets            Decimal?        @db.Decimal(14, 2) // Computed sum of all asset balances
+  total_cash              Decimal?        @db.Decimal(14, 2) // Computed sum of checking + savings
   current_priority_index  Int             @default(0) // Index in PRIORITY_WATERFALL
-  wealth_velocity_score   Float? // 0-100, updated daily
+  wealth_velocity_score   Float? // 0-100, updated daily — score, not money
   streak_days             Int             @default(0)
   last_eod_date           DateTime?
   filing_status           String          @default("single") // for tax estimator
@@ -142,11 +142,11 @@ model FinancialAccount {
   name            String // e.g., "Chase Sapphire", "Car Loan", "Roth IRA"
   account_type    AccountType
   institution     String?
-  balance         Float // Current balance (positive for assets AND debt)
+  balance         Decimal             @db.Decimal(14, 2) // Current balance (positive for assets AND debt)
   is_debt         Boolean             @default(false)
-  apr_percent     Float? // For debt accounts
+  apr_percent     Float? // For debt accounts — percentage, not money
   is_secured      Boolean? // true for mortgage/car, false for credit card/personal loan
-  minimum_payment Float?
+  minimum_payment Decimal?            @db.Decimal(14, 2)
   currency        String              @default("USD")
   notes           String?
   is_active       Boolean             @default(true)
@@ -161,7 +161,7 @@ model AccountBalanceLog {
   id         String           @id @default(uuid())
   account_id String
   account    FinancialAccount @relation(fields: [account_id], references: [id], onDelete: Cascade)
-  balance    Float
+  balance    Decimal          @db.Decimal(14, 2)
   date       DateTime         @db.Date
   logged_at  DateTime         @default(now())
   source     LogSource        @default(eod_form)
@@ -175,10 +175,10 @@ model EODSubmission {
   user                  User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
   submission_date       DateTime @db.Date
   account_snapshots     Json // array of { account_id, balance, notes }
-  net_worth_computed    Float
-  total_debt_computed   Float
-  total_assets_computed Float
-  total_cash_computed   Float
+  net_worth_computed    Decimal  @db.Decimal(14, 2)
+  total_debt_computed   Decimal  @db.Decimal(14, 2)
+  total_assets_computed Decimal  @db.Decimal(14, 2)
+  total_cash_computed   Decimal  @db.Decimal(14, 2)
   notes                 String?
   mood                  Int? // 1-5 optional
   ai_insight            String? // AI-generated insight after submission
@@ -197,10 +197,10 @@ model WhatIfScenario {
   label           String
   parameters      Json // Flexible key-value for scenario inputs
   result_summary  Json // Computed outputs
-  projection_1yr  Float?
-  projection_3yr  Float?
-  projection_5yr  Float?
-  projection_10yr Float?
+  projection_1yr  Decimal?     @db.Decimal(14, 2)
+  projection_3yr  Decimal?     @db.Decimal(14, 2)
+  projection_5yr  Decimal?     @db.Decimal(14, 2)
+  projection_10yr Decimal?     @db.Decimal(14, 2)
   created_at      DateTime     @default(now())
 
   @@map("what_if_scenarios")

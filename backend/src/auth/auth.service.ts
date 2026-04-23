@@ -169,12 +169,15 @@ export class AuthService {
     });
 
     if (!user) {
-      // Auto-create user record if missing (edge case)
+      // Auto-create user record if missing (edge case). Supabase can in theory
+      // surface a user without an email; fall back to supabase_id as a last
+      // resort so `email` remains non-null at the DB level.
+      const email = data.user.email ?? `${data.user.id}@placeholder.local`;
       user = await this.prisma.user.create({
         data: {
           supabase_id: data.user.id,
-          email: data.user.email,
-          name: data.user.user_metadata?.name || data.user.email,
+          email,
+          name: data.user.user_metadata?.name || email,
         },
         include: { profile: true },
       });
@@ -188,7 +191,7 @@ export class AuthService {
         email: user.email,
         name: user.name,
         role: user.role,
-        onboarding_complete: (user as any).profile?.onboarding_complete || false,
+        onboarding_complete: user.profile?.onboarding_complete || false,
       },
     };
   }
@@ -215,11 +218,12 @@ export class AuthService {
     const isNewUser = !user;
 
     if (!user) {
+      const email = data.user.email ?? `${data.user.id}@placeholder.local`;
       user = await this.prisma.user.create({
         data: {
           supabase_id: data.user.id,
-          email: data.user.email,
-          name: data.user.user_metadata?.full_name || data.user.email,
+          email,
+          name: data.user.user_metadata?.full_name || email,
         },
         include: { profile: true },
       });
@@ -234,7 +238,7 @@ export class AuthService {
         email: user.email,
         name: user.name,
         role: user.role,
-        onboarding_complete: (user as any).profile?.onboarding_complete || false,
+        onboarding_complete: user.profile?.onboarding_complete || false,
       },
     };
   }
