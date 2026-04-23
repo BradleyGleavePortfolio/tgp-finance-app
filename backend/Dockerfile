@@ -34,6 +34,11 @@ COPY package.json package-lock.json ./
 COPY prisma ./prisma/
 RUN npm ci --omit=dev
 
+# Install the prisma CLI in the production image so `prisma migrate deploy`
+# is available as part of the release step (see fly.toml `release_command`).
+# Pinned to match devDependencies; keep these in sync.
+RUN npm install --no-save prisma@5.22.0
+
 # Generate Prisma client in production image
 RUN npx prisma generate
 

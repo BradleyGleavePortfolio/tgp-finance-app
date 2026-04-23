@@ -44,8 +44,8 @@ mobile/android/
 *.mobileprovision
 *.orig.*
 
-# Prisma — migrations are tracked and applied via `prisma migrate deploy` on boot
-# (previously gitignored; baseline committed in round-2 stability PR)
+# Prisma
+# Migrations ARE committed — they're the source of truth for `prisma migrate deploy`.
 
 # Fly.io
 .fly/

@@ -74,7 +74,13 @@ export function ChatPanel() {
           </View>
         )}
         {messages.map((msg) => (
-          <ChatBubble key={msg.id} message={msg} />
+          <ChatBubble
+            key={msg.id}
+            message={{
+              ...msg,
+              timestamp: msg.timestamp instanceof Date ? msg.timestamp.toISOString() : String(msg.timestamp),
+            }}
+          />
         ))}
         {isLoading && (
           <View style={styles.typingIndicator}>

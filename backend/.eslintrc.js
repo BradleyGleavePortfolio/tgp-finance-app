@@ -1,30 +1,27 @@
-module.exports = {
-  root: true,
   parser: '@typescript-eslint/parser',
   parserOptions: {
-    ecmaVersion: 2022,
+    project: 'tsconfig.json',
+    tsconfigRootDir: __dirname,
     sourceType: 'module',
   },
-  plugins: ['@typescript-eslint'],
+  plugins: ['@typescript-eslint/eslint-plugin'],
   extends: [
-    'eslint:recommended',
     'plugin:@typescript-eslint/recommended',
   ],
+  root: true,
   env: {
     node: true,
+    jest: true,
     es2022: true,
   },
+  ignorePatterns: ['.eslintrc.js', 'dist/', 'node_modules/', 'jest.config.js', 'prisma/migrations/'],
   rules: {
-    // NestJS patterns need `any` for request/response transforms and decorator payloads.
     '@typescript-eslint/no-explicit-any': 'off',
-    // Dependency-injected fields in NestJS are often unused at construction time — tolerate via `_` prefix.
     '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-    // Prisma query shapes often produce legitimate `any` until the client is regenerated.
+    '@typescript-eslint/no-empty-function': 'off',
     '@typescript-eslint/no-var-requires': 'off',
     'no-empty': ['error', { allowEmptyCatch: false }],
     'no-console': 'off',
-    // Downgraded from error to warn to avoid conflicting with in-flight PR work on whatif.service.ts.
     'prefer-const': 'warn',
   },
-  ignorePatterns: ['dist/', 'node_modules/', 'prisma/migrations/', '.eslintrc.js'],
 };
