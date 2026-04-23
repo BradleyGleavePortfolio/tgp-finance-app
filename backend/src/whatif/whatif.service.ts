@@ -55,9 +55,9 @@ export class WhatIfService {
       this.prisma.financialAccount.findMany({ where: { user_id: userId, is_active: true } }),
     ]);
 
-    // Prisma returns Decimal for money fields; toN collapses to Number which
-    // keeps arithmetic safe inside DECIMAL(14, 2) precision.
-    const monthlyIncome = toN(profile?.monthly_income_gross);
+    // Cleanup (round 5): dropped unused `monthlyIncome` local. Prisma still returns
+    // Decimal for money fields; `toN` collapses to Number to keep arithmetic inside
+    // DECIMAL(14, 2) precision for the values we actually consume below.
     const totalDebt = accounts.filter((a) => a.is_debt).reduce((s, a) => s + toN(a.balance), 0);
     const totalAssets = accounts.filter((a) => !a.is_debt).reduce((s, a) => s + toN(a.balance), 0);
     const netWorth = totalAssets - totalDebt;
@@ -168,8 +168,9 @@ export class WhatIfService {
     const currentTakeHome = currentGross * (1 - effectiveTaxRate);
     const monthlyIncrease = newTakeHome - currentTakeHome;
 
-    // Savings rate improvement
-    const newSavingsRate = 0.2; // Assume keep same spending
+    // Cleanup (round 5): removed unused `newSavingsRate` placeholder. The
+    // assumption "keep same spending" is already encoded by using the full
+    // take-home delta as additional savings.
     const additionalSavings = monthlyIncrease;
 
     const r = 0.08 / 12;
@@ -321,8 +322,9 @@ export class WhatIfService {
     const account = accountId ? accounts.find((a) => a.id === accountId) : null;
     const assetValue = account?.balance || salePrice;
 
+    // Cleanup (round 5): removed unused monthly-rate `r`; growth formula uses
+    // literal rates inline, so the alias was dead.
     // After selling: invest proceeds at 8%
-    const r = 0.08 / 12;
     const investedGrowth = fvAnnuity(0, 0.08 / 12, 120) + fv(assetValue, 0.08, 10);
 
     return {
@@ -443,13 +445,14 @@ export class WhatIfService {
 
   private scenarioTaxOptimization(profile: any, params: any, currentNetWorth: number) {
     const annualIncome = profile?.annual_income_gross || 60000;
-    const filing_status = params.filing_status || 'single';
+    // Cleanup (round 5): `filing_status` and `reducedIncome` were computed but
+    // never consumed. Bracket selection below is driven purely by `annualIncome`,
+    // and the post-deduction income is not surfaced in the response payload.
     const k401_contribution = params.k401_contribution || 23500;
     const ira_contribution = params.ira_contribution || 7000;
     const hsa_contribution = params.hsa_contribution || 0;
 
     const taxableReduction = k401_contribution + ira_contribution + hsa_contribution;
-    const reducedIncome = annualIncome - taxableReduction;
 
     // Federal marginal rate for ~60k
     const marginalRate = annualIncome > 95000 ? 0.22 : annualIncome > 44725 ? 0.22 : 0.12;
