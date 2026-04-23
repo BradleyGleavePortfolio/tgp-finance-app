@@ -108,7 +108,7 @@ export class WhatIfService {
     const accountId = params.account_id;
     const extraMonthly = params.extra_monthly || 200;
 
-    let targetAccounts = accountId
+    const targetAccounts = accountId
       ? accounts.filter((a) => a.id === accountId && a.is_debt)
       : accounts.filter((a) => a.is_debt && a.apr_percent && a.balance > 0)
           .sort((a, b) => (b.apr_percent || 0) - (a.apr_percent || 0));

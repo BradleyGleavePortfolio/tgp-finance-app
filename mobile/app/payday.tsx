@@ -99,7 +99,7 @@ export default function PaydayScreen() {
                 <Card
                   key={i}
                   variant={isConfirmed ? 'default' : 'gold'}
-                  style={[styles.deployCard, isConfirmed && styles.deployCardConfirmed]}
+                  style={isConfirmed ? [styles.deployCard, styles.deployCardConfirmed] : [styles.deployCard]}
                 >
                   <View style={styles.deployCardContent}>
                     <Text style={styles.deployStepIcon}>{deployStep.icon}</Text>

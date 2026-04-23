@@ -61,8 +61,8 @@ function ConfettiDot({ index }: { index: number }) {
   const colors = [Colors.accentGold, Colors.profitGreen, Colors.debtCrimson, Colors.investmentTeal];
   const anim = useRef(new Animated.Value(0)).current;
   const color = colors[index % colors.length];
-  const left = `${(index * 8) + 4}%`;
-  const top = `${10 + (index % 4) * 20}%`;
+  const left = `${(index * 8) + 4}%` as `${number}%`;
+  const top = `${10 + (index % 4) * 20}%` as `${number}%`;
 
   useEffect(() => {
     Animated.loop(

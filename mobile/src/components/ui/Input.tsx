@@ -60,7 +60,7 @@ export function Input({
         <TextInput
           {...props}
           secureTextEntry={secureToggle ? isSecure : props.secureTextEntry}
-          style={[styles.input, leftIcon && styles.inputWithLeft]}
+          style={[styles.input, leftIcon ? styles.inputWithLeft : null]}
           placeholderTextColor={Colors.slateGray}
           onFocus={(e) => {
             setIsFocused(true);
