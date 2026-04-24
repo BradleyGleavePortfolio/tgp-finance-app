@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { PushSenderService } from '../push/push-sender.service';
 
 // The 7-level Priority Waterfall — the core logic of TGP Finance
 export const PRIORITY_WATERFALL = [
@@ -128,7 +129,12 @@ export const PRIORITY_WATERFALL = [
 
 @Injectable()
 export class PrioritiesService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(PrioritiesService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly pushSender?: PushSenderService,
+  ) {}
 
   async getCurrentPriority(userId: string) {
     const [profile, accounts] = await Promise.all([
@@ -267,6 +273,19 @@ export class PrioritiesService {
       where: { user_id: userId },
       data: { current_priority_index: newIdx },
     });
+
+    // Fire push for the coach-driven level-up too. Dedupe on priority_index
+    // keeps it idempotent if the coach clicks advance twice.
+    if (this.pushSender && newIdx > currentIdx) {
+      const def = PRIORITY_WATERFALL[newIdx];
+      await this.pushSender
+        .send(userId, 'priority_levelup', {
+          title: '⬆️ New priority unlocked',
+          body: def?.title ?? `Priority ${newIdx}`,
+          data: { priority_index: newIdx, screen: 'Priorities' },
+        })
+        .catch((e) => this.logger.warn(`levelup push failed: ${(e as Error).message}`));
+    }
 
     return { previous_index: currentIdx, new_index: newIdx };
   }

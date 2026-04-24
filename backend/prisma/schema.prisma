@@ -275,6 +275,20 @@ model ProgramTemplate {
   @@map("program_templates")
 }
 
+model PushLog {
+  id      String   @id @default(uuid())
+  user_id String
+  type    String // e.g., eod_reminder, streak_at_risk, net_worth_milestone, priority_levelup, future_self_letter, spending_dna
+  title   String
+  body    String
+  data    Json? // arbitrary payload (milestone key, priority index, etc.) — used for event-dedupe
+  sent_at DateTime @default(now())
+  error   String?
+
+  @@index([user_id, type, sent_at])
+  @@map("push_logs")
+}
+
 model SpendingDnaReport {
   id           String   @id @default(uuid())
   user_id      String
