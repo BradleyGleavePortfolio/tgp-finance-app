@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { toN } from '../common/money';
 import { MilestonesService, MILESTONES } from '../milestones/milestones.service';
 import { PrioritiesService, PRIORITY_WATERFALL } from '../priorities/priorities.service';
+import { PushSenderService } from '../push/push-sender.service';
 
 // Subset of Prisma's interactive-transaction client (everything we need).
 type Tx = Prisma.TransactionClient;
@@ -16,6 +17,7 @@ export class EODService {
     private readonly prisma: PrismaService,
     @Optional() private readonly milestonesService?: MilestonesService,
     @Optional() private readonly prioritiesService?: PrioritiesService,
+    @Optional() private readonly pushSender?: PushSenderService,
   ) {}
 
   async submitEOD(userId: string, dto: {
@@ -190,18 +192,66 @@ export class EODService {
             const def = MILESTONES.find((m) => m.key === key);
             return { key, title: def?.title ?? key };
           });
+
+          // Fire a push for each milestone. PushSender dedupes via PushLog on
+          // the milestone_key in `data`, so even a retried EOD submit won't
+          // double-notify.
+          if (this.pushSender) {
+            for (const m of newly_unlocked_milestones) {
+              await this.pushSender
+                .send(userId, 'net_worth_milestone', {
+                  title: '🏆 Milestone unlocked',
+                  body: m.title,
+                  data: { milestone_key: m.key, screen: 'Milestones' },
+                })
+                .catch((e) =>
+                  this.logger.warn(`milestone push failed: ${(e as Error).message}`),
+                );
+            }
+          }
         }
       } catch (e) {
         this.logger.warn(`milestone check failed after EOD for ${userId}: ${(e as Error).message}`);
       }
 
       try {
+        // Capture the pre-EOD priority index so we can detect a level-up
+        // crossing triggered by this submission.
+        const preProfile = await this.prisma.financialProfile.findUnique({
+          where: { user_id: userId },
+          select: { current_priority_index: true },
+        });
+        const prevIndex = preProfile?.current_priority_index ?? 0;
+
         if (this.prioritiesService) {
           const computed = await this.prioritiesService.getCurrentPriority(userId);
           current_priority = {
             index: computed.current_index,
             title: computed.current.title,
           };
+
+          if (computed.current_index > prevIndex) {
+            // Level-up: persist the new index so future EODs don't re-fire,
+            // and fire a push (PushSender dedupes on `priority_index` too).
+            await this.prisma.financialProfile.update({
+              where: { user_id: userId },
+              data: { current_priority_index: computed.current_index },
+            });
+            if (this.pushSender) {
+              await this.pushSender
+                .send(userId, 'priority_levelup', {
+                  title: '⬆️ New priority unlocked',
+                  body: computed.current.title,
+                  data: {
+                    priority_index: computed.current_index,
+                    screen: 'Priorities',
+                  },
+                })
+                .catch((e) =>
+                  this.logger.warn(`levelup push failed: ${(e as Error).message}`),
+                );
+            }
+          }
         } else {
           // Fallback: compute directly so the mobile client still gets the name.
           const profile = await this.prisma.financialProfile.findUnique({ where: { user_id: userId } });

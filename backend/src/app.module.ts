@@ -2,6 +2,7 @@ import * as path from 'path';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { APP_FILTER, APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
 
 import { PrismaModule } from './prisma/prisma.module';
@@ -20,6 +21,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { CoachModule } from './coach/coach.module';
 import { AccountabilityModule } from './accountability/accountability.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
+import { PushModule } from './push/push.module';
 
 import { HealthController } from './health/health.controller';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -43,6 +45,10 @@ import { TenantGuard } from './auth/guards/tenant.guard';
       },
     ]),
 
+    // Scheduled jobs (server-side push notifications). Runs in-process on the
+    // same Fly.io web VM — see PushSchedulerService for scaling notes.
+    ScheduleModule.forRoot(),
+
     // Core
     PrismaModule,
     AuthModule,
@@ -62,6 +68,7 @@ import { TenantGuard } from './auth/guards/tenant.guard';
     CoachModule,
     AccountabilityModule,
     OnboardingModule,
+    PushModule,
   ],
   controllers: [HealthController],
   providers: [
