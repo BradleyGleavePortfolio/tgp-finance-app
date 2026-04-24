@@ -159,6 +159,9 @@ export const UpdateNotificationPrefsSchema = z.object({
   milestone_alerts: z.boolean().optional(),
   coach_messages: z.boolean().optional(),
   red_flag_alerts: z.boolean().optional(),
+  future_self_letter_enabled: z.boolean().optional(),
+  priority_levelup_alerts: z.boolean().optional(),
+  spending_dna_alerts: z.boolean().optional(),
   timezone: z.string().optional(),
   expo_push_token: z.string().optional(),
 });

@@ -497,4 +497,19 @@ User data for ${month}:
       throw new BadRequestException({ error: 'Could not generate spending DNA report', code: 'AI_ERROR' });
     }
   }
+
+  // Returns metadata for the most recently generated Spending DNA report.
+  // Used by the mobile client to fire the "Your Spending DNA is ready"
+  // notification without downloading the full report text on every check.
+  async getLatestSpendingDNA(userId: string): Promise<{ month: string | null; generated_at: string | null }> {
+    const latest = await this.prisma.spendingDnaReport.findFirst({
+      where: { user_id: userId },
+      orderBy: { generated_at: 'desc' },
+      select: { month: true, generated_at: true },
+    });
+    return {
+      month: latest?.month ?? null,
+      generated_at: latest?.generated_at?.toISOString() ?? null,
+    };
+  }
 }

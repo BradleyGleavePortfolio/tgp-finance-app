@@ -45,4 +45,14 @@ export class AIController {
     }
     return this.aiService.generateSpendingDNA(user.id, parsed.data.month);
   }
+
+  // Lightweight metadata endpoint for the mobile client's "Spending DNA ready"
+  // notification guard. Returns { month, generated_at } for the most recent
+  // report, or { month: null } if none exist. Purposefully excludes the
+  // report_text payload — callers that need the body already hit POST
+  // /api/ai/spending-dna to (re)generate and read it.
+  @Get('spending-dna/latest')
+  async spendingDnaLatest(@CurrentUser() user: any) {
+    return this.aiService.getLatestSpendingDNA(user.id);
+  }
 }
