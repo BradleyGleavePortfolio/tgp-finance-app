@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { onboardingApi } from '../../src/services/api';
+import { onboardingApi, notificationsApi } from '../../src/services/api';
 import { useAuthStore } from '../../src/stores/authStore';
+import { scheduleFutureSelfDelivery } from '../../src/services/notifications';
 import { Colors, Typography, Spacing } from '../../src/theme/finance';
 
 interface QuizQuestion {
@@ -74,6 +75,20 @@ export default function QuizScreen() {
       await AsyncStorage.setItem('quiz_answers', JSON.stringify(finalAnswers));
       await onboardingApi.submitQuiz(finalAnswers);
       await refreshUser();
+
+      // Schedule the Future-Self Letter delivery (day 90) once onboarding
+      // completes. Idempotent — the helper no-ops if already scheduled for
+      // this created_at value, so re-entering onboarding can't duplicate it.
+      try {
+        const createdAt = useAuthStore.getState().user?.created_at;
+        const prefs = await notificationsApi.getPreferences().then((r) => r.data).catch(() => null);
+        if (createdAt && (!prefs || prefs.future_self_letter_enabled !== false)) {
+          await scheduleFutureSelfDelivery(createdAt);
+        }
+      } catch {
+        // best-effort — never block onboarding completion on notifications
+      }
+
       router.replace('/(tabs)');
     } catch (err: any) {
       const message = err.response?.data?.error || err.message || 'Failed to save your profile. Please try again.';

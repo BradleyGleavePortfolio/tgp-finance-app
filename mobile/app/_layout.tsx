@@ -1,10 +1,16 @@
 // Root layout with auth guard, font loading, deep link handling, and navigation setup
-import React, { useEffect } from 'react';
-import { View, Text } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, AppState, type AppStateStatus } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Linking from 'expo-linking';
+import * as Notifications from 'expo-notifications';
+import {
+  registerPushTokenIfGranted,
+  refreshForegroundNotifications,
+} from '../src/services/notifications';
+import { notificationsApi } from '../src/services/api';
 import {
   useFonts,
   Inter_400Regular,
@@ -59,13 +65,65 @@ export default function RootLayout() {
     JetBrainsMono_700Bold,
   });
 
-  const { initialize, isLoading, checkVerification, pendingVerification } = useAuthStore();
+  const { initialize, isLoading, checkVerification, pendingVerification, isAuthenticated } = useAuthStore();
   const router = useRouter();
+  const notifTapSubRef = useRef<Notifications.Subscription | null>(null);
 
   useEffect(() => {
     // Read-only init (hydrate session from storage). authStore surfaces failures via its own error state.
     initialize().catch(() => {});
   }, []);
+
+  // Register push token + run foreground sync once authenticated. Both are
+  // safe to re-run on every auth flip; the underlying helpers dedupe.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    (async () => {
+      try {
+        await registerPushTokenIfGranted();
+        const { data: prefs } = await notificationsApi.getPreferences();
+        await refreshForegroundNotifications(prefs || {});
+      } catch {
+        // notifications are optional — never block the session on them
+      }
+    })();
+  }, [isAuthenticated]);
+
+  // Re-check foreground state each time the app becomes active so the
+  // streak-at-risk reminder + spending-DNA guard stay up to date even across
+  // multi-day background sessions.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const onChange = async (state: AppStateStatus) => {
+      if (state !== 'active') return;
+      try {
+        const { data: prefs } = await notificationsApi.getPreferences();
+        await refreshForegroundNotifications(prefs || {});
+      } catch {
+        // best-effort
+      }
+    };
+    const sub = AppState.addEventListener('change', onChange);
+    return () => sub.remove();
+  }, [isAuthenticated]);
+
+  // Notification tap-through: every notification we schedule carries a
+  // `data.screen` pointing at an expo-router path. Tapping routes the user
+  // straight there (EOD, milestones, Future Self letter, Spending DNA, …).
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const screen = response.notification.request.content.data?.screen;
+      if (typeof screen === 'string' && screen.length > 0) {
+        try {
+          router.push(screen as any);
+        } catch {
+          // ignore unknown routes
+        }
+      }
+    });
+    notifTapSubRef.current = sub;
+    return () => sub.remove();
+  }, [router]);
 
   // Handle deep links (tgp-finance://auth/callback) from email verification
   useEffect(() => {

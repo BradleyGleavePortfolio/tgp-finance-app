@@ -16,6 +16,8 @@ import { useEODStore } from '../../src/stores/eodStore';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useNetWorthStore } from '../../src/stores/networthStore';
 import { DAILY_HABITS } from '../../src/utils/constants';
+import { handleEodSubmissionNotifications } from '../../src/services/notifications';
+import { notificationsApi } from '../../src/services/api';
 import type { AccountSnapshot } from '../../src/types';
 
 type Step = 'accounts' | 'mood' | 'notes' | 'habits' | 'result';
@@ -77,6 +79,19 @@ export default function EODScreen() {
       });
       setResult(submission);
       setStep('result');
+
+      // Fire-and-forget notification side effects. Failures in the
+      // notification layer must not affect the user's EOD completion flow,
+      // so we swallow errors here and let handleEodSubmissionNotifications
+      // handle its own best-effort branches internally.
+      (async () => {
+        try {
+          const { data: prefs } = await notificationsApi.getPreferences();
+          await handleEodSubmissionNotifications(submission, prefs || {});
+        } catch {
+          // ignore — notifications are an optional side channel
+        }
+      })();
     } catch {
       // Error handled in store
     }

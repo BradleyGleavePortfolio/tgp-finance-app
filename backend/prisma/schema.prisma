@@ -219,17 +219,20 @@ model MilestoneUnlock {
 }
 
 model NotificationPreferences {
-  id                    String  @id @default(uuid())
-  user_id               String  @unique
-  user                  User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  eod_reminder_enabled  Boolean @default(true)
-  eod_reminder_time     String  @default("20:00")
-  streak_alerts_enabled Boolean @default(true)
-  milestone_alerts      Boolean @default(true)
-  coach_messages        Boolean @default(true)
-  red_flag_alerts       Boolean @default(true)
-  timezone              String  @default("America/Los_Angeles")
-  expo_push_token       String? // For Expo push notifications
+  id                          String  @id @default(uuid())
+  user_id                     String  @unique
+  user                        User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  eod_reminder_enabled        Boolean @default(true)
+  eod_reminder_time           String  @default("20:00")
+  streak_alerts_enabled       Boolean @default(true)
+  milestone_alerts            Boolean @default(true)
+  coach_messages              Boolean @default(true)
+  red_flag_alerts             Boolean @default(true)
+  future_self_letter_enabled  Boolean @default(true)
+  priority_levelup_alerts     Boolean @default(true)
+  spending_dna_alerts         Boolean @default(true)
+  timezone                    String  @default("America/Los_Angeles")
+  expo_push_token             String? // For Expo push notifications
 
   @@map("notification_preferences")
 }

@@ -224,6 +224,9 @@ export interface NotificationPreferences {
   milestone_alerts: boolean;
   coach_messages: boolean;
   red_flag_alerts: boolean;
+  future_self_letter_enabled: boolean;
+  priority_levelup_alerts: boolean;
+  spending_dna_alerts: boolean;
   timezone: string;
 }
 
