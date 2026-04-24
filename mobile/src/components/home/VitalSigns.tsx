@@ -46,7 +46,10 @@ interface VitalSignsProps {
   netWorth: number;
   cashFlow: number;
   dti: number;
-  savingsRate: number;
+  // Optional: omit when we don't have real expense data. Showing "0%" to every
+  // user — which was the prior behavior — misrepresents a metric we can't
+  // actually compute yet.
+  savingsRate?: number;
   onPressNetWorth?: () => void;
   onPressCashFlow?: () => void;
   onPressDTI?: () => void;
@@ -82,13 +85,16 @@ export function VitalSigns({
       trend: dti < 20 ? 'up' : dti > 36 ? 'down' : 'stable',
       onPress: onPressDTI,
     },
-    {
+  ];
+
+  if (typeof savingsRate === 'number' && isFinite(savingsRate)) {
+    metrics.push({
       label: 'Savings Rate',
       value: `${savingsRate.toFixed(0)}%`,
       trend: savingsRate >= 20 ? 'up' : savingsRate < 10 ? 'down' : 'stable',
       onPress: onPressSavingsRate,
-    },
-  ];
+    });
+  }
 
   return (
     <View style={styles.grid}>

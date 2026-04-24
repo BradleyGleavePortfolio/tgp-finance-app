@@ -37,9 +37,14 @@ export default function ProjectionsScreen() {
           />
         </Card>
 
+        <Text style={styles.saveHint}>
+          Want to save a named scenario? Open a specific What-If (e.g. Retire Early,
+          Income Increase, Extra Debt Payment) — those have a Save button that persists
+          your inputs to your What-If library.
+        </Text>
         <Button
-          title="Save as What-If Scenario"
-          onPress={() => router.push('/whatif/retire_early')}
+          title="Browse What-If Scenarios"
+          onPress={() => router.push('/(tabs)/goals')}
           variant="outline"
           fullWidth
           style={styles.saveBtn}
@@ -57,5 +62,6 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.base, paddingBottom: 100 },
   subtitle: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodyMedium, color: Colors.slateGray, marginBottom: Spacing.xl },
   chartCard: { padding: Spacing.base, marginBottom: Spacing.base },
+  saveHint: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodySmall, color: Colors.slateGray, lineHeight: 18, marginBottom: Spacing.sm },
   saveBtn: { marginTop: Spacing.base },
 });

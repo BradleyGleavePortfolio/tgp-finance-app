@@ -150,7 +150,16 @@ export default function GoalsScreen() {
               showSliders
             />
           </Card>
-          <Button title="Save as What-If Scenario" onPress={() => {}} variant="outline" style={styles.saveBtn} />
+          <Text style={styles.projHint}>
+            To save a named scenario, open a specific What-If (e.g. Retire Early, Income
+            Increase) and tap Save after running it.
+          </Text>
+          <Button
+            title="Open What-If Scenarios"
+            onPress={() => setActiveTab('whatif')}
+            variant="outline"
+            style={styles.saveBtn}
+          />
         </ScrollView>
       )}
 
@@ -212,6 +221,7 @@ const styles = StyleSheet.create({
   savedScenarioDesc: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodySmall, color: Colors.slateGray },
   compareBtn: { marginTop: Spacing.base },
   projCard: { padding: Spacing.base },
+  projHint: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodySmall, color: Colors.slateGray, marginTop: Spacing.base, lineHeight: 18 },
   saveBtn: { marginTop: Spacing.base },
   milestonesProgress: { marginBottom: Spacing.xl },
 });
