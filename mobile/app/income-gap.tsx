@@ -72,12 +72,17 @@ export default function IncomeGapScreen() {
           </Card>
         )}
 
-        <Text style={styles.strategiesTitle}>Strategies to Close the Gap</Text>
+        <Text style={styles.strategiesTitle}>A Starting Framework</Text>
+        <Text style={styles.frameworkDisclaimer}>
+          Personalized strategies are coming. Until they're grounded in your actual gap,
+          income, and goals, here's a generic three-lever checklist — run the what-ifs
+          to see real numbers for your situation.
+        </Text>
 
         {[
-          { action: 'Negotiate a 15% raise', impact: 'Closes 40% of gap immediately', type: 'income' },
-          { action: 'Add $1,500/mo freelance income', impact: 'Closes gap significantly faster', type: 'income' },
-          { action: 'Relocate to lower-cost city', impact: 'Reduces required dream income', type: 'location' },
+          { action: 'Grow income', impact: 'Model a raise or side income in What-If → Income Increase.' },
+          { action: 'Cut required lifestyle cost', impact: 'Lower your dream monthly spend in Profile to shrink the gap.' },
+          { action: 'Relocate to a lower-cost area', impact: 'Model it in What-If → Relocate to see the real delta.' },
         ].map((strategy, i) => (
           <Card key={i} style={styles.strategyCard}>
             <Text style={styles.strategyAction}>{strategy.action}</Text>
@@ -116,7 +121,8 @@ const styles = StyleSheet.create({
   timelineLabel: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodySmall, color: Colors.slateGray },
   timelineValue: { fontFamily: 'JetBrainsMono_700Bold', fontSize: Typography.titleMedium, color: Colors.accentGold },
   timelineSub: { fontFamily: 'Inter_400Regular', fontSize: Typography.microLabel, color: Colors.slateGray },
-  strategiesTitle: { fontFamily: 'Inter_700Bold', fontSize: Typography.bodyMedium, color: Colors.frostWhite, marginBottom: Spacing.md },
+  strategiesTitle: { fontFamily: 'Inter_700Bold', fontSize: Typography.bodyMedium, color: Colors.frostWhite, marginBottom: Spacing.sm },
+  frameworkDisclaimer: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodySmall, color: Colors.slateGray, marginBottom: Spacing.base, lineHeight: 18 },
   strategyCard: { padding: Spacing.md, marginBottom: Spacing.sm, gap: 4 },
   strategyAction: { fontFamily: 'Inter_600SemiBold', fontSize: Typography.bodyMedium, color: Colors.frostWhite },
   strategyImpact: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodySmall, color: Colors.profitGreen },

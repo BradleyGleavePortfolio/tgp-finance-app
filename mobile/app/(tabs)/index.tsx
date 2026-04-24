@@ -13,7 +13,6 @@ import { InterestBleedTicker } from '../../src/components/home/InterestBleedTick
 import { QuickActions } from '../../src/components/home/QuickActions';
 import { CelebrationModal } from '../../src/components/milestones/CelebrationModal';
 import { LoadingSpinner } from '../../src/components/ui/LoadingSpinner';
-import { Button } from '../../src/components/ui/Button';
 import { ScreenErrorBoundary } from '../../src/components/ui/ScreenErrorBoundary';
 import { Colors, Typography, Spacing } from '../../src/theme/finance';
 import { useAuthStore } from '../../src/stores/authStore';
@@ -24,7 +23,7 @@ import { useMilestonesStore } from '../../src/stores/milestonesStore';
 import { useEODStore } from '../../src/stores/eodStore';
 import { NetWorthChart } from '../../src/components/charts/NetWorthChart';
 import { formatChange, getGreeting } from '../../src/utils/formatters';
-import { computeDTI, computeSavingsRate } from '../../src/utils/financial';
+import { computeDTI } from '../../src/utils/financial';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -61,7 +60,6 @@ export default function HomeScreen() {
   const { text: changeText, isPositive } = formatChange(displayNetWorth - safePrevious);
   const monthlyGross = isFinite(profile?.monthly_income_gross as number) ? (profile?.monthly_income_gross || 0) : 0;
   const dti = computeDTI(safeAccounts, monthlyGross);
-  const savingsRate = computeSavingsRate(monthlyGross * 0.75);
   const monthlyIncome = monthlyGross * 0.75;
   const monthlyDebts = safeAccounts.filter(a => a?.is_debt).reduce((s, a) => s + (Number(a?.minimum_payment) || 0), 0);
   const cashFlow = isFinite(monthlyIncome - monthlyDebts) ? monthlyIncome - monthlyDebts : 0;
@@ -138,7 +136,6 @@ export default function HomeScreen() {
             netWorth={displayNetWorth}
             cashFlow={cashFlow}
             dti={dti}
-            savingsRate={savingsRate}
           />
         </View>
 
@@ -157,17 +154,6 @@ export default function HomeScreen() {
             priority={currentPriority}
             onNextStep={() => router.push('/whatif')}
             onViewAll={() => router.push('/(tabs)/goals')}
-          />
-        </View>
-
-        {/* Payday Deploy CTA */}
-        <View style={styles.section}>
-          <Button
-            title="💰 Deploy Paycheck"
-            onPress={() => router.push('/payday')}
-            variant="primary"
-            fullWidth
-            size="lg"
           />
         </View>
 

@@ -1,6 +1,6 @@
 // Individual What-If scenario form + results
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, TextInput } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NumberInput } from '../../src/components/ui/NumberInput';
@@ -25,7 +25,7 @@ export default function WhatIfScenario() {
   const { accounts, totalDebt, netWorth } = useAccountsStore();
   const { profile } = useAuthStore();
 
-  const [params, setParams] = useState<Record<string, number>>({});
+  const [params, setParams] = useState<Record<string, number | string>>({});
   const [localResult, setLocalResult] = useState<any>(null);
   const { viewRef: shareRef, share } = useShareCard();
 
@@ -40,13 +40,22 @@ export default function WhatIfScenario() {
   const debtAccounts = accounts.filter(a => a.is_debt && a.balance > 0);
   const monthlyIncome = profile?.monthly_income_gross || 5000;
 
+  // Params hold a mix of numeric and text values (text for `city` / `to_state`).
+  // Narrow to number when a numeric field is read.
+  const num = (key: string, fallback: number): number => {
+    const v = params[key];
+    if (typeof v === 'number' && isFinite(v)) return v;
+    const parsed = typeof v === 'string' ? parseFloat(v) : NaN;
+    return isFinite(parsed) ? parsed : fallback;
+  };
+
   const runLocal = () => {
     // Client-side calculation for instant feedback
     let result: any = {};
 
     switch (type) {
       case 'extra_debt_payment': {
-        const extra = params.extra_monthly || 200;
+        const extra = num('extra_monthly', 200);
         const targetDebt = debtAccounts[0];
         if (targetDebt) {
           const monthlyRate = (targetDebt.apr_percent || 20) / 100 / 12;
@@ -67,7 +76,7 @@ export default function WhatIfScenario() {
       }
 
       case 'income_increase': {
-        const raiseAmount = params.new_monthly_income || monthlyIncome * 1.15;
+        const raiseAmount = num('new_monthly_income', monthlyIncome * 1.15);
         const increase = raiseAmount - monthlyIncome;
         const tenYearImpact = futureValueAnnuity(increase * 0.7 * 0.3, 8, 10);
         result = {
@@ -82,8 +91,8 @@ export default function WhatIfScenario() {
       }
 
       case 'invest_lump_sum': {
-        const amount = params.amount || 5000;
-        const rate = params.return_rate || 8;
+        const amount = num('amount', 5000);
+        const rate = num('return_rate', 8);
         const y1 = futureValue(amount, rate, 1);
         const y5 = futureValue(amount, rate, 5);
         const y10 = futureValue(amount, rate, 10);
@@ -105,7 +114,7 @@ export default function WhatIfScenario() {
         const dreamCost = profile?.dream_lifestyle_cost_mo || 5000;
         const fiNumber = computeFINumber(dreamCost);
         const gap = fiNumber - Math.max(0, netWorth);
-        const savingsRate = params.savings_rate || 20;
+        const savingsRate = num('savings_rate', 20);
         const annualSavings = monthlyIncome * 0.75 * 12 * (savingsRate / 100);
         const yearsToFI = Math.ceil(Math.log(1 + gap * 0.08 / annualSavings) / Math.log(1.08));
         result = {
@@ -193,10 +202,32 @@ export default function WhatIfScenario() {
                 <NumberInput label="Target Savings Rate (%)" value={String(params.savings_rate || '')} onChangeValue={(v, n) => setParams({ ...params, savings_rate: n })} prefix="" suffix="%" placeholder="25" />
               )}
               {(type === 'relocate_country') && (
-                <NumberInput label="Target City or Country" value={String(params.city || '')} onChangeValue={(v, n) => setParams({ ...params, city: n })} placeholder="Medellin" />
+                <View style={styles.textInputWrap}>
+                  <Text style={styles.textInputLabel}>Target City or Country</Text>
+                  <TextInput
+                    value={String(params.city ?? '')}
+                    onChangeText={(v) => setParams({ ...params, city: v })}
+                    placeholder="Medellin"
+                    placeholderTextColor={Colors.slateGray}
+                    style={styles.textInput}
+                    autoCapitalize="words"
+                    returnKeyType="done"
+                  />
+                </View>
               )}
               {(type === 'relocate_city') && (
-                <NumberInput label="Target US State" value={String(params.to_state || '')} onChangeValue={(v, n) => setParams({ ...params, to_state: n })} placeholder="Texas" />
+                <View style={styles.textInputWrap}>
+                  <Text style={styles.textInputLabel}>Target US State</Text>
+                  <TextInput
+                    value={String(params.to_state ?? '')}
+                    onChangeText={(v) => setParams({ ...params, to_state: v })}
+                    placeholder="Texas"
+                    placeholderTextColor={Colors.slateGray}
+                    style={styles.textInput}
+                    autoCapitalize="words"
+                    returnKeyType="done"
+                  />
+                </View>
               )}
               {(type === 'sell_asset') && (
                 <NumberInput label="Lump Sum to Apply to Debt" value={String(params.sale_price || '')} onChangeValue={(v, n) => setParams({ ...params, sale_price: n })} placeholder="5000" />
@@ -283,4 +314,18 @@ const styles = StyleSheet.create({
   // Rendered but positioned off-screen so react-native-view-shot can capture a
   // fully-laid-out card without showing it to the user.
   shareOffscreen: { position: 'absolute', left: -10000, top: 0, opacity: 0 },
+  textInputWrap: { marginBottom: Spacing.base },
+  textInputLabel: { fontFamily: 'Inter_500Medium', fontSize: Typography.bodySmall, color: Colors.slateGray, marginBottom: Spacing.xs, letterSpacing: 0.5, textTransform: 'uppercase' },
+  textInput: {
+    backgroundColor: Colors.cardSurfaceNavy,
+    borderWidth: 1,
+    borderColor: Colors.graphiteBorder,
+    borderRadius: BorderRadius.md,
+    minHeight: 48,
+    paddingHorizontal: Spacing.base,
+    paddingVertical: Spacing.md,
+    fontFamily: 'Inter_500Medium',
+    fontSize: Typography.titleSmall,
+    color: Colors.frostWhite,
+  },
 });
