@@ -6,6 +6,8 @@ function buildContext(request: any): ExecutionContext {
     switchToHttp: () => ({
       getRequest: () => request,
     }),
+    getHandler: () => undefined,
+    getClass: () => undefined,
   } as unknown as ExecutionContext;
 }
 
@@ -13,7 +15,7 @@ describe('TenantGuard', () => {
   let guard: TenantGuard;
 
   beforeEach(() => {
-    guard = new TenantGuard();
+    guard = new TenantGuard({ getAllAndOverride: () => false } as any);
   });
 
   it('forbids a student from reading another user via :userId route param', () => {
