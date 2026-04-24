@@ -9,9 +9,11 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { PrismaService } from '../prisma/prisma.service';
-import * as bcrypt from 'bcrypt';
 
-const BCRYPT_SALT_ROUNDS = 12;
+// Cleanup (round 5): dropped `bcrypt` import and `BCRYPT_SALT_ROUNDS` constant.
+// Password hashing is handled entirely by Supabase Auth (see `register` / `login`
+// below). The `bcrypt` + `@types/bcrypt` deps have been removed from package.json
+// for the same reason — keeping them invited dead-path confusion during audits.
 
 @Injectable()
 export class AuthService {
