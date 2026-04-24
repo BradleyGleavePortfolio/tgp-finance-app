@@ -17,10 +17,14 @@ export const MILESTONES = [
 
   // NET WORTH milestones
   { key: 'nw_positive', title: 'Into the Black', description: 'Net worth turns positive', category: 'networth', check: (p: any) => (p.net_worth_snapshot || 0) > 0 },
+  { key: 'nw_1k', title: 'First Rung', description: '$1K net worth', category: 'networth', check: (p: any) => (p.net_worth_snapshot || 0) >= 1000 },
+  { key: 'nw_5k', title: 'Climbing', description: '$5K net worth', category: 'networth', check: (p: any) => (p.net_worth_snapshot || 0) >= 5000 },
   { key: 'nw_10k', title: 'Five Figures', description: '$10K net worth', category: 'networth', check: (p: any) => (p.net_worth_snapshot || 0) >= 10000 },
+  { key: 'nw_25k', title: 'Quarter to Fifty', description: '$25K net worth', category: 'networth', check: (p: any) => (p.net_worth_snapshot || 0) >= 25000 },
   { key: 'nw_50k', title: 'Wealth Builder', description: '$50K net worth', category: 'networth', check: (p: any) => (p.net_worth_snapshot || 0) >= 50000 },
   { key: 'nw_100k', title: 'Six Figures', description: '$100K net worth', category: 'networth', check: (p: any) => (p.net_worth_snapshot || 0) >= 100000 },
   { key: 'nw_250k', title: 'Quarter Millionaire', description: '$250K net worth', category: 'networth', check: (p: any) => (p.net_worth_snapshot || 0) >= 250000 },
+  { key: 'nw_500k', title: 'Half Millionaire', description: '$500K net worth', category: 'networth', check: (p: any) => (p.net_worth_snapshot || 0) >= 500000 },
   { key: 'nw_1m', title: 'The Million Dollar Moment', description: '$1M net worth', category: 'networth', check: (p: any) => (p.net_worth_snapshot || 0) >= 1000000 },
 
   // STREAK milestones

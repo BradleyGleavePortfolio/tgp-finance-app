@@ -7,6 +7,8 @@ import { NumberInput } from '../../src/components/ui/NumberInput';
 import { Button } from '../../src/components/ui/Button';
 import { Card } from '../../src/components/ui/Card';
 import { LoadingSpinner } from '../../src/components/ui/LoadingSpinner';
+import { ShareCard } from '../../src/components/ShareCard';
+import { useShareCard } from '../../src/hooks/useShareCard';
 import { Colors, Typography, Spacing, BorderRadius } from '../../src/theme/finance';
 import { useWhatIfStore } from '../../src/stores/whatifStore';
 import { useAccountsStore } from '../../src/stores/accountsStore';
@@ -25,6 +27,7 @@ export default function WhatIfScenario() {
 
   const [params, setParams] = useState<Record<string, number>>({});
   const [localResult, setLocalResult] = useState<any>(null);
+  const { viewRef: shareRef, share } = useShareCard();
 
   useEffect(() => {
     clearResult();
@@ -135,6 +138,18 @@ export default function WhatIfScenario() {
 
   const displayResult = localResult || currentResult;
 
+  // Derive the share-card copy from the scenario result. We intentionally only
+  // include the headline and the first key metric — no balances, no account
+  // names, no personal identifiers.
+  const shareTitle = scenarioConfig?.title ? `What if ${scenarioConfig.title.toLowerCase()}?` : 'What if…';
+  const sharePrimary = displayResult?.headline ?? '';
+  const shareFirstMetric = displayResult?.keyMetrics?.[0];
+  const shareSecondMetric = displayResult?.keyMetrics?.[1];
+
+  const onShare = () => {
+    share({ dialogTitle: 'Share this scenario' });
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -221,9 +236,24 @@ export default function WhatIfScenario() {
               </View>
 
               <View style={styles.resultBtns}>
+                <Button title="Share" onPress={onShare} variant="primary" />
                 <Button title="Save Scenario" onPress={() => { saveScenario({ scenario_type: type as ScenarioType, label: scenarioConfig.title, parameters: params, result_summary: displayResult }); Alert.alert('Saved!', 'Scenario saved to your What-If library.'); }} variant="outline" />
                 <Button title="Try Another" onPress={() => { setLocalResult(null); setParams({}); }} variant="ghost" />
               </View>
+            </View>
+          )}
+          {displayResult && (
+            <View style={styles.shareOffscreen} pointerEvents="none">
+              <ShareCard
+                ref={shareRef}
+                emoji={scenarioConfig.icon}
+                subtitle="WHAT IF"
+                title={shareTitle}
+                primaryStat={sharePrimary}
+                primaryStatLabel={shareFirstMetric?.label}
+                secondaryStat={shareSecondMetric ? `${shareSecondMetric.label}: ${shareSecondMetric.value}` : undefined}
+                theme="gold"
+              />
             </View>
           )}
         </ScrollView>
@@ -249,5 +279,8 @@ const styles = StyleSheet.create({
   metricCard: { padding: Spacing.md, alignItems: 'center', width: '47%' },
   metricLabel: { fontFamily: 'Inter_400Regular', fontSize: Typography.microLabel, color: Colors.slateGray, textAlign: 'center' },
   metricValue: { fontFamily: 'JetBrainsMono_700Bold', fontSize: Typography.bodyMedium, textAlign: 'center' },
-  resultBtns: { flexDirection: 'row', gap: Spacing.md, justifyContent: 'center' },
+  resultBtns: { flexDirection: 'row', gap: Spacing.md, justifyContent: 'center', flexWrap: 'wrap' },
+  // Rendered but positioned off-screen so react-native-view-shot can capture a
+  // fully-laid-out card without showing it to the user.
+  shareOffscreen: { position: 'absolute', left: -10000, top: 0, opacity: 0 },
 });

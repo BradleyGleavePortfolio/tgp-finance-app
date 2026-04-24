@@ -93,10 +93,14 @@ export const MILESTONE_DEFINITIONS: MilestoneDefinition[] = [
 
   // Net worth milestones
   { key: 'nw_positive', title: 'Into the Black', description: 'Net worth turns positive', category: 'net_worth', icon: '📈' },
+  { key: 'nw_1k', title: 'First Rung', description: '$1K net worth', category: 'net_worth', icon: '🪜' },
+  { key: 'nw_5k', title: 'Climbing', description: '$5K net worth', category: 'net_worth', icon: '🧗' },
   { key: 'nw_10k', title: 'Five Figures', description: '$10K net worth', category: 'net_worth', icon: '⭐' },
+  { key: 'nw_25k', title: 'Quarter to Fifty', description: '$25K net worth', category: 'net_worth', icon: '✨' },
   { key: 'nw_50k', title: 'Wealth Builder', description: '$50K net worth', category: 'net_worth', icon: '🌟' },
   { key: 'nw_100k', title: 'Six Figures', description: '$100K net worth', category: 'net_worth', icon: '💎' },
   { key: 'nw_250k', title: 'Quarter Millionaire', description: '$250K net worth', category: 'net_worth', icon: '🏆' },
+  { key: 'nw_500k', title: 'Half Millionaire', description: '$500K net worth', category: 'net_worth', icon: '🥈' },
   { key: 'nw_1m', title: 'The Million Dollar Moment', description: '$1M net worth', category: 'net_worth', icon: '👑' },
 
   // Streak milestones

@@ -4,6 +4,8 @@ import { View, Text, StyleSheet, Animated, Modal, TouchableOpacity } from 'react
 import { Colors, Typography, Spacing } from '../../theme/finance';
 import { MILESTONE_DEFINITIONS } from '../../utils/constants';
 import type { MilestoneUnlock } from '../../types';
+import { ShareCard } from '../ShareCard';
+import { useShareCard } from '../../hooks/useShareCard';
 
 interface CelebrationModalProps {
   milestone: MilestoneUnlock | null;
@@ -13,6 +15,7 @@ interface CelebrationModalProps {
 export function CelebrationModal({ milestone, onDismiss }: CelebrationModalProps) {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
+  const { viewRef: shareRef, share } = useShareCard();
 
   useEffect(() => {
     if (milestone) {
@@ -48,10 +51,34 @@ export function CelebrationModal({ milestone, onDismiss }: CelebrationModalProps
           <Text style={styles.title}>{definition.title}</Text>
           <Text style={styles.description}>{definition.description}</Text>
 
-          <TouchableOpacity style={styles.btn} onPress={onDismiss} activeOpacity={0.8}>
-            <Text style={styles.btnText}>Keep Building →</Text>
-          </TouchableOpacity>
+          <View style={styles.actions}>
+            <TouchableOpacity
+              style={styles.shareBtn}
+              onPress={() => share({ dialogTitle: 'Share your milestone' })}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Share your milestone"
+            >
+              <Text style={styles.shareBtnText}>Share your milestone</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.btn} onPress={onDismiss} activeOpacity={0.8}>
+              <Text style={styles.btnText}>Keep Building →</Text>
+            </TouchableOpacity>
+          </View>
         </Animated.View>
+
+        <View style={styles.shareOffscreen} pointerEvents="none">
+          <ShareCard
+            ref={shareRef}
+            emoji={definition.icon}
+            subtitle="MILESTONE UNLOCKED"
+            title={`I just hit ${definition.title.toLowerCase().startsWith('i ') ? definition.title : definition.title}`}
+            primaryStat={definition.description}
+            primaryStatLabel="ACHIEVEMENT"
+            secondaryStat="Building wealth with @TheGrowthProject"
+            theme={definition.category === 'net_worth' ? 'green' : 'gold'}
+          />
+        </View>
       </Animated.View>
     </Modal>
   );
@@ -136,15 +163,35 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: Spacing.xxl,
   },
+  actions: {
+    gap: Spacing.md,
+    alignItems: 'stretch',
+    width: '100%',
+  },
   btn: {
     backgroundColor: Colors.accentGold,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.xxxl,
     borderRadius: 12,
+    alignItems: 'center',
   },
   btnText: {
     fontFamily: 'Inter_700Bold',
     fontSize: Typography.bodyMedium,
     color: Colors.backgroundDeepNavy,
   },
+  shareBtn: {
+    borderWidth: 1,
+    borderColor: Colors.accentGold,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xxxl,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  shareBtnText: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: Typography.bodyMedium,
+    color: Colors.accentGold,
+  },
+  shareOffscreen: { position: 'absolute', left: -10000, top: 0, opacity: 0 },
 });
