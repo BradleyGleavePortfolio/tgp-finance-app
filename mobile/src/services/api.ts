@@ -150,6 +150,7 @@ export const notificationsApi = {
 // AI API (beyond chat)
 export const aiApi = {
   getSpendingDNA: (month: string) => api.post('/api/ai/spending-dna', { month }),
+  getLatestSpendingDna: () => api.get('/api/ai/spending-dna/latest'),
 };
 
 // Profile API

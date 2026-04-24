@@ -18,6 +18,9 @@ export default function NotificationsScreen() {
     milestone_alerts: true,
     coach_messages: true,
     red_flag_alerts: true,
+    future_self_letter_enabled: true,
+    priority_levelup_alerts: true,
+    spending_dna_alerts: true,
     timezone: 'America/Los_Angeles',
   });
   const [saving, setSaving] = useState(false);
@@ -62,8 +65,11 @@ export default function NotificationsScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {[
           { key: 'eod_reminder_enabled', label: 'EOD Reminder', desc: 'Daily check-in reminder at your configured time' },
-          { key: 'streak_alerts_enabled', label: 'Streak Alerts', desc: 'When your streak hits 7, 14, 30, 90, 365 days' },
+          { key: 'streak_alerts_enabled', label: 'Streak at Risk', desc: "9 PM ping if you haven't checked in and have a streak" },
           { key: 'milestone_alerts', label: 'Milestone Celebrations', desc: 'When you unlock a financial milestone' },
+          { key: 'priority_levelup_alerts', label: 'Priority Level-Up', desc: 'When you advance to the next Priority Waterfall stage' },
+          { key: 'future_self_letter_enabled', label: 'Future-Self Letter', desc: 'Delivered 90 days after you write it during onboarding' },
+          { key: 'spending_dna_alerts', label: 'Monthly Spending DNA', desc: 'When a new monthly Spending DNA report is ready' },
           { key: 'coach_messages', label: 'Coach Messages', desc: 'When your coach leaves a note or update' },
         ].map((item) => (
           <View key={item.key} style={styles.prefRow}>

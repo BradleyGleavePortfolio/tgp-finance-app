@@ -1,7 +1,9 @@
-import { Injectable, BadRequestException, ConflictException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, ConflictException, Logger, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { toN } from '../common/money';
+import { MilestonesService, MILESTONES } from '../milestones/milestones.service';
+import { PrioritiesService, PRIORITY_WATERFALL } from '../priorities/priorities.service';
 
 // Subset of Prisma's interactive-transaction client (everything we need).
 type Tx = Prisma.TransactionClient;
@@ -10,7 +12,11 @@ type Tx = Prisma.TransactionClient;
 export class EODService {
   private readonly logger = new Logger(EODService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly milestonesService?: MilestonesService,
+    @Optional() private readonly prioritiesService?: PrioritiesService,
+  ) {}
 
   async submitEOD(userId: string, dto: {
     submission_date: string;
@@ -167,6 +173,55 @@ export class EODService {
         };
       });
 
+      // Post-submission enrichment (additive, non-breaking):
+      // - newly_unlocked_milestones: keys + titles of milestones that just unlocked
+      // - current_priority: index + title of the user's active priority based on
+      //   latest balances. Lets the mobile client fire local notifications for
+      //   milestones and priority level-ups without any backend scheduler.
+      // Errors here MUST NOT roll back the EOD submission: the write already
+      // committed. Log & degrade to the base response.
+      let newly_unlocked_milestones: Array<{ key: string; title: string }> = [];
+      let current_priority: { index: number; title: string } | null = null;
+
+      try {
+        if (this.milestonesService) {
+          const keys = await this.milestonesService.checkAndUnlockMilestones(userId);
+          newly_unlocked_milestones = keys.map((key) => {
+            const def = MILESTONES.find((m) => m.key === key);
+            return { key, title: def?.title ?? key };
+          });
+        }
+      } catch (e) {
+        this.logger.warn(`milestone check failed after EOD for ${userId}: ${(e as Error).message}`);
+      }
+
+      try {
+        if (this.prioritiesService) {
+          const computed = await this.prioritiesService.getCurrentPriority(userId);
+          current_priority = {
+            index: computed.current_index,
+            title: computed.current.title,
+          };
+        } else {
+          // Fallback: compute directly so the mobile client still gets the name.
+          const profile = await this.prisma.financialProfile.findUnique({ where: { user_id: userId } });
+          const accounts = await this.prisma.financialAccount.findMany({ where: { user_id: userId, is_active: true } });
+          for (const priority of PRIORITY_WATERFALL) {
+            const r = priority.check(profile as any, accounts as any);
+            if (!r.complete) {
+              current_priority = { index: priority.index, title: priority.title };
+              break;
+            }
+          }
+          if (!current_priority) {
+            const last = PRIORITY_WATERFALL[PRIORITY_WATERFALL.length - 1];
+            current_priority = { index: last.index, title: last.title };
+          }
+        }
+      } catch (e) {
+        this.logger.warn(`priority compute failed after EOD for ${userId}: ${(e as Error).message}`);
+      }
+
       return {
         submission: result.submission,
         net_worth_computed,
@@ -175,6 +230,8 @@ export class EODService {
         total_cash,
         streak_days: result.streak_days,
         wealth_velocity_score: result.wealth_velocity_score,
+        newly_unlocked_milestones,
+        current_priority,
       };
     } catch (err) {
       // Catch a race where two concurrent submits hit the unique constraint;
