@@ -30,8 +30,10 @@ export function ChatPanel() {
     await sendMessage(text);
   };
 
-  const handleSuggestion = (suggestion: string) => {
-    setInput(suggestion);
+  const handleSuggestion = async (suggestion: string) => {
+    if (isLoading) return;
+    clearError();
+    await sendMessage(suggestion);
   };
 
   return (
