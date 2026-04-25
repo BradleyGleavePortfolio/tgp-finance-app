@@ -85,6 +85,34 @@ export class PushSchedulerService {
     });
   }
 
+  // ── Spending DNA stress alert — daily 09:00 user-local (±30 min) ─────────
+  // MVP rule: fire when the user has logged 3+ EODs with mood=1 (Stressed)
+  // in the last 7 days. Uses the same `spending_dna` push type / preference
+  // field (`spending_dna_alerts`) so the user's opt-out covers both.
+  // DAILY_DEDUPE_TYPES dedupes this per calendar day, preventing duplicate
+  // sends if both this cron and the Sunday cron fire on the same day.
+  @Cron(CronExpression.EVERY_HOUR)
+  async tickSpendingDnaAlerts(): Promise<void> {
+    await this.runForType('spending_dna', 9, async (_profile, user) => {
+      // Count stressed EODs (mood = 1) in the last 7 days.
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const stressedCount = await this.prisma.eODSubmission.count({
+        where: {
+          user_id: user.id,
+          mood: 1,
+          submission_date: { gte: sevenDaysAgo },
+        },
+      });
+      if (stressedCount < 3) return null;
+      return {
+        title: 'Your spending pattern looks unusual',
+        body: `You've logged ${stressedCount} stressed check-ins this week. See your Spending DNA for patterns.`,
+        data: { screen: 'SpendingDNA', trigger: 'stress_pattern', stressed_count: stressedCount },
+      };
+    });
+  }
+
   // ── helpers ────────────────────────────────────────────────────────────
 
   /**
