@@ -1,8 +1,9 @@
 // Compare saved What-If scenarios side by side
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../../src/components/ui/Card';
 import { EmptyState } from '../../src/components/ui/EmptyState';
 import { Colors, Typography, Spacing, BorderRadius } from '../../src/theme/finance';
@@ -11,9 +12,24 @@ import { formatCurrency } from '../../src/utils/formatters';
 
 export default function WhatIfCompare() {
   const router = useRouter();
-  const { savedScenarios, fetchSaved } = useWhatIfStore();
+  const { savedScenarios, fetchSaved, deleteScenario } = useWhatIfStore();
 
   useEffect(() => { fetchSaved(); }, []);
+
+  const handleDelete = (id: string, label: string) => {
+    Alert.alert(
+      'Delete Scenario',
+      `Remove "${label}" from your saved scenarios?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => deleteScenario(id),
+        },
+      ],
+    );
+  };
 
   const compareScenarios = savedScenarios.slice(0, 3);
 
@@ -42,7 +58,17 @@ export default function WhatIfCompare() {
             <View style={styles.grid}>
               {compareScenarios.map((s, i) => (
                 <Card key={s.id} style={styles.scenarioCard}>
-                  <Text style={styles.scenarioLabel}>{s.label}</Text>
+                  <View style={styles.scenarioCardHeader}>
+                    <Text style={[styles.scenarioLabel, { flex: 1 }]}>{s.label}</Text>
+                    <TouchableOpacity
+                      onPress={() => handleDelete(s.id, s.label)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Delete ${s.label} scenario`}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Ionicons name="trash-outline" size={18} color={Colors.debtCrimson} />
+                    </TouchableOpacity>
+                  </View>
                   <Text style={styles.headline}>{s.result_summary?.headline}</Text>
 
                   {s.result_summary?.keyMetrics?.slice(0, 2).map((m: any, j: number) => (
@@ -79,6 +105,7 @@ const styles = StyleSheet.create({
   subtitle: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodySmall, color: Colors.slateGray, marginBottom: Spacing.xl },
   grid: { gap: Spacing.md },
   scenarioCard: { padding: Spacing.base, gap: Spacing.sm },
+  scenarioCardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.xs },
   scenarioLabel: { fontFamily: 'Inter_700Bold', fontSize: Typography.bodyMedium, color: Colors.accentGold },
   headline: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodySmall, color: Colors.frostWhite, fontStyle: 'italic' },
   metricRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
