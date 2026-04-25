@@ -89,7 +89,6 @@ export class PaydayService {
             account_id: account.id,
             balance: newBalance,
             date: new Date(),
-            source: 'payday',
           },
         });
 
