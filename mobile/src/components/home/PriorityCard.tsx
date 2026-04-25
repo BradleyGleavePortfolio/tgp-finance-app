@@ -1,6 +1,8 @@
 // Current priority card with gold border and progress bar
+// UX Psychology Report #3: light haptic on "View all", medium on "Next Step"
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Card } from '../ui/Card';
 import { ProgressBar } from '../ui/ProgressBar';
 import { Button } from '../ui/Button';
@@ -29,7 +31,10 @@ export function PriorityCard({ priority, onNextStep, onViewAll }: PriorityCardPr
       <View style={styles.header}>
         <Text style={styles.priorityLabel}>CURRENT PRIORITY</Text>
         <TouchableOpacity
-          onPress={onViewAll}
+          onPress={() => {
+            try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { /* ignore */ }
+            onViewAll?.();
+          }}
           accessibilityRole="button"
           accessibilityLabel="View all priorities"
         >

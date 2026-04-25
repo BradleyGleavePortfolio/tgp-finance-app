@@ -1,7 +1,9 @@
 // Grouped accounts section (CASH / INVESTMENTS / ASSETS / DEBTS)
+// UX Psychology Report #3: light haptic on expand/collapse + account press
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { AccountCard } from './AccountCard';
 import { Colors, Typography, Spacing } from '../../theme/finance';
 import { formatCurrency } from '../../utils/formatters';
@@ -22,6 +24,10 @@ const GROUP_CONFIG: Record<GroupType, { label: string; color: string }> = {
   debts: { label: 'DEBTS', color: Colors.debtCrimson },
 };
 
+function fireLight() {
+  try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { /* ignore */ }
+}
+
 export function AccountGroup({ type, accounts, onPressAccount }: AccountGroupProps) {
   const [expanded, setExpanded] = useState(true);
   if (accounts.length === 0) return null;
@@ -29,11 +35,16 @@ export function AccountGroup({ type, accounts, onPressAccount }: AccountGroupPro
   const config = GROUP_CONFIG[type];
   const total = accounts.reduce((sum, a) => sum + a.balance, 0);
 
+  const handleToggle = () => {
+    fireLight();
+    setExpanded(!expanded);
+  };
+
   return (
     <View style={styles.group}>
       <TouchableOpacity
         style={styles.header}
-        onPress={() => setExpanded(!expanded)}
+        onPress={handleToggle}
         activeOpacity={0.7}
       >
         <View style={[styles.dot, { backgroundColor: config.color }]} />
@@ -54,7 +65,10 @@ export function AccountGroup({ type, accounts, onPressAccount }: AccountGroupPro
             <AccountCard
               key={account.id}
               account={account}
-              onPress={() => onPressAccount?.(account)}
+              onPress={() => {
+                fireLight();
+                onPressAccount?.(account);
+              }}
             />
           ))}
         </View>

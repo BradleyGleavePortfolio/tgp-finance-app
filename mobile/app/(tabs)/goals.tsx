@@ -1,6 +1,8 @@
 // Goals screen — sub-tabs: Priority | What-If | Projections | Milestones
+// UX Psychology Report #3: light haptic on tab switch, medium on scenario launch
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PriorityCard } from '../../src/components/home/PriorityCard';
@@ -50,6 +52,16 @@ export default function GoalsScreen() {
     { key: 'milestones', label: 'Milestones' },
   ];
 
+  const handleTabPress = (key: GoalsTab) => {
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { /* ignore */ }
+    setActiveTab(key);
+  };
+
+  const handleScenarioPress = (type: string) => {
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch { /* ignore */ }
+    router.push(`/whatif/${type}`);
+  };
+
   return (
     <ScreenErrorBoundary screenName="Goals">
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -63,7 +75,7 @@ export default function GoalsScreen() {
           <TouchableOpacity
             key={tab.key}
             style={[styles.tab, activeTab === tab.key && styles.tabActive]}
-            onPress={() => setActiveTab(tab.key)}
+            onPress={() => handleTabPress(tab.key)}
             activeOpacity={0.8}
             accessibilityRole="tab"
             accessibilityLabel={tab.label}
@@ -111,7 +123,7 @@ export default function GoalsScreen() {
               <TouchableOpacity
                 key={scenario.type}
                 style={styles.scenarioCard}
-                onPress={() => router.push(`/whatif/${scenario.type}`)}
+                onPress={() => handleScenarioPress(scenario.type)}
                 activeOpacity={0.8}
                 accessibilityRole="button"
                 accessibilityLabel={`Run ${scenario.title} what-if scenario`}

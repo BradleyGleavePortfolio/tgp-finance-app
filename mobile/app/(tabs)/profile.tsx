@@ -1,6 +1,8 @@
 // Profile & Settings screen
+// UX Psychology Report #3: light haptic on nav rows, warning on sign out
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,7 +23,13 @@ export default function ProfileScreen() {
   const { user, profile } = useAuthStore();
   const { accounts, netWorth, totalDebt, totalAssets } = useAccountsStore();
 
+  const handleNavRow = (route: string) => {
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { /* ignore */ }
+    router.push(route as any);
+  };
+
   const handleLogout = () => {
+    try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); } catch { /* ignore */ }
     Alert.alert('Log Out', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -144,7 +152,7 @@ export default function ProfileScreen() {
             <TouchableOpacity
               key={item.label}
               style={styles.settingsRow}
-              onPress={() => router.push(item.route as any)}
+              onPress={() => handleNavRow(item.route)}
               activeOpacity={0.7}
             >
               <Ionicons name={item.icon as any} size={20} color={Colors.slateGray} />

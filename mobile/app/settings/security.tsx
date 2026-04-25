@@ -1,6 +1,8 @@
 // Account & Security screen
+// UX Psychology Report #3: light on back, medium on password reset
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Input } from '../../src/components/ui/Input';
@@ -16,9 +18,11 @@ export default function SecurityScreen() {
 
   const handlePasswordReset = async () => {
     if (!user?.email) return;
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch { /* ignore */ }
     try {
       await sendPasswordResetEmail(user.email);
       setResetSent(true);
+      try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch { /* ignore */ }
       Alert.alert('Password Reset', `Reset email sent to ${user.email}. Check your inbox.`);
     } catch {
       Alert.alert('Error', 'Failed to send reset email.');
@@ -28,7 +32,7 @@ export default function SecurityScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back">
+        <TouchableOpacity onPress={() => { try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { /* ignore */ } router.back(); }} accessibilityRole="button" accessibilityLabel="Go back">
           <Text style={styles.back}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Account & Security</Text>

@@ -1,8 +1,10 @@
 // EOD Check-in form — full-screen modal
+// UX Psychology Report #3: light on nav/skip, medium on next, success on submit
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AccountReview } from '../../src/components/eod/AccountReview';
@@ -68,7 +70,13 @@ export default function EODScreen() {
     }
   };
 
+  const handleHabitToggle = (key: string) => {
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { /* ignore */ }
+    setHabits({ ...habits, [key]: !habits[key] });
+  };
+
   const handleSubmit = async () => {
+    try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch { /* ignore */ }
     try {
       const submission = await submitEOD({
         submission_date: new Date().toISOString().slice(0, 10),
@@ -211,7 +219,7 @@ export default function EODScreen() {
                 <TouchableOpacity
                   key={habit.key}
                   style={[styles.habitRow, habits[habit.key] && styles.habitDone]}
-                  onPress={() => setHabits({ ...habits, [habit.key]: !habits[habit.key] })}
+                  onPress={() => handleHabitToggle(habit.key)}
                   activeOpacity={0.8}
                   accessibilityRole="checkbox"
                   accessibilityLabel={habit.label}

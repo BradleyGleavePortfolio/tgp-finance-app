@@ -1,4 +1,5 @@
 // HeroAction — UX Psychology Report #1: One Dominant Home Action
+// UX Psychology Report #3: Haptic feedback — medium impact on hero press.
 // Large pressable hero card that surfaces the single most important action
 // for the user right now. Status logic: needs_attention > on_track > no_goals
 import React from 'react';
@@ -9,6 +10,7 @@ import {
   Pressable,
   ActivityIndicator,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../../theme/finance';
 
 export type HeroStatus = 'on_track' | 'needs_attention' | 'no_goals' | 'loading';
@@ -71,6 +73,10 @@ function getHeroConfig(status: HeroStatus): HeroConfig {
   }
 }
 
+function fireHeroHaptic() {
+  try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch { /* ignore */ }
+}
+
 export function HeroAction({ status, weekStat, onPress }: HeroActionProps) {
   if (status === 'loading') {
     return (
@@ -84,9 +90,14 @@ export function HeroAction({ status, weekStat, onPress }: HeroActionProps) {
 
   const cfg = getHeroConfig(status);
 
+  const handlePress = () => {
+    fireHeroHaptic();
+    onPress();
+  };
+
   return (
     <Pressable
-      onPress={onPress}
+      onPress={handlePress}
       style={({ pressed }) => [
         styles.card,
         {
@@ -94,7 +105,7 @@ export function HeroAction({ status, weekStat, onPress }: HeroActionProps) {
           borderColor: cfg.borderColor,
           shadowColor: cfg.borderColor,
           opacity: pressed ? 0.88 : 1,
-          transform: [{ scale: pressed ? 0.985 : 1 }],
+          transform: [{ scale: pressed ? 0.97 : 1 }],
         },
       ]}
       accessibilityRole="button"

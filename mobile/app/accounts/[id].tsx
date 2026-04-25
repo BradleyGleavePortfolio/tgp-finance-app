@@ -1,6 +1,8 @@
 // Account detail + balance history
+// UX Psychology Report #3: light on back, medium on edit, warning on delete
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -43,7 +45,13 @@ export default function AccountDetailScreen() {
     );
   }
 
+  const handleBack = () => {
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { /* ignore */ }
+    router.back();
+  };
+
   const openEditModal = () => {
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch { /* ignore */ }
     if (!account) return;
     setEditName(account.name || '');
     setEditInstitution(account.institution || '');
@@ -87,6 +95,7 @@ export default function AccountDetailScreen() {
   };
 
   const handleDelete = () => {
+    try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); } catch { /* ignore */ }
     Alert.alert('Delete Account', `Are you sure you want to delete "${account.name}"?`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
@@ -101,7 +110,7 @@ export default function AccountDetailScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back">
+        <TouchableOpacity onPress={handleBack} accessibilityRole="button" accessibilityLabel="Go back">
           <Text style={styles.back}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.title} numberOfLines={1}>{account.name}</Text>

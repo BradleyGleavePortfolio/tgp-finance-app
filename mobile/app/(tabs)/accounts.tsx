@@ -1,6 +1,8 @@
 // Accounts screen — tabs: All | Assets | Debts
+// UX Psychology Report #3: light haptic on tab switch + add button press
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AccountGroup } from '../../src/components/accounts/AccountGroup';
@@ -37,7 +39,18 @@ export default function AccountsScreen() {
   const debtAccounts = safeAccounts.filter(a => a?.is_debt);
 
   const handleAccountPress = (account: FinancialAccount) => {
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { /* ignore */ }
     router.push(`/accounts/${account.id}`);
+  };
+
+  const handleTabSwitch = (tab: Tab) => {
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { /* ignore */ }
+    setActiveTab(tab);
+  };
+
+  const handleAddPress = () => {
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch { /* ignore */ }
+    router.push('/accounts/add');
   };
 
   return (
@@ -46,7 +59,7 @@ export default function AccountsScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Accounts</Text>
         <TouchableOpacity
-          onPress={() => router.push('/accounts/add')}
+          onPress={handleAddPress}
           style={styles.addBtn}
           accessibilityRole="button"
           accessibilityLabel="Add account"
@@ -61,7 +74,7 @@ export default function AccountsScreen() {
           <TouchableOpacity
             key={tab}
             style={[styles.tab, activeTab === tab && styles.tabActive]}
-            onPress={() => setActiveTab(tab)}
+            onPress={() => handleTabSwitch(tab)}
             activeOpacity={0.8}
             accessibilityRole="tab"
             accessibilityLabel={`${tab.charAt(0).toUpperCase() + tab.slice(1)} accounts`}
