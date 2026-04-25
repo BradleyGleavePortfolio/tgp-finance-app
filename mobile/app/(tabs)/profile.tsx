@@ -51,6 +51,7 @@ export default function ProfileScreen() {
     { icon: 'mail-outline', label: 'Future Self Letter', route: '/future-letter' },
     { icon: 'analytics-outline', label: 'Spending DNA', route: '/spending-dna' },
     { icon: 'trending-up-outline', label: 'Income Gap', route: '/income-gap' },
+    { icon: 'people-circle-outline', label: 'Accountability Partner', route: '/accountability' },
     ...(user?.role === 'coach' ? [{ icon: 'people-outline', label: 'Coach Panel', route: '/(tabs)/coach' }] : []),
   ];
 
