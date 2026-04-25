@@ -1,14 +1,19 @@
 // Button component with Gold CTA + variants
+// UX Psychology Report #3: haptic feedback by variant intent + animated press state
 import React from 'react';
 import {
-  TouchableOpacity,
+  Pressable,
   Text,
   StyleSheet,
   ActivityIndicator,
   ViewStyle,
   TextStyle,
+  Animated,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Colors, Typography, Spacing, BorderRadius } from '../../theme/finance';
+import { usePressFeedback } from '../../hooks/usePressFeedback';
+import type { HapticIntent } from '../HapticPressable';
 
 interface ButtonProps {
   title: string;
@@ -22,6 +27,20 @@ interface ButtonProps {
   fullWidth?: boolean;
   accessibilityLabel?: string;
   accessibilityHint?: string;
+  /** Override haptic intent (auto-derived from variant if not set) */
+  hapticIntent?: HapticIntent;
+}
+
+/** Derive sensible haptic intent from button variant */
+function intentFromVariant(variant: ButtonProps['variant']): HapticIntent {
+  switch (variant) {
+    case 'primary': return 'medium';
+    case 'danger': return 'warning';
+    case 'ghost': return 'light';
+    case 'outline': return 'light';
+    case 'secondary': return 'light';
+    default: return 'medium';
+  }
 }
 
 export function Button({
@@ -36,7 +55,15 @@ export function Button({
   fullWidth = false,
   accessibilityLabel,
   accessibilityHint,
+  hapticIntent,
 }: ButtonProps) {
+  const intent: HapticIntent = hapticIntent ?? intentFromVariant(variant);
+  const { animatedStyle, onPressIn, onPressOut } = usePressFeedback({
+    intent,
+    pressScale: 0.97,
+    pressOpacity: 0.85,
+  });
+
   const sizeStyle = {
     sm: styles.sizeSm,
     md: styles.sizeMd,
@@ -65,33 +92,59 @@ export function Button({
     outline: styles.outlineText,
   }[variant];
 
+  const handlePress = () => {
+    if (disabled || loading) return;
+    // Fire haptic — silent on web/unsupported
+    try {
+      if (intent === 'success') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else if (intent === 'warning') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      } else if (intent === 'error') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      } else if (intent === 'heavy') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      } else if (intent === 'medium') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      } else {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+    } catch { /* ignore */ }
+    onPress();
+  };
+
   return (
-    <TouchableOpacity
-      style={[
-        styles.base,
-        sizeStyle,
-        variantStyle,
-        fullWidth && styles.fullWidth,
-        (disabled || loading) && styles.disabled,
-        style,
-      ]}
-      onPress={onPress}
+    <Pressable
+      onPress={handlePress}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
       disabled={disabled || loading}
-      activeOpacity={0.8}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel || title}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: disabled || loading, busy: loading }}
     >
-      {loading ? (
-        <ActivityIndicator
-          color={variant === 'primary' ? Colors.backgroundDeepNavy : Colors.accentGold}
-          size="small"
-        />
-      ) : (
-        <Text style={[styles.text, textSizeStyle, variantTextStyle, textStyle]}>{title}</Text>
-      )}
-    </TouchableOpacity>
+      <Animated.View
+        style={[
+          styles.base,
+          sizeStyle,
+          variantStyle,
+          fullWidth && styles.fullWidth,
+          (disabled || loading) && styles.disabled,
+          style,
+          animatedStyle,
+        ]}
+      >
+        {loading ? (
+          <ActivityIndicator
+            color={variant === 'primary' ? Colors.backgroundDeepNavy : Colors.accentGold}
+            size="small"
+          />
+        ) : (
+          <Text style={[styles.text, textSizeStyle, variantTextStyle, textStyle]}>{title}</Text>
+        )}
+      </Animated.View>
+    </Pressable>
   );
 }
 

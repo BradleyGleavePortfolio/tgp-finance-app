@@ -1,6 +1,8 @@
 // Milestone card — locked/unlocked states
+// UX Psychology Report #3: light haptic on unlocked milestone tap
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Colors, Typography, Spacing, BorderRadius } from '../../theme/finance';
 import type { MilestoneDefinition } from '../../types';
 import { formatDate } from '../../utils/formatters';
@@ -13,10 +15,17 @@ interface MilestoneCardProps {
 }
 
 export function MilestoneCard({ milestone, isUnlocked, unlockedAt, onPress }: MilestoneCardProps) {
+  const handlePress = () => {
+    if (onPress) {
+      try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { /* ignore */ }
+      onPress();
+    }
+  };
+
   return (
     <TouchableOpacity
       style={[styles.card, isUnlocked ? styles.unlocked : styles.locked]}
-      onPress={onPress}
+      onPress={handlePress}
       activeOpacity={0.8}
     >
       <Text style={[styles.icon, !isUnlocked && styles.iconLocked]}>{milestone.icon}</Text>

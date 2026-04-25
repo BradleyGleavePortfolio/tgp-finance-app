@@ -1,6 +1,8 @@
 // Individual What-If scenario form + results
+// UX Psychology Report #3: medium on Run, success on save/confirm, light on back
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, TextInput } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NumberInput } from '../../src/components/ui/NumberInput';
@@ -47,6 +49,22 @@ export default function WhatIfScenario() {
     if (typeof v === 'number' && isFinite(v)) return v;
     const parsed = typeof v === 'string' ? parseFloat(v) : NaN;
     return isFinite(parsed) ? parsed : fallback;
+  };
+
+  const handleRunLocal = () => {
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch { /* ignore */ }
+    runLocal();
+  };
+
+  const handleSaveScenario = () => {
+    try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch { /* ignore */ }
+    saveScenario({ scenario_type: type as ScenarioType, label: scenarioConfig.title, parameters: params, result_summary: displayResult });
+    Alert.alert('Saved!', 'Scenario saved to your What-If library.');
+  };
+
+  const handleBack = () => {
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { /* ignore */ }
+    router.back();
   };
 
   const runLocal = () => {
@@ -163,7 +181,7 @@ export default function WhatIfScenario() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back">
+          <TouchableOpacity onPress={handleBack} accessibilityRole="button" accessibilityLabel="Go back">
             <Text style={styles.backText}>← Back</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{scenarioConfig.title}</Text>
@@ -245,7 +263,7 @@ export default function WhatIfScenario() {
                 </>
               )}
 
-              <Button title={isRunning ? 'Calculating...' : 'Run Scenario'} onPress={runLocal} loading={isRunning} variant="primary" fullWidth size="lg" style={styles.runBtn} />
+              <Button title={isRunning ? 'Calculating...' : 'Run Scenario'} onPress={handleRunLocal} loading={isRunning} variant="primary" fullWidth size="lg" style={styles.runBtn} hapticIntent="medium" />
             </View>
           )}
 
@@ -268,7 +286,7 @@ export default function WhatIfScenario() {
 
               <View style={styles.resultBtns}>
                 <Button title="Share" onPress={onShare} variant="primary" />
-                <Button title="Save Scenario" onPress={() => { saveScenario({ scenario_type: type as ScenarioType, label: scenarioConfig.title, parameters: params, result_summary: displayResult }); Alert.alert('Saved!', 'Scenario saved to your What-If library.'); }} variant="outline" />
+                <Button title="Save Scenario" onPress={handleSaveScenario} variant="outline" hapticIntent="success" />
                 <Button title="Try Another" onPress={() => { setLocalResult(null); setParams({}); }} variant="ghost" />
               </View>
             </View>

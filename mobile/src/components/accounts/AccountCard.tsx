@@ -1,6 +1,8 @@
 // Account list item card
+// UX Psychology Report #3: light haptic on press
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing, BorderRadius } from '../../theme/finance';
 import { formatCurrency, formatAPR } from '../../utils/formatters';
@@ -26,8 +28,13 @@ export function AccountCard({ account, previousBalance, onPress }: AccountCardPr
 
   const trendIcon = trend === 'up' ? 'trending-up' : trend === 'down' ? 'trending-down' : 'remove';
 
+  const handlePress = () => {
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { /* ignore */ }
+    onPress?.();
+  };
+
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
+    <TouchableOpacity onPress={handlePress} activeOpacity={0.8}>
       <View style={styles.card}>
         <View style={styles.left}>
           <Text style={styles.name}>{account.name}</Text>

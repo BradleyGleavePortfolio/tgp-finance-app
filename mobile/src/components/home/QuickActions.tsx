@@ -1,7 +1,9 @@
 // Quick Actions row: EOD Check-in | What-If | Add Account | AI Coach
+// UX Psychology Report #3: light haptic on each tap + visible press states via HapticPressable
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { HapticPressable } from '../HapticPressable';
 import { Colors, Typography, Spacing, BorderRadius } from '../../theme/finance';
 
 interface QuickAction {
@@ -29,13 +31,15 @@ export function QuickActions({ onEOD, onWhatIf, onAddAccount, onAICoach }: Quick
   return (
     <View style={styles.row}>
       {actions.map((action) => (
-        <TouchableOpacity
+        <HapticPressable
           key={action.label}
-          style={[styles.action, action.highlighted && styles.highlighted]}
+          intent="light"
           onPress={action.onPress}
-          activeOpacity={0.7}
+          style={[styles.action, action.highlighted && styles.highlighted]}
           accessibilityRole="button"
           accessibilityLabel={action.label}
+          pressScale={0.95}
+          pressOpacity={0.8}
         >
           <Ionicons
             name={action.icon as any}
@@ -45,7 +49,7 @@ export function QuickActions({ onEOD, onWhatIf, onAddAccount, onAICoach }: Quick
           <Text style={[styles.label, action.highlighted && styles.highlightedLabel]}>
             {action.label}
           </Text>
-        </TouchableOpacity>
+        </HapticPressable>
       ))}
     </View>
   );

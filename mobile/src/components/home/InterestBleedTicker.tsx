@@ -1,6 +1,8 @@
 // Live pulsing red interest bleed ticker
+// UX Psychology Report #3: medium haptic on press
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Colors, Typography, Spacing, BorderRadius } from '../../theme/finance';
 import { formatCurrency } from '../../utils/formatters';
 
@@ -39,9 +41,14 @@ export function InterestBleedTicker({ dailyInterest, onPress }: InterestBleedTic
 
   if (dailyInterest <= 0) return null;
 
+  const handlePress = () => {
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch { /* ignore */ }
+    onPress?.();
+  };
+
   return (
     <TouchableOpacity
-      onPress={onPress}
+      onPress={handlePress}
       activeOpacity={0.8}
       accessibilityRole="button"
       accessibilityLabel="Open interest bleed detail"

@@ -1,6 +1,8 @@
 // Notification preferences screen
+// UX Psychology Report #3: success haptic on save
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Switch, TouchableOpacity, Alert } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../src/components/ui/Button';
@@ -39,6 +41,7 @@ export default function NotificationsScreen() {
       if (prefs.eod_reminder_enabled && prefs.eod_reminder_time) {
         await scheduleEODReminder(prefs.eod_reminder_time, prefs.timezone || 'UTC');
       }
+      try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch { /* ignore */ }
       Alert.alert('Saved', 'Notification preferences updated.');
       router.back();
     } catch {
