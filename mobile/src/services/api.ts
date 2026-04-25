@@ -253,4 +253,13 @@ export const profileApi = {
   update: (data: any) => api.put('/api/profile', data),
 };
 
+// Payday API
+export const paydayApi = {
+  deploy: (paycheckAmount: number, allocations: Array<{ account_id: string; amount: number; percentage?: number }>) =>
+    api.post('/api/payday', { paycheck_amount: paycheckAmount, allocations }),
+  getTemplates: () => api.get('/api/payday/templates'),
+  saveTemplate: (name: string, allocations: Array<{ account_id: string; percentage: number }>) =>
+    api.post('/api/payday/templates', { name, allocations }),
+};
+
 export default api;

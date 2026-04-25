@@ -129,6 +129,7 @@ model FinancialProfile {
   last_eod_date           DateTime?
   filing_status           String          @default("single") // for tax estimator
   onboarding_complete     Boolean         @default(false)
+  payday_templates        Json? // array of { id, name, allocations: [{account_id, percentage}], created_at }
   created_at              DateTime        @default(now())
   updated_at              DateTime        @updatedAt
 
