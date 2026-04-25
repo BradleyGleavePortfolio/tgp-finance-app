@@ -69,7 +69,7 @@ export default function NotificationsScreen() {
           { key: 'milestone_alerts', label: 'Milestone Celebrations', desc: 'When you unlock a financial milestone' },
           { key: 'priority_levelup_alerts', label: 'Priority Level-Up', desc: 'When you advance to the next Priority Waterfall stage' },
           { key: 'future_self_letter_enabled', label: 'Future-Self Letter', desc: 'Delivered 90 days after you write it during onboarding' },
-          { key: 'spending_dna_alerts', label: 'Monthly Spending DNA', desc: 'When a new monthly Spending DNA report is ready' },
+          { key: 'spending_dna_alerts', label: 'Spending DNA Alerts', desc: 'Get a heads-up when your spending pattern looks unusual.' },
           { key: 'coach_messages', label: 'Coach Messages', desc: 'When your coach leaves a note or update' },
         ].map((item) => (
           <View key={item.key} style={styles.prefRow}>
