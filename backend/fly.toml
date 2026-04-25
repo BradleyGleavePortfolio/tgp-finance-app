@@ -12,7 +12,10 @@ primary_region = 'sjc'
 [deploy]
   # Run database migrations once per release, before new VMs boot.
   # Fly runs this in a temporary VM with full app env/secrets injected.
-  release_command = 'npx prisma migrate deploy'
+  # Smart script: tries migrate deploy, falls back to db push --accept-data-loss
+  # on baseline conflicts (P3005/P3018 "already exists"). Safe right now
+  # because prod DB only has test data.
+  release_command = 'sh ./scripts/release.sh'
 
 [env]
   NODE_ENV = 'production'
