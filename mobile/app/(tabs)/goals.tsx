@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PriorityCard } from '../../src/components/home/PriorityCard';
 import { ProjectionChart } from '../../src/components/charts/ProjectionChart';
 import { MilestoneCard } from '../../src/components/milestones/MilestoneCard';
+import { CelebrationModal } from '../../src/components/milestones/CelebrationModal';
 import { Card } from '../../src/components/ui/Card';
 import { Button } from '../../src/components/ui/Button';
 import { EmptyState } from '../../src/components/ui/EmptyState';
@@ -19,6 +20,7 @@ import { PRIORITY_WATERFALL, WHATIF_SCENARIOS, MILESTONE_DEFINITIONS } from '../
 import { ProgressBar } from '../../src/components/ui/ProgressBar';
 import { formatCurrency } from '../../src/utils/formatters';
 import { ScreenErrorBoundary } from '../../src/components/ui/ScreenErrorBoundary';
+import type { MilestoneUnlock } from '../../src/types';
 
 type GoalsTab = 'priority' | 'whatif' | 'projections' | 'milestones';
 
@@ -32,6 +34,7 @@ export default function GoalsScreen() {
   const unlocked = Array.isArray(rawUnlocked) ? rawUnlocked : [];
   const { profile } = useAuthStore();
   const { netWorth, accounts } = useAccountsStore();
+  const [activeMilestone, setActiveMilestone] = useState<MilestoneUnlock | null>(null);
 
   useEffect(() => {
     fetchCurrent();
@@ -181,11 +184,17 @@ export default function GoalsScreen() {
                 milestone={def}
                 isUnlocked={!!unlock}
                 unlockedAt={unlock?.unlocked_at}
+                onPress={unlock ? () => setActiveMilestone(unlock) : undefined}
               />
             );
           })}
         </ScrollView>
       )}
+
+      <CelebrationModal
+        milestone={activeMilestone}
+        onDismiss={() => setActiveMilestone(null)}
+      />
     </SafeAreaView>
     </ScreenErrorBoundary>
   );
