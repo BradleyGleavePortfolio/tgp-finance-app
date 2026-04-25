@@ -48,6 +48,9 @@ COPY --from=builder /app/dist ./dist
 # Copy data files for cost of living service
 COPY --from=builder /app/data ./data
 
+# Copy release script for smart Prisma migrate / db-push fallback
+COPY --from=builder /app/scripts ./scripts
+
 # Expose port
 EXPOSE 3000
 
