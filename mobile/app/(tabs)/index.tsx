@@ -26,6 +26,9 @@ import { useEODStore } from '../../src/stores/eodStore';
 import { NetWorthChart } from '../../src/components/charts/NetWorthChart';
 import { formatChange, formatCurrency, getGreeting } from '../../src/utils/formatters';
 import { computeDTI } from '../../src/utils/financial';
+import { IdentityBadge } from '../../src/components/IdentityBadge';
+import { resolveIdentityTitle } from '../../src/lib/identityTitle';
+import { usersApi } from '../../src/services/api';
 
 // ---------------------------------------------------------------------------
 // Hero status computation
@@ -112,13 +115,25 @@ export default function HomeScreen() {
     fetchCurrentNetWorth();
     fetchCurrent();
     fetchToday();
+    // Identity endpoints — safe fallback if unavailable
+    usersApi.getFoundingNumber().then(r => setFoundingData(r.data?.data ?? r.data)).catch(() => {});
+    usersApi.getCircleStats().then(r => setCircleStats(r.data?.data ?? r.data)).catch(() => {});
   }, []);
 
   const [refreshing, setRefreshing] = React.useState(false);
+  const [foundingData, setFoundingData] = React.useState<{
+    rank: number; total: number; isFoundingMember: boolean;
+  } | null>(null);
+  const [circleStats, setCircleStats] = React.useState<{
+    activeThisWeekCount: number; totalMembers: number;
+  } | null>(null);
 
   const onRefresh = async () => {
     setRefreshing(true);
     await Promise.all([fetchAccounts(), fetchHistory(), fetchCurrentNetWorth(), fetchCurrent(), fetchToday()]);
+    // Refresh identity data (best-effort)
+    usersApi.getFoundingNumber().then(r => setFoundingData(r.data?.data ?? r.data)).catch(() => {});
+    usersApi.getCircleStats().then(r => setCircleStats(r.data?.data ?? r.data)).catch(() => {});
     setRefreshing(false);
   };
 
@@ -156,6 +171,28 @@ export default function HomeScreen() {
   const annualSavings = monthlySurplus * 12;
   const dreamLifestyleMonths = fiGap <= 0 ? 0
     : annualSavings > 0 ? Math.ceil(fiGap / annualSavings * 12) : undefined;
+
+  // ---------------------------------------------------------------------------
+  // Identity title (UX Psych Report #3)
+  // ---------------------------------------------------------------------------
+  const weeksSinceJoin = React.useMemo(() => {
+    if (!profile?.created_at) return 0;
+    const ms = Date.now() - new Date(profile.created_at as any).getTime();
+    return Math.floor(ms / (7 * 24 * 60 * 60 * 1000));
+  }, [profile?.created_at]);
+
+  const identityTitle = React.useMemo(() => resolveIdentityTitle({
+    primaryGoal: profile?.primary_goal,
+    streak: profile?.streak_days ?? 0,
+    weeksSinceJoin,
+    isOnTrack: false, // resolved after heroStatus below — will re-compute
+    isFoundingMember: foundingData?.isFoundingMember ?? false,
+  }), [profile?.primary_goal, profile?.streak_days, weeksSinceJoin, foundingData]);
+
+  const circlePercent = React.useMemo(() => {
+    if (!circleStats || circleStats.totalMembers === 0) return null;
+    return Math.round((circleStats.activeThisWeekCount / circleStats.totalMembers) * 100);
+  }, [circleStats]);
 
   // ---------------------------------------------------------------------------
   // Hero status + week stat (memoised — pure computation)
@@ -215,6 +252,21 @@ export default function HomeScreen() {
         </View>
 
         {/* ═══════════════════════════════════════════════════════════════════
+            IDENTITY REINFORCEMENT — UX Psych Report #3
+            Identity title + founding badge above hero; circle stat below.
+        ════════════════════════════════════════════════════════════════════ */}
+        <View style={styles.identityRow}>
+          <Text style={styles.identityTitle}>{identityTitle}</Text>
+          {foundingData && foundingData.rank > 0 && (
+            <IdentityBadge
+              rank={foundingData.rank}
+              isFoundingMember={foundingData.isFoundingMember}
+              style={styles.identityBadge}
+            />
+          )}
+        </View>
+
+        {/* ═══════════════════════════════════════════════════════════════════
             DOMINANT HERO ACTION — UX Psych Report #1
             One big, unmissable call-to-action surfaces above everything else.
             All secondary content is demoted below the fold.
@@ -224,6 +276,13 @@ export default function HomeScreen() {
           weekStat={weekStat}
           onPress={onHeroPress}
         />
+
+        {/* Circle stat — social proof */}
+        {circlePercent !== null && (
+          <Text style={styles.circleStat}>
+            {circlePercent}% of members hit their week
+          </Text>
+        )}
 
         {/* ═══════════════════════════════════════════════════════════════
             SECONDARY SECTIONS — demoted, still fully accessible
@@ -377,4 +436,30 @@ const styles = StyleSheet.create({
   eodDone: { alignItems: 'center', paddingVertical: Spacing.sm },
   eodDoneText: { fontFamily: 'Inter_500Medium', fontSize: Typography.bodySmall, color: Colors.profitGreen },
   tickerSection: { marginTop: Spacing.base, paddingBottom: Spacing.base },
+
+  // Identity reinforcement (UX Psych Report #3)
+  identityRow: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.base,
+  },
+  identityTitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 20,
+    color: '#F1F5F9',
+    letterSpacing: 0.3,
+    textAlign: 'center',
+  },
+  identityBadge: {
+    alignSelf: 'center',
+  },
+  circleStat: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    color: '#8895A7',
+    textAlign: 'center',
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
 });

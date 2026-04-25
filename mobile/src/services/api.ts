@@ -250,6 +250,12 @@ export const aiApi = {
   getLatestSpendingDna: () => api.get('/api/ai/spending-dna/latest'),
 };
 
+// Users / Identity API — UX Psychology Report #3
+export const usersApi = {
+  getFoundingNumber: () => api.get('/users/me/founding-number'),
+  getCircleStats: () => api.get('/users/me/circle-stats'),
+};
+
 // Profile API
 export const profileApi = {
   get: () => api.get('/api/profile'),

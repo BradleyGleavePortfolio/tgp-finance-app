@@ -17,11 +17,21 @@ import { signOut } from '../../src/lib/signOut';
 import { formatCurrency } from '../../src/utils/formatters';
 import { computeFINumber } from '../../src/utils/financial';
 import { ScreenErrorBoundary } from '../../src/components/ui/ScreenErrorBoundary';
+import { IdentityBadge } from '../../src/components/IdentityBadge';
+import { resolveIdentityTitle } from '../../src/lib/identityTitle';
+import { usersApi } from '../../src/services/api';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, profile } = useAuthStore();
   const { accounts, netWorth, totalDebt, totalAssets } = useAccountsStore();
+  const [foundingData, setFoundingData] = React.useState<{
+    rank: number; total: number; isFoundingMember: boolean;
+  } | null>(null);
+
+  React.useEffect(() => {
+    usersApi.getFoundingNumber().then(r => setFoundingData(r.data?.data ?? r.data)).catch(() => {});
+  }, []);
 
   const handleNavRow = (route: string) => {
     try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { /* ignore */ }
@@ -44,6 +54,19 @@ export default function ProfileScreen() {
       },
     ]);
   };
+
+  const weeksSinceJoin = React.useMemo(() => {
+    if (!profile?.created_at) return 0;
+    const ms = Date.now() - new Date(profile.created_at as any).getTime();
+    return Math.floor(ms / (7 * 24 * 60 * 60 * 1000));
+  }, [profile?.created_at]);
+
+  const identityTitle = React.useMemo(() => resolveIdentityTitle({
+    primaryGoal: profile?.primary_goal,
+    streak: profile?.streak_days ?? 0,
+    weeksSinceJoin,
+    isFoundingMember: foundingData?.isFoundingMember ?? false,
+  }), [profile?.primary_goal, profile?.streak_days, weeksSinceJoin, foundingData]);
 
   const safeAccounts = Array.isArray(accounts) ? accounts : [];
   const safeNetWorth = isFinite(netWorth) ? netWorth : 0;
@@ -76,6 +99,15 @@ export default function ProfileScreen() {
           <Text style={styles.name}>{user?.name}</Text>
           <Text style={styles.email}>{user?.email}</Text>
           {user?.role === 'coach' && <Text style={styles.roleTag}>COACH</Text>}
+          {/* Identity reinforcement — UX Psych Report #3 */}
+          <Text style={styles.identityTitleText}>{identityTitle}</Text>
+          {foundingData && foundingData.rank > 0 && (
+            <IdentityBadge
+              rank={foundingData.rank}
+              isFoundingMember={foundingData.isFoundingMember}
+              style={styles.identityBadgeStyle}
+            />
+          )}
         </View>
 
         {/* Stats */}
@@ -213,4 +245,16 @@ const styles = StyleSheet.create({
   settingsLabel: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: Typography.bodyMedium, color: Colors.frostWhite },
   logoutBtn: { marginTop: Spacing.xl, marginBottom: Spacing.base },
   disclaimer: { fontFamily: 'Inter_400Regular', fontSize: Typography.microLabel, color: Colors.slateGray, textAlign: 'center', lineHeight: 16, paddingBottom: Spacing.base },
+  // Identity (UX Psych Report #3)
+  identityTitleText: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: Typography.bodyLarge,
+    color: Colors.frostWhite,
+    letterSpacing: 0.3,
+    marginTop: Spacing.xs,
+  },
+  identityBadgeStyle: {
+    alignSelf: 'center',
+    marginTop: Spacing.xs,
+  },
 });
