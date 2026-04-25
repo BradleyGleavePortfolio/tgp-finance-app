@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
+import { initSentry, captureError, setSentryUser, wrap as sentryWrap } from '../src/services/sentry';
 import {
   registerPushTokenIfGranted,
   refreshForegroundNotifications,
@@ -27,6 +28,11 @@ import { Colors } from '../src/theme/finance';
 import { authEvents } from '../src/utils/authEvents';
 import { signOut } from '../src/lib/signOut';
 
+// Initialise Sentry as early as possible. Safe to call without a DSN — the
+// helper no-ops in that case. Placed AFTER imports (ESM hoists imports anyway)
+// so the call site is at module-eval time, before RootLayout mounts.
+initSentry();
+
 SplashScreen.preventAutoHideAsync();
 
 // Error boundary to prevent crash-to-desktop
@@ -38,11 +44,13 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
   static getDerivedStateFromError(error: Error) {
     return { hasError: true, error: error.message };
   }
-  componentDidCatch(error: Error) {
+  componentDidCatch(error: Error, info: { componentStack?: string }) {
     // Diagnostic: surface top-level app crashes to the JS console; __DEV__-gated to avoid noise in prod builds.
     if (__DEV__) {
       console.log('App Error:', error);
     }
+    // Forward to Sentry. No-op when SDK isn't configured.
+    captureError(error, { componentStack: info.componentStack });
   }
   render() {
     if (this.state.hasError) {
@@ -57,7 +65,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
   }
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
@@ -67,7 +75,17 @@ export default function RootLayout() {
     JetBrainsMono_700Bold,
   });
 
-  const { initialize, isLoading, checkVerification, pendingVerification, isAuthenticated } = useAuthStore();
+  const { initialize, isLoading, checkVerification, pendingVerification, isAuthenticated, user } = useAuthStore();
+
+  // Tag Sentry events with the current user id whenever auth state changes.
+  // No-op when Sentry isn't configured.
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      setSentryUser({ id: user.id, email: user.email });
+    } else {
+      setSentryUser(null);
+    }
+  }, [isAuthenticated, user?.id]);
   const router = useRouter();
   const notifTapSubRef = useRef<Notifications.Subscription | null>(null);
 
@@ -213,3 +231,7 @@ export default function RootLayout() {
     </ErrorBoundary>
   );
 }
+
+// Sentry.wrap() injects automatic crash reporting + touch tracking. When the
+// SDK isn't initialised (no DSN) it returns the component unchanged.
+export default sentryWrap(RootLayout);

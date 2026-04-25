@@ -3,8 +3,13 @@ import * as path from 'path';
 import * as dotenv from 'dotenv';
 dotenv.config({ path: path.resolve(__dirname, '..', '..', '.env') });
 
+// Initialise Sentry as the very next import (after env is loaded so it can
+// see SENTRY_DSN, but before any module that might throw or be instrumented).
+import './instrument';
+
 import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
+import * as Sentry from '@sentry/node';
 import { AppModule } from './app.module';
 
 // Fail fast at boot if a required secret is missing. Prior behavior was to let
@@ -57,6 +62,18 @@ async function bootstrap() {
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
+  });
+
+  // Surface unhandled rejections / uncaught exceptions to Sentry. Without
+  // these, async errors that escape Nest's filter chain would be silently
+  // swallowed in production.
+  process.on('unhandledRejection', (reason) => {
+    Sentry.captureException(reason);
+    new Logger('UnhandledRejection').error(reason);
+  });
+  process.on('uncaughtException', (err) => {
+    Sentry.captureException(err);
+    new Logger('UncaughtException').error(err);
   });
 
   const port = process.env.PORT || 3000;
