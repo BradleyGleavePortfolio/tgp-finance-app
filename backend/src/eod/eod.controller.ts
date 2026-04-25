@@ -1,5 +1,5 @@
 import {
-  Controller, Post, Get, Body, Query,
+  Controller, Post, Get, Put, Body, Query, Param,
   UseGuards, BadRequestException,
   ParseIntPipe, DefaultValuePipe,
 } from '@nestjs/common';
@@ -25,6 +25,14 @@ export class EODController {
     return this.eodService.submitEOD(user.id, parsed.data as any);
   }
 
+  @Get('history')
+  async getHistoryByLimit(
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @CurrentUser() user: any,
+  ) {
+    return this.eodService.getEODHistoryByLimit(user.id, limit);
+  }
+
   @Get()
   async getHistory(
     @Query('days', new DefaultValuePipe(30), ParseIntPipe) days: number,
@@ -36,5 +44,21 @@ export class EODController {
   @Get('today')
   async getToday(@CurrentUser() user: any) {
     return this.eodService.getTodayEOD(user.id);
+  }
+
+  @Put(':id')
+  async updateEOD(
+    @Param('id') id: string,
+    @Body() body: any,
+    @CurrentUser() user: any,
+  ) {
+    const parsed = SubmitEODSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        error: parsed.error.errors.map((e) => e.message).join(', '),
+        code: 'VALIDATION_ERROR',
+      });
+    }
+    return this.eodService.updateEOD(id, user.id, parsed.data as any);
   }
 }

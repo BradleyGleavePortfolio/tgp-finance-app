@@ -194,6 +194,9 @@ export const eodApi = {
   getToday: () => api.get('/api/eod/today'),
   getHistory: (days?: number) =>
     api.get('/api/eod', { params: { days } }),
+  getHistoryByLimit: (limit?: number) =>
+    api.get('/api/eod/history', { params: { limit } }),
+  update: (id: string, data: any) => api.put(`/api/eod/${id}`, data),
 };
 
 // Onboarding API

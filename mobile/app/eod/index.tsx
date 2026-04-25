@@ -122,7 +122,13 @@ export default function EODScreen() {
             <Text style={styles.closeBtn}>✕</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Daily Check-in</Text>
-          <View style={{ width: 28 }} />
+          <TouchableOpacity
+            onPress={() => router.push('/eod/history')}
+            accessibilityRole="button"
+            accessibilityLabel="View EOD history"
+          >
+            <Text style={styles.historyBtn}>History</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Progress */}
@@ -238,6 +244,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.backgroundDeepNavy },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Spacing.base },
   closeBtn: { fontFamily: 'Inter_400Regular', fontSize: Typography.titleSmall, color: Colors.slateGray, width: 28, textAlign: 'center' },
+  historyBtn: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodySmall, color: Colors.accentGold },
   headerTitle: { fontFamily: 'Inter_700Bold', fontSize: Typography.bodyMedium, color: Colors.frostWhite },
   progressSection: { paddingHorizontal: Spacing.base, paddingBottom: Spacing.md, gap: Spacing.xs },
   progressLabel: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodySmall, color: Colors.slateGray, textAlign: 'right' },
