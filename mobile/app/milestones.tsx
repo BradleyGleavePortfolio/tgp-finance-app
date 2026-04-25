@@ -13,6 +13,7 @@ import { MILESTONE_DEFINITIONS } from '../src/utils/constants';
 export default function MilestonesScreen() {
   const router = useRouter();
   const { unlocked, pendingCelebration, fetchMilestones, dismissCelebration, isUnlocked } = useMilestonesStore();
+  const [activeMilestone, setActiveMilestone] = React.useState<import('../src/types').MilestoneUnlock | null>(null);
 
   useEffect(() => { fetchMilestones(); }, []);
 
@@ -49,6 +50,7 @@ export default function MilestonesScreen() {
                     milestone={def}
                     isUnlocked={!!unlock}
                     unlockedAt={unlock?.unlocked_at}
+                    onPress={unlock ? () => setActiveMilestone(unlock) : undefined}
                   />
                 );
               })}
@@ -57,7 +59,7 @@ export default function MilestonesScreen() {
         })}
       </ScrollView>
 
-      <CelebrationModal milestone={pendingCelebration} onDismiss={dismissCelebration} />
+      <CelebrationModal milestone={pendingCelebration || activeMilestone} onDismiss={() => { dismissCelebration(); setActiveMilestone(null); }} />
     </SafeAreaView>
   );
 }
