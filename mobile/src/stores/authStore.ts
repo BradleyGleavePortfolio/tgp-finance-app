@@ -146,10 +146,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // Backend returns { access_token, refresh_token, user: {...} }
       // After response interceptor unwraps envelope, data = that object
       const token = data?.access_token || data?.token || '';
+      const refreshToken = data?.refresh_token || '';
       if (!token) {
         throw new Error('No token received from server');
       }
       await secureStorage.setItem('auth_token', token);
+      // Store refresh token so the api.ts mutex can rotate access tokens
+      // silently on 401 instead of forcing re-login every ~hour.
+      if (refreshToken) {
+        await secureStorage.setItem('auth_refresh_token', refreshToken);
+      }
       set({ token });
 
       // Fetch full user profile
@@ -206,6 +212,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // Ignore logout API errors
     }
     await secureStorage.removeItem('auth_token');
+    await secureStorage.removeItem('auth_refresh_token');
     await AsyncStorage.removeItem('quiz_answers');
     set({
       user: null,
@@ -268,9 +275,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // If login succeeds, the user has verified their email
       const { data } = await authApi.login(pendingVerification.email, pendingVerification.password);
       const token = data?.access_token || data?.token || '';
+      const refreshToken = data?.refresh_token || '';
       if (!token) return false;
 
       await secureStorage.setItem('auth_token', token);
+      if (refreshToken) {
+        await secureStorage.setItem('auth_refresh_token', refreshToken);
+      }
       set({ token });
 
       // Fetch full user profile
