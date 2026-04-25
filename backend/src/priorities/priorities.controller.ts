@@ -1,4 +1,4 @@
-import { Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
 import { PrioritiesService } from './priorities.service';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -23,7 +23,10 @@ export class PrioritiesController {
   @Post('advance')
   @UseGuards(RoleGuard)
   @Roles('coach')
-  async advance(@CurrentUser() user: any) {
-    return this.prioritiesService.advancePriority(user.id);
+  async advance(@Body() body: any, @CurrentUser() user: any) {
+    // Coach can advance a specific student's priority by providing student_id in the body.
+    // Falls back to advancing the coach's own priority if no student_id is given.
+    const targetId = body?.student_id || user.id;
+    return this.prioritiesService.advancePriority(targetId);
   }
 }
