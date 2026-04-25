@@ -1,9 +1,13 @@
-import axios from 'axios';
+import axios, { AxiosError, AxiosRequestConfig } from 'axios';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import { createClient } from '@supabase/supabase-js';
 import { secureStorage } from '../lib/secureStorage';
+import { authEvents } from '../utils/authEvents';
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl || 'https://tgp-finance-api.fly.dev';
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -28,21 +32,110 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Single response interceptor: unwrap envelope + handle 401
+// ---------------------------------------------------------------------------
+// Token-refresh mutex + request queue
+// ---------------------------------------------------------------------------
+// Backported from growth-project-mobile (fitness). Without this, every 401
+// (which arrives every ~hour as Supabase access tokens expire) just clobbered
+// the token and forced a re-login. Now we coalesce N concurrent 401s into
+// exactly ONE refresh call and retry the original requests with the new
+// access token.
+//
+// Sign-out only happens when the refresh itself fails (stale refresh token).
+let refreshPromise: Promise<string> | null = null;
+let loggedOutOnce = false;
+
+async function performRefresh(): Promise<string> {
+  const refreshToken = await secureStorage.getItem('auth_refresh_token');
+  if (!refreshToken) throw new Error('No refresh token');
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error('Supabase env vars missing — cannot refresh');
+  }
+
+  // Lightweight, stateless client — no session persistence here. The user-
+  // facing supabase client (services/supabase.ts) owns persisted session;
+  // this one is single-use to swap a refresh token for a new access token.
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error: refreshError } = await supabase.auth.refreshSession({
+    refresh_token: refreshToken,
+  });
+  if (refreshError || !data.session) {
+    throw refreshError || new Error('Refresh returned no session');
+  }
+  await secureStorage.setItem('auth_token', data.session.access_token);
+  await secureStorage.setItem('auth_refresh_token', data.session.refresh_token);
+  return data.session.access_token;
+}
+
+async function handleRefreshFailure(): Promise<void> {
+  // Fire exactly once per refresh-failure cascade.
+  if (loggedOutOnce) return;
+  loggedOutOnce = true;
+  try {
+    await secureStorage.removeItem('auth_token');
+    await secureStorage.removeItem('auth_refresh_token');
+  } catch (err) {
+    // Best effort
+  }
+  authEvents.emit('logout');
+  // Reset the one-shot guard after the emit so a subsequent successful login
+  // → 401 cycle still triggers a fresh logout.
+  setTimeout(() => {
+    loggedOutOnce = false;
+  }, 1000);
+}
+
+// Single response interceptor: unwrap envelope + handle 401 with refresh mutex
 api.interceptors.response.use(
   (response) => {
     // Unwrap TransformInterceptor envelope: { data, success, timestamp } → data
-    if (response.data && typeof response.data === 'object' && 'success' in response.data && 'data' in response.data) {
+    if (
+      response.data &&
+      typeof response.data === 'object' &&
+      'success' in response.data &&
+      'data' in response.data
+    ) {
       response.data = response.data.data;
     }
     return response;
   },
-  async (error) => {
-    if (error.response?.status === 401) {
-      await secureStorage.removeItem('auth_token');
-      // Navigation to login will be handled by auth state listener
+  async (error: AxiosError) => {
+    const originalConfig = error.config as (AxiosRequestConfig & { _retry?: boolean }) | undefined;
+
+    // Network error — no response from server. Don't log out.
+    if (!error.response) {
+      error.message = 'Cannot reach server. Please check your connection and try again.';
+      return Promise.reject(error);
     }
-    return Promise.reject(error);
+
+    // Only 401s trigger refresh. _retry guards against an infinite loop if
+    // the retried request also returns 401.
+    if (error.response.status !== 401 || !originalConfig || originalConfig._retry) {
+      return Promise.reject(error);
+    }
+    originalConfig._retry = true;
+
+    if (!refreshPromise) {
+      refreshPromise = performRefresh()
+        .catch(async (err) => {
+          await handleRefreshFailure();
+          throw err;
+        })
+        .finally(() => {
+          refreshPromise = null;
+        });
+    }
+
+    try {
+      const newToken = await refreshPromise;
+      originalConfig.headers = originalConfig.headers || {};
+      (originalConfig.headers as Record<string, string>).Authorization = `Bearer ${newToken}`;
+      return api.request(originalConfig);
+    } catch (refreshErr) {
+      return Promise.reject(refreshErr);
+    }
   }
 );
 

@@ -24,6 +24,8 @@ import {
 } from '@expo-google-fonts/jetbrains-mono';
 import { useAuthStore } from '../src/stores/authStore';
 import { Colors } from '../src/theme/finance';
+import { authEvents } from '../src/utils/authEvents';
+import { signOut } from '../src/lib/signOut';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -72,6 +74,19 @@ export default function RootLayout() {
   useEffect(() => {
     // Read-only init (hydrate session from storage). authStore surfaces failures via its own error state.
     initialize().catch(() => {});
+  }, []);
+
+  // Wire api.ts → authEvents.emit('logout') (fired when refresh-token rotation
+  // fails) to the central signOut helper. Without this, a stale refresh token
+  // would clear the access token but leave Zustand stores hydrated with the
+  // previous user's data — a real privacy bug on shared devices.
+  useEffect(() => {
+    const off = authEvents.on('logout', () => {
+      signOut().catch(() => {});
+    });
+    return () => {
+      if (off) off();
+    };
   }, []);
 
   // Register push token + run foreground sync once authenticated. Both are
