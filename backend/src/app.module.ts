@@ -27,6 +27,7 @@ import { HealthController } from './health/health.controller';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { DecimalToNumberInterceptor } from './common/interceptors/decimal-to-number.interceptor';
+import { JwtAuthGuard } from './auth/guards/jwt.guard';
 import { TenantGuard } from './auth/guards/tenant.guard';
 
 @Module({
@@ -84,14 +85,21 @@ import { TenantGuard } from './auth/guards/tenant.guard';
     // Global response transform — wraps all responses in { data, success, timestamp }
     { provide: APP_INTERCEPTOR, useClass: TransformInterceptor },
 
-    // Global rate limiter — ThrottlerModule.forRoot above sets up the policy
-    // (100 req/min/IP). Without registering ThrottlerGuard as a global guard,
-    // any @Throttle() decorators are inert and the default policy never
-    // applies. Registered FIRST so rate-limit checks happen before tenant
-    // resolution — cheap-fail unauthenticated traffic.
+    // Global guard chain. Order is significant — NestJS evaluates APP_GUARD
+    // providers in the order they appear here.
+    //
+    // 1) ThrottlerGuard — cheap-fail abusive traffic before any auth work.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
-
-    // Global tenant guard — ensures multi-tenant data isolation
+    //
+    // 2) JwtAuthGuard — verifies the bearer token and populates request.user.
+    //    Routes opt out via @Public(). Registering this globally turns the
+    //    auth model from "opt-in via @UseGuards on every controller" (which
+    //    risked one missed decorator = public endpoint) to "private by
+    //    default, public on explicit opt-in".
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    //
+    // 3) TenantGuard — ensures multi-tenant data isolation. Reads
+    //    request.user populated by step 2, so JwtAuthGuard MUST run first.
     { provide: APP_GUARD, useClass: TenantGuard },
   ],
 })
