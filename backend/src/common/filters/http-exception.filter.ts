@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import * as Sentry from '@sentry/node';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -36,6 +37,18 @@ export class HttpExceptionFilter implements ExceptionFilter {
     } else if (exception instanceof Error) {
       message = exception.message;
       this.logger.error(`Unhandled error: ${exception.message}`, exception.stack);
+    }
+
+    // Forward server errors (5xx) and unknown exceptions to Sentry. Skip 4xx
+    // since those are caller errors (validation/auth/not-found) and would
+    // create noise. No-op when SENTRY_DSN is unset.
+    if (statusCode >= 500) {
+      Sentry.withScope((scope) => {
+        scope.setTag('http.method', request.method);
+        scope.setTag('http.path', request.url);
+        scope.setExtra('responseStatus', statusCode);
+        Sentry.captureException(exception);
+      });
     }
 
     // Never expose stack traces
