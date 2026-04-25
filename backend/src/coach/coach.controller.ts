@@ -5,6 +5,7 @@ import {
 import { CoachService } from './coach.service';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { RoleGuard } from '../auth/guards/role.guard';
+import { OwnsStudentGuard } from '../auth/guards/owns-student.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { CreateCoachNoteSchema, CreateProgramTemplateSchema } from '../common/validators/schemas';
@@ -21,11 +22,13 @@ export class CoachController {
   }
 
   @Get('students/:id')
+  @UseGuards(OwnsStudentGuard)
   async getStudentDetail(@Param('id') id: string, @CurrentUser() user: any) {
     return this.coachService.getStudentDetail(user.id, id);
   }
 
   @Get('students/:id/detail')
+  @UseGuards(OwnsStudentGuard)
   async getStudentDetailWithHistory(
     @Param('id') id: string,
     @Query('days', new DefaultValuePipe(90), ParseIntPipe) days: number,
@@ -40,6 +43,7 @@ export class CoachController {
   }
 
   @Post('notes/:student_id')
+  @UseGuards(OwnsStudentGuard)
   async createNote(
     @Param('student_id') studentId: string,
     @Body() body: any,
@@ -78,6 +82,7 @@ export class CoachController {
   }
 
   @Post('templates/:id/apply/:student_id')
+  @UseGuards(OwnsStudentGuard)
   async applyTemplate(
     @Param('id') templateId: string,
     @Param('student_id') studentId: string,
