@@ -1,6 +1,6 @@
 // Coach dashboard (coach role) / AI Chat (students)
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, FlatList } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, FlatList, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Card } from '../../src/components/ui/Card';
@@ -11,6 +11,7 @@ import { LoadingSpinner } from '../../src/components/ui/LoadingSpinner';
 import { Colors, Typography, Spacing, BorderRadius } from '../../src/theme/finance';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useCoachStore } from '../../src/stores/coachStore';
+import { coachApi } from '../../src/services/api';
 import { formatCurrency, formatRelativeTime } from '../../src/utils/formatters';
 import { ScreenErrorBoundary } from '../../src/components/ui/ScreenErrorBoundary';
 
@@ -28,11 +29,26 @@ function CoachDashboard() {
   const [search, setSearch] = useState('');
   const [emailSearch, setEmailSearch] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'velocity' | 'streak' | 'net_worth'>('velocity');
+  const [digest, setDigest] = useState<any>(null);
+  const [digestLoading, setDigestLoading] = useState(false);
 
   useEffect(() => {
     fetchStudents();
     fetchAlerts();
+    loadDigest();
   }, []);
+
+  const loadDigest = async () => {
+    setDigestLoading(true);
+    try {
+      const { data } = await coachApi.getDigest();
+      setDigest(data);
+    } catch {
+      // Non-critical — digest card stays hidden if request fails
+    } finally {
+      setDigestLoading(false);
+    }
+  };
 
   const handleEmailSearch = () => {
     if (emailSearch.trim()) {
@@ -70,6 +86,55 @@ function CoachDashboard() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>Coach Dashboard</Text>
+
+        {/* Weekly Digest Card */}
+        {(digest || digestLoading) && (
+          <Card style={styles.digestCard}>
+            <View style={styles.digestHeader}>
+              <Text style={styles.digestTitle}>📋 Weekly Digest</Text>
+              {digest?.week_of && (
+                <Text style={styles.digestWeek}>Week of {digest.week_of}</Text>
+              )}
+            </View>
+            {digestLoading ? (
+              <ActivityIndicator size="small" color={Colors.accentGold} />
+            ) : (
+              <>
+                <View style={styles.digestGrid}>
+                  <View style={styles.digestStat}>
+                    <Text style={styles.digestStatValue}>{digest.total_students ?? '—'}</Text>
+                    <Text style={styles.digestStatLabel}>Total Clients</Text>
+                  </View>
+                  <View style={styles.digestStat}>
+                    <Text style={styles.digestStatValue}>{digest.submitted_this_week ?? '—'}</Text>
+                    <Text style={styles.digestStatLabel}>Active This Week</Text>
+                  </View>
+                  <View style={styles.digestStat}>
+                    <Text style={styles.digestStatValue}>{digest.submission_rate_pct != null ? `${digest.submission_rate_pct}%` : '—'}</Text>
+                    <Text style={styles.digestStatLabel}>Submission Rate</Text>
+                  </View>
+                  <View style={styles.digestStat}>
+                    <Text style={styles.digestStatValue}>{digest.avg_velocity_score ?? '—'}</Text>
+                    <Text style={styles.digestStatLabel}>Avg Velocity</Text>
+                  </View>
+                </View>
+                {Array.isArray(digest.needs_attention) && digest.needs_attention.length > 0 && (
+                  <View style={styles.digestAttention}>
+                    <Text style={styles.digestAttentionLabel}>
+                      ⚠ Needs Attention ({digest.needs_attention.length})
+                    </Text>
+                    {digest.needs_attention.slice(0, 3).map((s: any, i: number) => (
+                      <Text key={i} style={styles.digestAttentionName}>{s.name}</Text>
+                    ))}
+                    {digest.needs_attention.length > 3 && (
+                      <Text style={styles.digestAttentionMore}>+{digest.needs_attention.length - 3} more</Text>
+                    )}
+                  </View>
+                )}
+              </>
+            )}
+          </Card>
+        )}
 
         {/* Stats cards */}
         <View style={styles.statsGrid}>
@@ -212,6 +277,18 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.backgroundDeepNavy },
   content: { padding: Spacing.base, paddingBottom: 100 },
   title: { fontFamily: 'Inter_700Bold', fontSize: Typography.titleLarge, color: Colors.frostWhite, marginBottom: Spacing.xl },
+  digestCard: { padding: Spacing.base, marginBottom: Spacing.xl, gap: Spacing.md },
+  digestHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  digestTitle: { fontFamily: 'Inter_700Bold', fontSize: Typography.bodyMedium, color: Colors.frostWhite },
+  digestWeek: { fontFamily: 'Inter_400Regular', fontSize: Typography.microLabel, color: Colors.slateGray },
+  digestGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  digestStat: { width: '48%', backgroundColor: Colors.backgroundDeepNavy, borderRadius: BorderRadius.sm, padding: Spacing.md, alignItems: 'center' },
+  digestStatValue: { fontFamily: 'JetBrainsMono_700Bold', fontSize: Typography.titleMedium, color: Colors.accentGold },
+  digestStatLabel: { fontFamily: 'Inter_400Regular', fontSize: Typography.microLabel, color: Colors.slateGray, marginTop: 2, textAlign: 'center' },
+  digestAttention: { borderTopWidth: 1, borderTopColor: Colors.graphiteBorder, paddingTop: Spacing.sm, gap: 4 },
+  digestAttentionLabel: { fontFamily: 'Inter_600SemiBold', fontSize: Typography.bodySmall, color: Colors.amberWarning },
+  digestAttentionName: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodySmall, color: Colors.frostWhite },
+  digestAttentionMore: { fontFamily: 'Inter_400Regular', fontSize: Typography.microLabel, color: Colors.slateGray },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.xl },
   statCard: { width: '48%', padding: Spacing.md, alignItems: 'center' },
   statValue: { fontFamily: 'JetBrainsMono_700Bold', fontSize: Typography.titleMedium, color: Colors.accentGold },
