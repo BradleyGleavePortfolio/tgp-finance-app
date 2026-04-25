@@ -178,6 +178,7 @@ export const networthApi = {
 export const priorityApi = {
   getCurrent: () => api.get('/api/priorities/current'),
   getAll: () => api.get('/api/priorities/all'),
+  advance: (studentId: string) => api.post('/api/priorities/advance', { student_id: studentId }),
 };
 
 // Chat API

@@ -10,7 +10,7 @@ import { Button } from '../../../src/components/ui/Button';
 import { EmptyState } from '../../../src/components/ui/EmptyState';
 import { StreakBadge, VelocityBadge } from '../../../src/components/ui/Badge';
 import { Colors, Typography, Spacing, BorderRadius } from '../../../src/theme/finance';
-import { coachApi } from '../../../src/services/api';
+import { coachApi, priorityApi } from '../../../src/services/api';
 import { formatCurrency } from '../../../src/utils/formatters';
 
 export default function StudentDetailScreen() {
@@ -23,6 +23,7 @@ export default function StudentDetailScreen() {
   const [noteText, setNoteText] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
   const [submittingNote, setSubmittingNote] = useState(false);
+  const [advancingPriority, setAdvancingPriority] = useState(false);
 
   useEffect(() => {
     if (id) loadStudent();
@@ -61,6 +62,34 @@ export default function StudentDetailScreen() {
     }
   };
 
+  const handleAdvancePriority = () => {
+    const user = student?.user || detail?.user || {};
+    Alert.alert(
+      'Advance Priority',
+      `Advance ${user.name || 'this student'} to the next priority level? This will override their current financial check and move them forward.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Advance',
+          style: 'destructive',
+          onPress: async () => {
+            setAdvancingPriority(true);
+            try {
+              await priorityApi.advance(id!);
+              Alert.alert('Priority Advanced', `${user.name || 'Student'} has been moved to the next priority level.`);
+              // Refresh student data
+              await loadStudent();
+            } catch (err: any) {
+              Alert.alert('Error', err.message || 'Failed to advance priority.');
+            } finally {
+              setAdvancingPriority(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
@@ -97,6 +126,23 @@ export default function StudentDetailScreen() {
             <VelocityBadge score={profile.wealth_velocity_score || 0} showScore />
           </View>
         </Card>
+
+        {/* Coach Actions */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Coach Actions</Text>
+          <Button
+            title={advancingPriority ? 'Advancing...' : 'Advance Priority ↑'}
+            onPress={handleAdvancePriority}
+            loading={advancingPriority}
+            variant="secondary"
+            fullWidth
+            accessibilityLabel="Advance this student's priority level"
+            accessibilityHint="Opens a confirmation dialog before advancing the student to the next priority level"
+          />
+          <Text style={styles.advanceHint}>
+            Priority {profile.current_priority_index ?? '—'}/6 · Override financial check and move student to next level
+          </Text>
+        </View>
 
         {/* Financial Summary */}
         <Text style={styles.sectionTitle}>Financial Overview</Text>
@@ -218,7 +264,9 @@ const styles = StyleSheet.create({
   studentName: { fontFamily: 'Inter_700Bold', fontSize: Typography.titleMedium, color: Colors.frostWhite },
   studentEmail: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodySmall, color: Colors.slateGray },
   badgeRow: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.sm },
+  section: { marginBottom: Spacing.xl },
   sectionTitle: { fontFamily: 'Inter_700Bold', fontSize: Typography.bodyMedium, color: Colors.frostWhite, marginBottom: Spacing.md },
+  advanceHint: { fontFamily: 'Inter_400Regular', fontSize: Typography.microLabel, color: Colors.slateGray, marginTop: Spacing.xs, textAlign: 'center' },
   metricsCard: { padding: Spacing.base, gap: Spacing.md, marginBottom: Spacing.xl },
   metricRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   metricLabel: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodySmall, color: Colors.slateGray },
