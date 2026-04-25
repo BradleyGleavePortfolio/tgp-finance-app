@@ -1,5 +1,6 @@
 // Home — Command Center screen — BULLETPROOF
-import React, { useEffect } from 'react';
+// UX Psychology Report #1: One Dominant Home Action
+import React, { useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl,
 } from 'react-native';
@@ -11,6 +12,7 @@ import { TimeToFreedom } from '../../src/components/home/TimeToFreedom';
 import { PriorityCard } from '../../src/components/home/PriorityCard';
 import { InterestBleedTicker } from '../../src/components/home/InterestBleedTicker';
 import { QuickActions } from '../../src/components/home/QuickActions';
+import { HeroAction, HeroStatus } from '../../src/components/home/HeroAction';
 import { CelebrationModal } from '../../src/components/milestones/CelebrationModal';
 import { LoadingSpinner } from '../../src/components/ui/LoadingSpinner';
 import { ScreenErrorBoundary } from '../../src/components/ui/ScreenErrorBoundary';
@@ -22,8 +24,76 @@ import { usePriorityStore } from '../../src/stores/priorityStore';
 import { useMilestonesStore } from '../../src/stores/milestonesStore';
 import { useEODStore } from '../../src/stores/eodStore';
 import { NetWorthChart } from '../../src/components/charts/NetWorthChart';
-import { formatChange, getGreeting } from '../../src/utils/formatters';
+import { formatChange, formatCurrency, getGreeting } from '../../src/utils/formatters';
 import { computeDTI } from '../../src/utils/financial';
+
+// ---------------------------------------------------------------------------
+// Hero status computation
+// Priority: needs_attention > on_track > no_goals
+// ---------------------------------------------------------------------------
+function computeHeroStatus(params: {
+  isLoading: boolean;
+  hasAccounts: boolean;
+  hasPriority: boolean;
+  cashFlow: number;
+  currentPriorityComplete: boolean;
+  currentPriorityProgress: number;
+}): HeroStatus {
+  const {
+    isLoading,
+    hasAccounts,
+    hasPriority,
+    cashFlow,
+    currentPriorityComplete,
+    currentPriorityProgress,
+  } = params;
+
+  if (isLoading) return 'loading';
+
+  // No accounts yet → treat as no goals
+  if (!hasAccounts) return 'no_goals';
+
+  // If no priority is set, direct to goal creation
+  if (!hasPriority) return 'no_goals';
+
+  // Priority completed or negative cash flow → needs attention
+  if (currentPriorityComplete) return 'needs_attention';
+  if (cashFlow < 0) return 'needs_attention';
+
+  // Priority stalled (<5% progress) → needs attention
+  if (currentPriorityProgress < 5) return 'needs_attention';
+
+  // Everything looks healthy
+  return 'on_track';
+}
+
+// ---------------------------------------------------------------------------
+// Week stat string: "$X spent · $Y left in budget"
+// Derived from cash flow (proxy for weekly budget status)
+// ---------------------------------------------------------------------------
+function buildWeekStat(params: {
+  cashFlow: number;
+  monthlyIncome: number;
+  totalDebt: number;
+}): string {
+  const { cashFlow, monthlyIncome, totalDebt } = params;
+
+  if (monthlyIncome <= 0) return '';
+
+  // Approximate weekly budget = monthly income / 4
+  const weeklyBudget = monthlyIncome / 4;
+  // Weekly debt obligations
+  const weeklyDebtLoad = totalDebt / 4;
+  // Weekly spend estimate = debt load (minimum payments as proxy)
+  const weeklySpent = Math.max(0, weeklyDebtLoad);
+  const weeklyLeft = Math.max(0, weeklyBudget - weeklySpent);
+
+  if (weeklySpent <= 0 && weeklyLeft <= 0) return '';
+
+  const spentStr = formatCurrency(weeklySpent, { decimals: 0 });
+  const leftStr = formatCurrency(weeklyLeft, { decimals: 0 });
+  return `${spentStr} spent · ${leftStr} left this week`;
+}
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -87,6 +157,38 @@ export default function HomeScreen() {
   const dreamLifestyleMonths = fiGap <= 0 ? 0
     : annualSavings > 0 ? Math.ceil(fiGap / annualSavings * 12) : undefined;
 
+  // ---------------------------------------------------------------------------
+  // Hero status + week stat (memoised — pure computation)
+  // ---------------------------------------------------------------------------
+  const heroStatus = useMemo<HeroStatus>(() => computeHeroStatus({
+    isLoading: isLoading && safeAccounts.length === 0,
+    hasAccounts: safeAccounts.length > 0,
+    hasPriority: !!currentPriority,
+    cashFlow,
+    currentPriorityComplete: currentPriority?.isComplete ?? false,
+    currentPriorityProgress: currentPriority?.progressPercent ?? 0,
+  }), [isLoading, safeAccounts.length, currentPriority, cashFlow]);
+
+  const weekStat = useMemo(() => buildWeekStat({
+    cashFlow,
+    monthlyIncome,
+    totalDebt: monthlyDebts,
+  }), [cashFlow, monthlyIncome, monthlyDebts]);
+
+  // Hero CTA navigation — each status routes to the most impactful destination
+  const onHeroPress = () => {
+    if (heroStatus === 'no_goals') {
+      // No goals → start goal creation (onboarding quiz / goals tab)
+      router.push('/(tabs)/goals');
+    } else if (heroStatus === 'needs_attention') {
+      // Needs attention → surface the flagged priority / what-if scenario
+      router.push('/whatif');
+    } else {
+      // On track → review goals & insights
+      router.push('/(tabs)/goals');
+    }
+  };
+
   if (isLoading && safeAccounts.length === 0) {
     return <LoadingSpinner fullScreen text="Loading your command center..." />;
   }
@@ -112,8 +214,30 @@ export default function HomeScreen() {
           <Text style={styles.date}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</Text>
         </View>
 
-        {/* Hero Net Worth */}
-        <View style={styles.heroSection}>
+        {/* ═══════════════════════════════════════════════════════════════════
+            DOMINANT HERO ACTION — UX Psych Report #1
+            One big, unmissable call-to-action surfaces above everything else.
+            All secondary content is demoted below the fold.
+        ════════════════════════════════════════════════════════════════════ */}
+        <HeroAction
+          status={heroStatus}
+          weekStat={weekStat}
+          onPress={onHeroPress}
+        />
+
+        {/* ═══════════════════════════════════════════════════════════════
+            SECONDARY SECTIONS — demoted, still fully accessible
+        ════════════════════════════════════════════════════════════════ */}
+
+        {/* Section divider */}
+        <View style={styles.dividerRow}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerLabel}>YOUR OVERVIEW</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
+        {/* Net Worth (compact — numbers still readable, but not the hero) */}
+        <View style={styles.secondaryHero}>
           <Text style={styles.netWorthLabel}>NET WORTH</Text>
           <AnimatedCounter
             value={displayNetWorth}
@@ -129,7 +253,7 @@ export default function HomeScreen() {
         {/* Net Worth 90-Day Chart */}
         {Array.isArray(nwHistory) && nwHistory.length > 0 && (
           <View style={styles.section}>
-            <NetWorthChart history={nwHistory} height={180} showIndicator />
+            <NetWorthChart history={nwHistory} height={160} showIndicator />
           </View>
         )}
 
@@ -200,13 +324,55 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.backgroundDeepNavy },
   scroll: { flex: 1 },
   content: { padding: Spacing.base, paddingBottom: Spacing.xxxl },
-  header: { marginBottom: Spacing.xl },
+  header: { marginBottom: Spacing.base },
   greeting: { fontFamily: 'Inter_700Bold', fontSize: Typography.titleLarge, color: Colors.frostWhite },
   date: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodySmall, color: Colors.slateGray, marginTop: 2 },
-  heroSection: { alignItems: 'center', paddingVertical: Spacing.xl, marginBottom: Spacing.base },
-  netWorthLabel: { fontFamily: 'Inter_600SemiBold', fontSize: Typography.bodySmall, color: Colors.slateGray, letterSpacing: 2, marginBottom: Spacing.sm },
-  heroNumber: { fontFamily: 'JetBrainsMono_700Bold', fontSize: Typography.heroNumber, color: Colors.accentGold, textAlign: 'center' },
-  changeText: { fontFamily: 'JetBrainsMono_700Bold', fontSize: Typography.bodyMedium, marginTop: Spacing.sm },
+
+  // Divider between hero and secondary sections
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.base,
+    gap: Spacing.sm,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: Colors.graphiteBorder,
+  },
+  dividerLabel: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: Typography.microLabel,
+    color: Colors.slateGray,
+    letterSpacing: 1.5,
+  },
+
+  // Secondary (demoted) net worth display — smaller than the original hero
+  secondaryHero: {
+    alignItems: 'center',
+    paddingVertical: Spacing.base,
+    marginBottom: Spacing.base,
+  },
+  netWorthLabel: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: Typography.bodySmall,
+    color: Colors.slateGray,
+    letterSpacing: 2,
+    marginBottom: Spacing.xs,
+  },
+  // Demoted: was Typography.heroNumber (48), now displaySmall (24)
+  heroNumber: {
+    fontFamily: 'JetBrainsMono_700Bold',
+    fontSize: Typography.displaySmall,
+    color: Colors.accentGold,
+    textAlign: 'center',
+  },
+  changeText: {
+    fontFamily: 'JetBrainsMono_700Bold',
+    fontSize: Typography.bodySmall,
+    marginTop: Spacing.xs,
+  },
+
   section: { marginBottom: Spacing.base },
   eodDone: { alignItems: 'center', paddingVertical: Spacing.sm },
   eodDoneText: { fontFamily: 'Inter_500Medium', fontSize: Typography.bodySmall, color: Colors.profitGreen },
