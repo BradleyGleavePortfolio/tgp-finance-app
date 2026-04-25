@@ -1,7 +1,7 @@
 import * as path from 'path';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { APP_FILTER, APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
 
@@ -83,6 +83,13 @@ import { TenantGuard } from './auth/guards/tenant.guard';
 
     // Global response transform — wraps all responses in { data, success, timestamp }
     { provide: APP_INTERCEPTOR, useClass: TransformInterceptor },
+
+    // Global rate limiter — ThrottlerModule.forRoot above sets up the policy
+    // (100 req/min/IP). Without registering ThrottlerGuard as a global guard,
+    // any @Throttle() decorators are inert and the default policy never
+    // applies. Registered FIRST so rate-limit checks happen before tenant
+    // resolution — cheap-fail unauthenticated traffic.
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
 
     // Global tenant guard — ensures multi-tenant data isolation
     { provide: APP_GUARD, useClass: TenantGuard },
