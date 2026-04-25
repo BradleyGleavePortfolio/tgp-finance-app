@@ -29,7 +29,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { user, profile } = useAuthStore();
   const { accounts, netWorth, totalDebt, dailyInterest, fetchAccounts, isLoading } = useAccountsStore();
-  const { history: nwHistory, currentNetWorth, previousNetWorth, fetchHistory } = useNetWorthStore();
+  const { history: nwHistory, currentNetWorth, previousNetWorth, fetchHistory, fetchCurrent: fetchCurrentNetWorth } = useNetWorthStore();
   const { currentPriority, fetchCurrent } = usePriorityStore();
   const { pendingCelebration, dismissCelebration } = useMilestonesStore();
   const { todaySubmission, fetchToday } = useEODStore();
@@ -37,6 +37,9 @@ export default function HomeScreen() {
   useEffect(() => {
     fetchAccounts();
     fetchHistory();
+    // fetchCurrentNetWorth calls GET /api/networth/current for the server-authoritative
+    // net worth snapshot; falls back to client-side history value if offline.
+    fetchCurrentNetWorth();
     fetchCurrent();
     fetchToday();
   }, []);
@@ -45,7 +48,7 @@ export default function HomeScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([fetchAccounts(), fetchHistory(), fetchCurrent(), fetchToday()]);
+    await Promise.all([fetchAccounts(), fetchHistory(), fetchCurrentNetWorth(), fetchCurrent(), fetchToday()]);
     setRefreshing(false);
   };
 
