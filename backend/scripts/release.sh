@@ -3,11 +3,12 @@
 #
 # Behavior:
 #  1. Try `prisma migrate deploy` (proper path).
-#  2. If that fails because the DB has tables but no _prisma_migrations
-#     baseline, OR because a baseline migration tries to recreate types
-#     that already exist (P3018 + 42710), forward-sync today's schema with
-#     `prisma db push --accept-data-loss --skip-generate`. Safe right now:
-#     prod DB has only test data.
+#  2. On baseline conflicts (P3005 schema not empty, P3018 migration failed
+#     because objects already exist, P3009 prior failed migration is
+#     blocking new ones): mark every failed migration as rolled-back so
+#     Prisma's migration table stops blocking, then forward-sync today's
+#     schema with `prisma db push --accept-data-loss --skip-generate`.
+#     Safe right now: prod DB has only test data.
 #  3. Any other failure aborts the deploy.
 set -e
 
@@ -19,8 +20,18 @@ if npx prisma migrate deploy 2>&1 | tee "$LOG"; then
   exit 0
 fi
 
-if grep -qE "P3005|P3018|database schema is not empty|is not managed by Prisma Migrate|No migration found in prisma/migrations|already exists" "$LOG"; then
-  echo "[release] DB conflicts with baseline migration — forward-syncing schema with db push"
+if grep -qE "P3005|P3018|P3009|database schema is not empty|is not managed by Prisma Migrate|No migration found in prisma/migrations|already exists|migrate found failed migrations" "$LOG"; then
+  echo "[release] baseline / failed-migration conflict detected — recovering"
+
+  # Extract any failed migration names from the log and mark them rolled-back
+  # so the migrations table stops blocking. `migrate resolve` is idempotent.
+  FAILED=$(grep -oE "[0-9]{14}_[a-zA-Z0-9_]+" "$LOG" | sort -u)
+  for m in $FAILED; do
+    echo "[release] marking failed migration $m as rolled-back"
+    npx prisma migrate resolve --rolled-back "$m" || true
+  done
+
+  echo "[release] forward-syncing schema with db push --accept-data-loss"
   npx prisma db push --accept-data-loss --skip-generate
   echo "[release] schema pushed; consider reconciling _prisma_migrations baseline next release"
   exit 0
