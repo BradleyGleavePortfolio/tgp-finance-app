@@ -20,6 +20,7 @@ import { AIModule } from './ai/ai.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { CoachModule } from './coach/coach.module';
 import { AccountabilityModule } from './accountability/accountability.module';
+import { PaydayModule } from './payday/payday.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { PushModule } from './push/push.module';
 
@@ -68,6 +69,7 @@ import { TenantGuard } from './auth/guards/tenant.guard';
     NotificationsModule,
     CoachModule,
     AccountabilityModule,
+    PaydayModule,
     OnboardingModule,
     PushModule,
   ],
