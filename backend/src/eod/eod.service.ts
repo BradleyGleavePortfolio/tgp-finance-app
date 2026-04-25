@@ -369,6 +369,88 @@ export class EODService {
     });
   }
 
+  async getEODHistoryByLimit(userId: string, limit: number = 10) {
+    return this.prisma.eODSubmission.findMany({
+      where: { user_id: userId },
+      orderBy: { submission_date: 'desc' },
+      take: Math.min(limit, 50),
+    });
+  }
+
+  async updateEOD(
+    id: string,
+    userId: string,
+    dto: {
+      submission_date: string;
+      account_snapshots: Array<{ account_id: string; balance: number; notes?: string }>;
+      notes?: string;
+      mood?: number;
+      habits_checked?: string[];
+    },
+  ) {
+    // Find the entry and verify ownership.
+    const entry = await this.prisma.eODSubmission.findUnique({ where: { id } });
+    if (!entry || entry.user_id !== userId) {
+      throw new BadRequestException({ error: 'EOD entry not found', code: 'NOT_FOUND' });
+    }
+
+    // Only allow edits within the last 7 days.
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    if (new Date(entry.submission_date) < sevenDaysAgo) {
+      throw new BadRequestException({
+        error: 'EOD entries can only be edited within 7 days of submission',
+        code: 'EDIT_WINDOW_EXPIRED',
+      });
+    }
+
+    // Recompute totals from new snapshots.
+    const accountIds = dto.account_snapshots.map((s) => s.account_id);
+    const accounts = await this.prisma.financialAccount.findMany({
+      where: { id: { in: accountIds }, user_id: userId, is_active: true },
+    });
+
+    if (accounts.length !== accountIds.length) {
+      throw new BadRequestException({
+        error: 'One or more accounts not found or inactive',
+        code: 'INVALID_ACCOUNTS',
+      });
+    }
+
+    let total_assets = 0;
+    let total_debt = 0;
+    let total_cash = 0;
+    for (const snapshot of dto.account_snapshots) {
+      const account = accounts.find((a) => a.id === snapshot.account_id);
+      if (!account) continue;
+      if (account.is_debt) {
+        total_debt += snapshot.balance;
+      } else {
+        total_assets += snapshot.balance;
+        if (['checking', 'savings'].includes(account.account_type)) {
+          total_cash += snapshot.balance;
+        }
+      }
+    }
+    const net_worth_computed = total_assets - total_debt;
+
+    const updated = await this.prisma.eODSubmission.update({
+      where: { id },
+      data: {
+        account_snapshots: dto.account_snapshots as any,
+        net_worth_computed,
+        total_debt_computed: total_debt,
+        total_assets_computed: total_assets,
+        total_cash_computed: total_cash,
+        notes: dto.notes,
+        mood: dto.mood,
+        habits_checked: dto.habits_checked as any,
+      },
+    });
+
+    return { submission: updated, net_worth_computed, total_assets, total_debt, total_cash };
+  }
+
   async getTodayEOD(userId: string) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
