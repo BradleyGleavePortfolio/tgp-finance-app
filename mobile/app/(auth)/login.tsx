@@ -8,7 +8,7 @@ import { Input } from '../../src/components/ui/Input';
 import { Button } from '../../src/components/ui/Button';
 import { Colors, Typography, Spacing } from '../../src/theme/finance';
 import { useAuthStore } from '../../src/stores/authStore';
-import { sendPasswordResetEmail } from '../../src/services/supabase';
+import { sendPasswordResetEmail, signInWithGoogle } from '../../src/services/supabase';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -17,8 +17,16 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [resetSent, setResetSent] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({ email: '', password: '' });
-  // GOOGLE_OAUTH_DISABLED: Re-enable when Google Cloud OAuth client IDs are configured and expo-auth-session is integrated
-  // const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  // GOOGLE_OAUTH_SETUP_REQUIRED:
+  // Before Google Sign-In will work you must:
+  //  1. Enable the Google provider in your Supabase dashboard under Authentication → Providers
+  //  2. Create a Google Cloud OAuth 2.0 client ID at console.cloud.google.com and add the
+  //     Supabase callback URL as an authorised redirect URI
+  //  3. Set the Google Client ID + Secret in the Supabase Google provider settings
+  // The sign-in button is rendered but will show an error alert if Supabase isn't configured.
+  const GOOGLE_OAUTH_CONFIGURED = !!process.env.EXPO_PUBLIC_SUPABASE_URL; // will always be true if Supabase is set up; Google sub-config is inside Supabase dashboard
 
   const validate = () => {
     const errors = { email: '', password: '' };
@@ -40,17 +48,32 @@ export default function LoginScreen() {
     }
   };
 
-  // GOOGLE_OAUTH_DISABLED: Re-enable when Google Cloud OAuth client IDs are configured and expo-auth-session is integrated
-  // const handleGoogleSignIn = async () => {
-  //   setGoogleLoading(true);
-  //   try {
-  //     await signInWithGoogle();
-  //   } catch (err: any) {
-  //     Alert.alert('Google Sign-In Failed', err.message || 'Something went wrong. Please try again.');
-  //   } finally {
-  //     setGoogleLoading(false);
-  //   }
-  // };
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+      // signInWithGoogle() opens a browser/WebView via Supabase OAuth.
+      // The redirect back to tgp-finance://auth/callback will be handled by
+      // the deep-link listener in app/_layout.tsx (or expo-router).
+      // If the Supabase Google provider is not configured, signInWithOAuth
+      // will throw an error which we catch and show to the user.
+    } catch (err: any) {
+      const msg = err?.message || 'Google Sign-In failed. Please try again.';
+      // Surface a clear message if the Google provider is not configured
+      const isConfigError =
+        msg.toLowerCase().includes('provider') ||
+        msg.toLowerCase().includes('not enabled') ||
+        msg.toLowerCase().includes('oauth');
+      Alert.alert(
+        'Google Sign-In',
+        isConfigError
+          ? 'Google Sign-In is not yet configured. Please enable the Google provider in your Supabase project settings and set up a Google Cloud OAuth client.'
+          : msg,
+      );
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   const handleForgotPassword = async () => {
     if (!email) {
@@ -138,8 +161,7 @@ export default function LoginScreen() {
           style={styles.loginBtn}
         />
 
-        {/* GOOGLE_OAUTH_DISABLED: Re-enable when Google Cloud OAuth client IDs are configured and expo-auth-session is integrated */}
-        {/* <View style={styles.divider}>
+        <View style={styles.divider}>
           <View style={styles.dividerLine} />
           <Text style={styles.dividerText}>or</Text>
           <View style={styles.dividerLine} />
@@ -150,9 +172,12 @@ export default function LoginScreen() {
           activeOpacity={0.8}
           onPress={handleGoogleSignIn}
           disabled={googleLoading}
+          accessibilityRole="button"
+          accessibilityLabel="Continue with Google"
+          accessibilityHint="Sign in using your Google account. Requires Google OAuth to be configured in Supabase."
         >
           <Text style={styles.googleText}>{googleLoading ? 'Signing in...' : 'Continue with Google'}</Text>
-        </TouchableOpacity> */}
+        </TouchableOpacity>
 
         <View style={styles.signupRow}>
           <Text style={styles.signupText}>Don't have an account? </Text>
