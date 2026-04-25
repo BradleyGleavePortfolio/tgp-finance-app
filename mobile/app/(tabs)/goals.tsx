@@ -74,7 +74,7 @@ export default function GoalsScreen() {
       {/* Priority sub-tab */}
       {activeTab === 'priority' && (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <PriorityCard priority={currentPriority} onNextStep={() => setActiveTab('whatif')} onViewAll={() => {}} />
+          <PriorityCard priority={currentPriority} onNextStep={() => setActiveTab('whatif')} onViewAll={() => router.push('/milestones')} />
 
           <View style={styles.waterfallSection}>
             <Text style={styles.sectionTitle}>Priority Waterfall</Text>
