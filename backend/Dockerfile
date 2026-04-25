@@ -54,5 +54,6 @@ COPY --from=builder /app/scripts ./scripts
 # Expose port
 EXPOSE 3000
 
-# Start the server
-CMD ["node", "dist/main"]
+# Start the server. tsconfig has rootDir=./ so build emits dist/src/main.js
+# (not dist/main.js). Pin the path explicitly.
+CMD ["node", "dist/src/main"]
