@@ -50,6 +50,7 @@ export default function ProfileScreen() {
     { icon: 'shield-checkmark-outline', label: 'Account & Security', route: '/settings/security' },
     { icon: 'mail-outline', label: 'Future Self Letter', route: '/future-letter' },
     { icon: 'analytics-outline', label: 'Spending DNA', route: '/spending-dna' },
+    { icon: 'trending-up-outline', label: 'Income Gap', route: '/income-gap' },
     ...(user?.role === 'coach' ? [{ icon: 'people-outline', label: 'Coach Panel', route: '/(tabs)/coach' }] : []),
   ];
 
