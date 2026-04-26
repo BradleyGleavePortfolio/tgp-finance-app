@@ -119,7 +119,7 @@ export function MilestoneCard({ milestone, isUnlocked, unlockedAt, onPress }: Mi
           <Text style={styles.description}>{milestone.description}</Text>
           {isUnlocked && unlockedAt && (
             <Text style={[styles.date, isFounder && styles.dateFounder]}>
-              Unlocked {formatDate(unlockedAt)}
+              Reached {formatDate(unlockedAt)}
             </Text>
           )}
         </View>

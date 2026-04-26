@@ -37,8 +37,8 @@ export const PRIORITY_WATERFALL = [
   },
   {
     index: 3,
-    title: 'Maximize Tax-Advantaged Investing',
-    description: 'Max your 401(k) ($23,500/yr) and Roth IRA ($7,000/yr). These are the highest-ROI investment vehicles available to you.',
+    title: 'Invest Tax-Advantaged',
+    description: 'Max your 401(k) ($23,500/yr) and Roth IRA ($7,000/yr). These are the highest-return vehicles available.',
     actionItems: [
       'Increase 401(k) contribution to max ($23,500/yr)',
       'Open and fund Roth IRA ($7,000/yr limit)',
@@ -82,7 +82,7 @@ export const PRIORITY_WATERFALL = [
 export const MILESTONE_DEFINITIONS: MilestoneDefinition[] = [
   // Cash milestones
   { key: 'cash_1k', title: 'Starter Pack Achieved', description: 'First $1,000 in cash', category: 'cash', icon: '·' },
-  { key: 'cash_5k', title: 'Buffer Mode Unlocked', description: '$5,000 in cash', category: 'cash', icon: '·' },
+  { key: 'cash_5k', title: 'Buffer Mode', description: '$5,000 in cash', category: 'cash', icon: '·' },
   { key: 'cash_10k', title: 'Cash Stack Building', description: '$10,000 in cash', category: 'cash', icon: '·' },
   { key: 'cash_20k', title: 'Emergency Fund: Complete', description: '$20,000 in cash', category: 'cash', icon: '·' },
 
@@ -97,7 +97,7 @@ export const MILESTONE_DEFINITIONS: MilestoneDefinition[] = [
   { key: 'nw_5k', title: 'Climbing', description: '$5K net worth', category: 'net_worth', icon: '·' },
   { key: 'nw_10k', title: 'Five Figures', description: '$10K net worth', category: 'net_worth', icon: '·' },
   { key: 'nw_25k', title: 'Quarter to Fifty', description: '$25K net worth', category: 'net_worth', icon: '·' },
-  { key: 'nw_50k', title: 'Wealth Builder', description: '$50K net worth', category: 'net_worth', icon: '·' },
+  { key: 'nw_50k', title: 'Building', description: '$50K net worth', category: 'net_worth', icon: '·' },
   { key: 'nw_100k', title: 'Six Figures', description: '$100K net worth', category: 'net_worth', icon: '·' },
   { key: 'nw_250k', title: 'Quarter Millionaire', description: '$250K net worth', category: 'net_worth', icon: '·' },
   { key: 'nw_500k', title: 'Half Millionaire', description: '$500K net worth', category: 'net_worth', icon: '·' },

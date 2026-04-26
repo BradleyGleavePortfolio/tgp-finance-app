@@ -110,7 +110,7 @@ export default function LoginScreen() {
         </View>
 
         <Text style={styles.title}>Welcome back</Text>
-        <Text style={styles.subtitle}>Log in to your command center</Text>
+        <Text style={styles.subtitle}>Money, examined.</Text>
 
         {error && (
           <View style={styles.errorBanner}>

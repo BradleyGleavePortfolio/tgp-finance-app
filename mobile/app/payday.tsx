@@ -105,13 +105,13 @@ export default function PaydayScreen() {
           <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back">
             <Text style={styles.back}>← Back</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>Deployed!</Text>
+          <Text style={styles.title}>Deployed.</Text>
           <View style={{ width: 60 }} />
         </View>
 
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <Card style={styles.receiptCard}>
-            <Text style={styles.receiptTitle}>Paycheck Deployed ✓</Text>
+            <Text style={styles.receiptTitle}>Paycheck allocated.</Text>
             <Text style={styles.receiptDate}>{new Date(receipt.deployed_at).toLocaleDateString()}</Text>
 
             <View style={styles.receiptSummary}>
@@ -165,7 +165,7 @@ export default function PaydayScreen() {
             style={{ marginTop: Spacing.xl }}
           />
           <Button
-            title="Return to Command Center"
+            title="Back to home"
             onPress={() => router.replace('/(tabs)')}
             variant="primary"
             fullWidth

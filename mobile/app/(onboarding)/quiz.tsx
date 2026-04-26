@@ -29,7 +29,7 @@ const GOAL_OPTIONS = [
     id: 'debt',
     label: 'Pay Off Debt',
     icon: '→',
-    subtitle: 'Crush what I owe and get free',
+    subtitle: 'Out of debt by year three.',
     primaryGoal: 'debt payoff',
   },
   {
@@ -109,7 +109,7 @@ export default function QuizScreen() {
   function resolveTitle(goal: (typeof GOAL_OPTIONS)[number] | null): string {
     if (!goal) return 'Money Architect';
     const g = goal.primaryGoal.toLowerCase();
-    if (g.includes('debt') || g.includes('payoff') || g.includes('pay off')) return 'Debt Crusher';
+    if (g.includes('debt') || g.includes('payoff') || g.includes('pay off')) return 'The Debt Plan';
     if (g.includes('sav')) return 'Future Builder';
     if (g.includes('invest') || g.includes('build') || g.includes('wealth')) return 'Money Architect';
     return 'Money Architect';
@@ -215,8 +215,8 @@ export default function QuizScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.inner}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Quick Setup</Text>
-        <Text style={styles.subtitle}>3 questions · less than 60 seconds</Text>
+        <Text style={styles.title}>A few questions.</Text>
+        <Text style={styles.subtitle}>Three questions. Two minutes.</Text>
       </View>
 
       {/* Progress dots */}
@@ -247,7 +247,7 @@ export default function QuizScreen() {
       {step === 'goal' && (
         <View style={styles.questionContainer}>
           <Text style={styles.stepLabel}>STEP 1 OF 3</Text>
-          <Text style={styles.question}>What's your #1 financial goal?</Text>
+          <Text style={styles.question}>What is your primary financial goal?</Text>
           {GOAL_OPTIONS.map((opt) => (
             <TouchableOpacity
               key={opt.id}
@@ -324,9 +324,9 @@ export default function QuizScreen() {
       {step === 'bank' && (
         <View style={styles.questionContainer}>
           <Text style={styles.stepLabel}>STEP 3 OF 3</Text>
-          <Text style={styles.question}>Connect your bank for real-time insights?</Text>
+          <Text style={styles.question}>Connect your bank?</Text>
           <Text style={styles.questionHint}>
-            Securely read-only. See your net worth the moment you finish.
+            Read-only access. The picture follows.
           </Text>
 
           <TouchableOpacity

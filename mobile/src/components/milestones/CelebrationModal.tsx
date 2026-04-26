@@ -51,7 +51,7 @@ export function CelebrationModal({ milestone, onDismiss }: CelebrationModalProps
         <Animated.View style={[styles.card, { transform: [{ scale: scaleAnim }] }]}>
           {/* Milestone icon — emoji from data (luxury/wave4 will replace). Rendered as-is from server data. */}
           <Text style={styles.icon}>{definition.icon}</Text>
-          <Text style={styles.achieved}>ACHIEVEMENT UNLOCKED</Text>
+          <Text style={styles.achieved}>MILESTONE</Text>
           <Text style={styles.title}>{definition.title}</Text>
           <Text style={styles.description}>{definition.description}</Text>
 
@@ -66,7 +66,7 @@ export function CelebrationModal({ milestone, onDismiss }: CelebrationModalProps
               <Text style={styles.shareBtnText}>Share your milestone</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.btn} onPress={onDismiss} activeOpacity={0.8}>
-              <Text style={styles.btnText}>Keep Building →</Text>
+              <Text style={styles.btnText}>Continue →</Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -75,7 +75,7 @@ export function CelebrationModal({ milestone, onDismiss }: CelebrationModalProps
           <ShareCard
             ref={shareRef}
             emoji={definition.icon}
-            subtitle="MILESTONE UNLOCKED"
+            subtitle="MILESTONE"
             title={`I just hit ${definition.title.toLowerCase().startsWith('i ') ? definition.title : definition.title}`}
             primaryStat={definition.description}
             primaryStatLabel="ACHIEVEMENT"

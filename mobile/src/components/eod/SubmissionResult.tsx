@@ -51,7 +51,7 @@ export function SubmissionResult({
       <View style={styles.streakRow}>
         <StreakBadge streak={streak} />
         <Text style={styles.streakText}>
-          {streak >= 7 ? 'Keep the chain alive.' : 'Build your streak — check in tomorrow'}
+          {streak >= 7 ? 'The streak holds.' : 'Check in tomorrow to continue.'}
         </Text>
       </View>
 
@@ -63,7 +63,7 @@ export function SubmissionResult({
         </View>
       )}
 
-      <Button title="Back to Command Center" onPress={onDismiss} variant="primary" fullWidth style={styles.btn} />
+      <Button title="Back" onPress={onDismiss} variant="primary" fullWidth style={styles.btn} />
     </Animated.View>
   );
 }

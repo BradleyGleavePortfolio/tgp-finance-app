@@ -45,16 +45,16 @@ interface HeroConfig {
 // Tone-aware title map for on_track / needs_attention states
 const TONE_TITLES: Record<MotivationalTone, { on_track: string; needs_attention: string }> = {
   gentle: {
-    on_track: "When you're ready, take a peek",
-    needs_attention: "One small thing needs a look",
+    on_track: 'Review when ready.',
+    needs_attention: 'One item needs attention.',
   },
   direct: {
-    on_track: "You're On Track \u2713",
-    needs_attention: "Make a Move",
+    on_track: 'On track.',
+    needs_attention: 'One move needed.',
   },
   drill: {
-    on_track: "Move money. Now.",
-    needs_attention: "Fix it. Today.",
+    on_track: 'Move forward.',
+    needs_attention: 'Address this today.',
   },
 };
 
@@ -64,19 +64,19 @@ function getHeroConfig(status: HeroStatus, isFounder: boolean, tone: Motivationa
     case 'needs_attention':
       return {
         title: titles.needs_attention,
-        subtitle: '1 thing needs your attention today',
+        subtitle: 'One item needs attention.',
         backgroundColor: '#1A0F0F',
         borderColor: semantic.danger,
         glowColor: semantic.dangerBg,
         chevronColor: semantic.danger,
         titleColor: neutral[100],
-        badgeText: '!',
+        badgeText: '·',
         badgeColor: semantic.danger,
       };
     case 'on_track':
       return {
         title: titles.on_track,
-        subtitle: 'Review this week',
+        subtitle: 'Review this week.',
         backgroundColor: '#0A1A14',
         borderColor: semantic.success,
         glowColor: semantic.successBg,
@@ -89,7 +89,7 @@ function getHeroConfig(status: HeroStatus, isFounder: boolean, tone: Motivationa
     default:
       return {
         title: 'Set Your First Goal',
-        subtitle: 'Build your financial plan in 2 minutes',
+        subtitle: 'Set your first goal.',
         backgroundColor: neutral[800],
         // Founders get a slightly richer gold border; free tier is standard accent gold
         borderColor: gold[400],
@@ -156,7 +156,7 @@ export function HeroAction({ status, weekStat, onPress, tone = 'direct', currenc
 
       {/* Label row */}
       <View style={styles.labelRow}>
-        <Text style={styles.label}>YOUR NEXT MOVE</Text>
+        <Text style={styles.label}>PRIORITY</Text>
         {cfg.badgeText && (
           <View style={[styles.badge, { backgroundColor: cfg.badgeColor }]}>
             <Text style={styles.badgeText}>{cfg.badgeText}</Text>

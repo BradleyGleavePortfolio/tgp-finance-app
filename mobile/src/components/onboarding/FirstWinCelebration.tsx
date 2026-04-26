@@ -145,8 +145,8 @@ export function FirstWinCelebration({
           <Text style={styles.trophy}>·</Text>
 
           {/* Headline */}
-          <Text style={styles.achieved}>GOAL LOCKED IN</Text>
-          <Text style={styles.mainTitle}>You're officially in.</Text>
+          <Text style={styles.achieved}>GOAL SET</Text>
+          <Text style={styles.mainTitle}>The work begins.</Text>
 
           {/* Identity */}
           <View style={styles.identityPill}>
@@ -156,7 +156,7 @@ export function FirstWinCelebration({
 
           {/* Welcome copy */}
           <Text style={styles.body}>
-            Welcome to the inner circle. People with a clear identity hit their goals 3× faster.
+            A clear goal is the first move. The rest follows.
           </Text>
 
           {/* CTA */}

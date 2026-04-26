@@ -31,7 +31,7 @@ export default function MilestonesScreen() {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.summary}>
-          <Text style={styles.summaryText}>{unlocked.length}/{MILESTONE_DEFINITIONS.length} unlocked</Text>
+          <Text style={styles.summaryText}>{unlocked.length} of {MILESTONE_DEFINITIONS.length} reached</Text>
           <ProgressBar progress={(unlocked.length / MILESTONE_DEFINITIONS.length) * 100} height={6} variant="gold" />
         </View>
 

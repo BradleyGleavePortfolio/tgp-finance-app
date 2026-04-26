@@ -110,7 +110,7 @@ export default function GoalsScreen() {
             })}
           </View>
 
-          <Button title="→ Run What-If to accelerate" onPress={() => setActiveTab('whatif')} variant="outline" style={styles.whatifCta} />
+          <Button title="Run a What-If scenario" onPress={() => setActiveTab('whatif')} variant="outline" style={styles.whatifCta} />
         </ScrollView>
       )}
 
@@ -181,7 +181,7 @@ export default function GoalsScreen() {
       {/* Milestones sub-tab */}
       {activeTab === 'milestones' && (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <Text style={styles.sectionTitle}>{unlocked.length} of {MILESTONE_DEFINITIONS.length} Milestones Unlocked</Text>
+          <Text style={styles.sectionTitle}>{unlocked.length} of {MILESTONE_DEFINITIONS.length} Milestones</Text>
           <ProgressBar
             progress={(unlocked.length / MILESTONE_DEFINITIONS.length) * 100}
             height={6}
