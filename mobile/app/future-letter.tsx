@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
   daysText: { fontFamily: 'JetBrainsMono_700Bold', fontSize: Typography.titleMedium, color: Colors.accentGold },
   daysLabel: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodySmall, color: Colors.slateGray, textAlign: 'center' },
   letterLabel: { fontFamily: 'Inter_600SemiBold', fontSize: Typography.bodySmall, color: Colors.slateGray, marginBottom: Spacing.sm, letterSpacing: 0.5 },
-  letterInput: { backgroundColor: Colors.cardSurfaceNavy, borderWidth: 1, borderColor: Colors.graphiteBorder, borderRadius: 10, padding: Spacing.base, fontFamily: 'Inter_400Regular', fontSize: Typography.bodyMedium, color: Colors.frostWhite, minHeight: 200, textAlignVertical: 'top' },
+  letterInput: { backgroundColor: Colors.cardSurfaceNavy, borderWidth: 1, borderColor: Colors.graphiteBorder, borderRadius: 2, padding: Spacing.base, fontFamily: 'Inter_400Regular', fontSize: Typography.bodyMedium, color: Colors.frostWhite, minHeight: 200, textAlignVertical: 'top' },
   charCount: { fontFamily: 'Inter_400Regular', fontSize: Typography.microLabel, color: Colors.slateGray, textAlign: 'right', marginTop: 4 },
   saveBtn: { marginTop: Spacing.base },
   letterCard: { padding: Spacing.xl, gap: Spacing.md },

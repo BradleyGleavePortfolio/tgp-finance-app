@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
   title: { fontFamily: 'Inter_700Bold', fontSize: Typography.displaySmall, color: Colors.frostWhite, marginBottom: Spacing.sm },
   subtitle: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodyMedium, color: Colors.slateGray, marginBottom: Spacing.xxl },
   errorBanner: {
-    backgroundColor: 'rgba(230,57,70,0.12)', borderRadius: 8, borderWidth: 1,
+    backgroundColor: 'rgba(74,4,4,0.08)', borderRadius: 2, borderWidth: 1,
     borderColor: Colors.debtCrimson, padding: Spacing.md, marginBottom: Spacing.base,
   },
   errorText: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodySmall, color: Colors.debtCrimson, textAlign: 'center' },

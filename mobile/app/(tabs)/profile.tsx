@@ -1,4 +1,5 @@
-// Profile & Settings screen
+// Profile & Settings screen (Wave 3)
+// Adds MilestoneList date-list (replaces BadgeCabinet trophy metaphor)
 // UX Psychology Report #3: light haptic on nav rows, warning on sign out
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
@@ -11,8 +12,10 @@ import { ProgressBar } from '../../src/components/ui/ProgressBar';
 import { StreakBadge, VelocityBadge } from '../../src/components/ui/Badge';
 import { Button } from '../../src/components/ui/Button';
 import { Colors, Typography, Spacing, BorderRadius } from '../../src/theme/finance';
+import { colors, typography, radius } from '../../src/theme/tokens';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useAccountsStore } from '../../src/stores/accountsStore';
+import { useMilestonesStore } from '../../src/stores/milestonesStore';
 import { signOut } from '../../src/lib/signOut';
 import { formatCurrency } from '../../src/utils/formatters';
 import { computeFINumber } from '../../src/utils/financial';
@@ -21,17 +24,95 @@ import { IdentityBadge } from '../../src/components/IdentityBadge';
 import { resolveIdentityTitle } from '../../src/lib/identityTitle';
 import { usersApi } from '../../src/services/api';
 
+// ─── MilestoneList — replaces BadgeCabinet trophy metaphor ───────────────────
+// Date format: DD · MM · YY (non-breaking spaces around middle dots)
+
+interface MilestoneEntry {
+  date: string; // e.g. "03 · 04 · 26"
+  note: string;
+}
+
+const MilestoneList = ({ entries }: { entries: MilestoneEntry[] }) => {
+  if (!entries || entries.length === 0) return null;
+  return (
+    <View style={{ marginTop: 56 }}>
+      <Text
+        style={{
+          fontFamily: typography.families.medium,
+          ...typography.scale.eyebrow,
+          color: colors.charcoal,
+          marginBottom: 16,
+        }}
+      >
+        MILESTONES
+      </Text>
+      {entries.map((e, i) => (
+        <View
+          key={i}
+          style={{
+            flexDirection: 'row',
+            paddingVertical: 16,
+            borderTopWidth: i === 0 ? 0 : 0.5,
+            borderColor: colors.stone,
+          }}
+        >
+          <Text
+            style={{
+              fontFamily: typography.families.medium,
+              ...typography.scale.eyebrow,
+              color: colors.charcoal,
+              width: 100,
+            }}
+          >
+            {e.date}
+          </Text>
+          <Text
+            style={{
+              fontFamily: typography.families.regular,
+              ...typography.scale.body,
+              color: colors.ink,
+              flex: 1,
+            }}
+          >
+            {e.note}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+};
+
+/** Convert a MilestoneUnlock object to a MilestoneEntry display row */
+function milestoneToEntry(m: { milestone_key: string; unlocked_at: string }): MilestoneEntry {
+  const d = new Date(m.unlocked_at);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const date = `${pad(d.getDate())} · ${pad(d.getMonth() + 1)} · ${String(d.getFullYear()).slice(2)}`;
+  // Humanise the snake_case key: "first_session" → "First session"
+  const note = m.milestone_key.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
+  return { date, note };
+}
+
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, profile } = useAuthStore();
   const { accounts, netWorth, totalDebt, totalAssets } = useAccountsStore();
+  const { unlocked: unlockedMilestones, fetchMilestones } = useMilestonesStore();
   const [foundingData, setFoundingData] = React.useState<{
     rank: number; total: number; isFoundingMember: boolean;
   } | null>(null);
 
   React.useEffect(() => {
     usersApi.getFoundingNumber().then(r => setFoundingData(r.data?.data ?? r.data)).catch(() => {});
+    fetchMilestones();
   }, []);
+
+  // Convert unlocked milestones to date-list format for MilestoneList
+  const milestoneEntries: MilestoneEntry[] = React.useMemo(() => {
+    if (!Array.isArray(unlockedMilestones)) return [];
+    return [...unlockedMilestones]
+      .sort((a, b) => new Date(a.unlocked_at).getTime() - new Date(b.unlocked_at).getTime())
+      .map(milestoneToEntry);
+  }, [unlockedMilestones]);
 
   const handleNavRow = (route: string) => {
     try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { /* ignore */ }
@@ -198,6 +279,9 @@ export default function ProfileScreen() {
           ))}
         </View>
 
+        {/* ── Milestone date list (Wave 3: replaces BadgeCabinet trophy display) ── */}
+        <MilestoneList entries={milestoneEntries} />
+
         <Button
           title="Log Out"
           onPress={handleLogout}
@@ -220,7 +304,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.backgroundDeepNavy },
   content: { padding: Spacing.base, paddingBottom: 100 },
   profileHeader: { alignItems: 'center', paddingVertical: Spacing.xl, gap: Spacing.sm },
-  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: Colors.accentGold, alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 80, height: 80, borderRadius: 999, backgroundColor: Colors.accentGold, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontFamily: 'Inter_700Bold', fontSize: 36, color: Colors.backgroundDeepNavy },
   name: { fontFamily: 'Inter_700Bold', fontSize: Typography.titleMedium, color: Colors.frostWhite },
   email: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodySmall, color: Colors.slateGray },

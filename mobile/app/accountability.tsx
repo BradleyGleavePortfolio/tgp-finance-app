@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
   loadingContainer: { flex: 1, alignItems: 'center', paddingTop: Spacing.xxxl, gap: Spacing.md },
   loadingText: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodyMedium, color: Colors.slateGray },
   partnerCard: { padding: Spacing.xl, alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.xl },
-  partnerAvatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: Colors.accentGold, alignItems: 'center', justifyContent: 'center' },
+  partnerAvatar: { width: 72, height: 72, borderRadius: 999, backgroundColor: Colors.accentGold, alignItems: 'center', justifyContent: 'center' },
   partnerAvatarText: { fontFamily: 'Inter_700Bold', fontSize: 30, color: Colors.backgroundDeepNavy },
   partnerName: { fontFamily: 'Inter_700Bold', fontSize: Typography.titleMedium, color: Colors.frostWhite },
   partnerBadges: { flexDirection: 'row', gap: Spacing.md },

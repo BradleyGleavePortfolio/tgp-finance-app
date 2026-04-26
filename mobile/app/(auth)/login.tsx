@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
   },
   errorBanner: {
     backgroundColor: 'rgba(230,57,70,0.12)',
-    borderRadius: 8,
+    borderRadius: 2,
     borderWidth: 1,
     borderColor: Colors.debtCrimson,
     padding: Spacing.md,
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
   },
   successBanner: {
     backgroundColor: 'rgba(6,214,160,0.12)',
-    borderRadius: 8,
+    borderRadius: 2,
     borderWidth: 1,
     borderColor: Colors.profitGreen,
     padding: Spacing.md,
@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
   googleBtn: {
     borderWidth: 1,
     borderColor: Colors.graphiteBorder,
-    borderRadius: 12,
+    borderRadius: 0,
     paddingVertical: Spacing.md,
     alignItems: 'center',
     marginBottom: Spacing.xxl,

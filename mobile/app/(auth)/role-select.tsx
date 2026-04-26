@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
   modal: { backgroundColor: Colors.cardSurfaceNavy, borderRadius: BorderRadius.xl, padding: Spacing.xl, borderWidth: 1, borderColor: Colors.accentGold, width: '100%' },
   modalTitle: { fontFamily: 'Inter_700Bold', fontSize: Typography.titleSmall, color: Colors.frostWhite, textAlign: 'center', marginBottom: Spacing.sm },
   modalDesc: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodySmall, color: Colors.slateGray, textAlign: 'center', marginBottom: Spacing.xl },
-  codeInput: { backgroundColor: Colors.backgroundDeepNavy, borderWidth: 1, borderColor: Colors.graphiteBorder, borderRadius: 12, padding: Spacing.base, fontFamily: 'JetBrainsMono_700Bold', fontSize: Typography.displaySmall, color: Colors.accentGold, textAlign: 'center', letterSpacing: 8, marginBottom: Spacing.sm },
+  codeInput: { backgroundColor: Colors.backgroundDeepNavy, borderWidth: 1, borderColor: Colors.graphiteBorder, borderRadius: 2, padding: Spacing.base, fontFamily: 'JetBrainsMono_700Bold', fontSize: Typography.displaySmall, color: Colors.accentGold, textAlign: 'center', letterSpacing: 8, marginBottom: Spacing.sm },
   codeError: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodySmall, color: Colors.debtCrimson, textAlign: 'center', marginBottom: Spacing.md },
   modalBtns: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.md },
 });

@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
   fpAvatar: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: 4, // radius.lg
     backgroundColor: Colors.accentGold,
     alignItems: 'center',
     justifyContent: 'center',
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
   sendBtn: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: 4, // radius.lg
     backgroundColor: Colors.accentGold,
     alignItems: 'center',
     justifyContent: 'center',
