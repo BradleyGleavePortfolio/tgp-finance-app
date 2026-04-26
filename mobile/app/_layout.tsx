@@ -27,6 +27,7 @@ import {
 } from '@expo-google-fonts/jetbrains-mono';
 import { useAuthStore } from '../src/stores/authStore';
 import { Colors } from '../src/theme/finance';
+import { ThemeProvider } from '../src/theme/ThemeProvider';
 import { authEvents } from '../src/utils/authEvents';
 import { signOut } from '../src/lib/signOut';
 
@@ -202,6 +203,7 @@ function RootLayout() {
   const postHogClient = getPostHogClient();
 
   const inner = (
+    <ThemeProvider>
     <ErrorBoundary>
       <StatusBar style="light" backgroundColor={Colors.backgroundDeepNavy} />
       <Stack
@@ -239,6 +241,7 @@ function RootLayout() {
         <Stack.Screen name="settings/security" />
       </Stack>
     </ErrorBoundary>
+    </ThemeProvider>
   );
 
   // Wrap with PostHogProvider only when a client is available

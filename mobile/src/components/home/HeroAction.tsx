@@ -1,5 +1,8 @@
 // HeroAction — UX Psychology Report #1: One Dominant Home Action
 // UX Psychology Report #3: Haptic feedback — medium impact on hero press.
+// UX Psychology Report #5: Premium Visual System — tokens-driven styles,
+//   card shadow from tokens, subtle radial-style gradient via dual-layer View,
+//   founder tier gets gold accent stop on the glow overlay.
 // Large pressable hero card that surfaces the single most important action
 // for the user right now. Status logic: needs_attention > on_track > no_goals
 import React from 'react';
@@ -8,10 +11,10 @@ import {
   Text,
   StyleSheet,
   Pressable,
-  ActivityIndicator,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../../theme/finance';
+import { neutral, semantic, gold, typography, spacing, radius, shadows, motion } from '../../theme/tokens';
+import { useTheme } from '../../theme/ThemeProvider';
 
 export type HeroStatus = 'on_track' | 'needs_attention' | 'no_goals' | 'loading';
 
@@ -33,42 +36,43 @@ interface HeroConfig {
   badgeColor?: string;
 }
 
-function getHeroConfig(status: HeroStatus): HeroConfig {
+function getHeroConfig(status: HeroStatus, isFounder: boolean): HeroConfig {
   switch (status) {
     case 'needs_attention':
       return {
         title: 'Make a Move',
         subtitle: '1 thing needs your attention today',
         backgroundColor: '#1A0F0F',
-        borderColor: Colors.debtCrimson,
-        glowColor: 'rgba(230, 57, 70, 0.18)',
-        chevronColor: Colors.debtCrimson,
-        titleColor: Colors.frostWhite,
+        borderColor: semantic.danger,
+        glowColor: semantic.dangerBg,
+        chevronColor: semantic.danger,
+        titleColor: neutral[100],
         badgeText: '!',
-        badgeColor: Colors.debtCrimson,
+        badgeColor: semantic.danger,
       };
     case 'on_track':
       return {
         title: "You're On Track ✓",
         subtitle: 'Review this week',
         backgroundColor: '#0A1A14',
-        borderColor: Colors.profitGreen,
-        glowColor: 'rgba(6, 214, 160, 0.14)',
-        chevronColor: Colors.profitGreen,
-        titleColor: Colors.profitGreen,
+        borderColor: semantic.success,
+        glowColor: semantic.successBg,
+        chevronColor: semantic.success,
+        titleColor: semantic.success,
         badgeText: '✓',
-        badgeColor: Colors.profitGreen,
+        badgeColor: semantic.success,
       };
     case 'no_goals':
     default:
       return {
         title: 'Set Your First Goal',
         subtitle: 'Build your financial plan in 2 minutes',
-        backgroundColor: Colors.cardSurfaceNavyElevated,
-        borderColor: Colors.accentGold,
-        glowColor: 'rgba(249, 199, 79, 0.14)',
-        chevronColor: Colors.accentGold,
-        titleColor: Colors.accentGold,
+        backgroundColor: neutral[800],
+        // Founders get a slightly richer gold border; free tier is standard accent gold
+        borderColor: gold[400],
+        glowColor: isFounder ? gold.overlay20 : gold.overlay12,
+        chevronColor: gold[400],
+        titleColor: gold[400],
       };
   }
 }
@@ -78,9 +82,11 @@ function fireHeroHaptic() {
 }
 
 export function HeroAction({ status, weekStat, onPress }: HeroActionProps) {
+  const { isFounder } = useTheme();
+
   if (status === 'loading') {
     return (
-      <View style={[styles.card, styles.skeletonCard]}>
+      <View style={styles.card}>
         <View style={styles.skeletonTitle} />
         <View style={styles.skeletonStat} />
         <View style={styles.skeletonSubtitle} />
@@ -88,7 +94,7 @@ export function HeroAction({ status, weekStat, onPress }: HeroActionProps) {
     );
   }
 
-  const cfg = getHeroConfig(status);
+  const cfg = getHeroConfig(status, isFounder);
 
   const handlePress = () => {
     fireHeroHaptic();
@@ -111,11 +117,19 @@ export function HeroAction({ status, weekStat, onPress }: HeroActionProps) {
       accessibilityRole="button"
       accessibilityLabel={`${cfg.title} — ${cfg.subtitle}`}
     >
-      {/* Glow overlay */}
+      {/* Base glow overlay */}
       <View
         style={[styles.glowOverlay, { backgroundColor: cfg.glowColor }]}
         pointerEvents="none"
       />
+
+      {/* Founder: extra luminance stop at the top of the card (gold accent gradient effect) */}
+      {isFounder && (
+        <View
+          style={styles.founderAccentStop}
+          pointerEvents="none"
+        />
+      )}
 
       {/* Label row */}
       <View style={styles.labelRow}>
@@ -146,58 +160,64 @@ export function HeroAction({ status, weekStat, onPress }: HeroActionProps) {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: BorderRadius.xl,
+    borderRadius: radius['2xl'],
     borderWidth: 1.5,
     minHeight: 168,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.lg,
-    marginBottom: Spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    marginBottom: spacing.lg,
     overflow: 'hidden',
-    // shadow
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-    elevation: 12,
+    // Tokens-driven shadow (lg)
+    ...shadows.lg,
   },
   glowOverlay: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: BorderRadius.xl,
+    borderRadius: radius['2xl'],
+  },
+  // Founder accent: narrow gold luminance band at top of card
+  founderAccentStop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 56,
+    backgroundColor: gold.overlay12,
+    borderTopLeftRadius: radius['2xl'],
+    borderTopRightRadius: radius['2xl'],
   },
   labelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.sm,
-    gap: Spacing.sm,
+    marginBottom: spacing.sm,
+    gap: spacing.sm,
   },
   label: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: Typography.microLabel,
-    color: Colors.slateGray,
-    letterSpacing: 2,
+    fontFamily: typography.families.semiBold,
+    ...typography.scale.micro,
+    color: neutral[400],
   },
   badge: {
-    borderRadius: BorderRadius.full,
+    borderRadius: radius.pill,
     width: 18,
     height: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
   badgeText: {
-    fontFamily: 'Inter_700Bold',
+    fontFamily: typography.families.bold,
     fontSize: 10,
-    color: Colors.backgroundDeepNavy,
+    color: neutral[950],
   },
   title: {
-    fontFamily: 'Inter_700Bold',
-    fontSize: Typography.displayMedium,
-    lineHeight: Typography.lineHeightDisplay,
-    marginBottom: Spacing.xs,
+    fontFamily: typography.families.bold,
+    ...typography.scale.h1,
+    marginBottom: spacing.xs,
   },
   weekStat: {
-    fontFamily: 'JetBrainsMono_400Regular',
-    fontSize: Typography.bodySmall,
-    color: Colors.slateGray,
-    marginBottom: Spacing.md,
+    fontFamily: typography.families.mono,
+    ...typography.scale.caption,
+    color: neutral[400],
+    marginBottom: spacing.md,
   },
   footer: {
     flexDirection: 'row',
@@ -206,42 +226,37 @@ const styles = StyleSheet.create({
     marginTop: 'auto' as any,
   },
   subtitle: {
-    fontFamily: 'Inter_500Medium',
-    fontSize: Typography.bodyMedium,
-    color: Colors.slateGray,
+    fontFamily: typography.families.medium,
+    ...typography.scale.bodySmall,
+    color: neutral[400],
     flex: 1,
   },
   chevron: {
-    fontFamily: 'Inter_700Bold',
+    fontFamily: typography.families.bold,
     fontSize: 28,
     lineHeight: 32,
-    marginLeft: Spacing.sm,
+    marginLeft: spacing.sm,
   },
   // Skeleton loader
-  skeletonCard: {
-    backgroundColor: Colors.cardSurfaceNavy,
-    borderColor: Colors.graphiteBorder,
-    shadowColor: 'transparent',
-  },
   skeletonTitle: {
     height: 34,
     width: '70%',
-    backgroundColor: Colors.cardSurfaceNavyElevated,
-    borderRadius: BorderRadius.sm,
-    marginTop: Spacing.xl,
-    marginBottom: Spacing.sm,
+    backgroundColor: neutral[800],
+    borderRadius: radius.md,
+    marginTop: spacing.xl,
+    marginBottom: spacing.sm,
   },
   skeletonStat: {
     height: 14,
     width: '55%',
-    backgroundColor: Colors.cardSurfaceNavyElevated,
-    borderRadius: BorderRadius.sm,
-    marginBottom: Spacing.sm,
+    backgroundColor: neutral[800],
+    borderRadius: radius.md,
+    marginBottom: spacing.sm,
   },
   skeletonSubtitle: {
     height: 14,
     width: '40%',
-    backgroundColor: Colors.cardSurfaceNavyElevated,
-    borderRadius: BorderRadius.sm,
+    backgroundColor: neutral[800],
+    borderRadius: radius.md,
   },
 });

@@ -1,7 +1,9 @@
 // Bottom tab navigator — 5 tabs
+// UX Psychology Report #5: thinner tab bar divider (0.5 px), consistent icon size (24 px)
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography } from '../../src/theme/finance';
+import { Colors } from '../../src/theme/finance';
+import { neutral } from '../../src/theme/tokens';
 import { useAuthStore } from '../../src/stores/authStore';
 
 export default function TabsLayout() {
@@ -15,8 +17,9 @@ export default function TabsLayout() {
         lazy: true,
         tabBarStyle: {
           backgroundColor: Colors.tabBarBackground,
-          borderTopColor: Colors.tabBarBorder,
-          borderTopWidth: 1,
+          // Thinner, more refined divider (0.5 px vs old 1 px)
+          borderTopColor: neutral[700],
+          borderTopWidth: 0.5,
           height: 80,
           paddingBottom: 20,
           paddingTop: 8,
@@ -27,6 +30,8 @@ export default function TabsLayout() {
           fontFamily: 'Inter_500Medium',
           fontSize: 10,
         },
+        // Consistent icon size across all tabs (24 dp)
+        tabBarIconStyle: { width: 24, height: 24 },
       }}
     >
       <Tabs.Screen
