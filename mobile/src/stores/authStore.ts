@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authApi } from '../services/api';
+import { getGoogleOAuthTokens } from '../services/supabase';
 import { secureStorage } from '../lib/secureStorage';
 
 interface UserProfile {
@@ -37,6 +38,7 @@ interface AuthState {
   initialize: () => Promise<void>;
   reset: () => void;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: () => Promise<boolean>;
   register: (data: {
     name: string;
     email: string;
@@ -136,6 +138,49 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         hasCompletedOnboarding: false,
         isLoading: false,
       });
+    }
+  },
+
+  loginWithGoogle: async (): Promise<boolean> => {
+    set({ isLoading: true, error: null });
+    try {
+      const tokens = await getGoogleOAuthTokens();
+      if (!tokens) {
+        // User cancelled the OAuth popup — not an error.
+        set({ isLoading: false });
+        return false;
+      }
+
+      const { data } = await authApi.googleLogin(tokens);
+      const token = data?.access_token || data?.token || '';
+      const refreshToken = data?.refresh_token || '';
+      if (!token) {
+        throw new Error('No token received from server');
+      }
+      await secureStorage.setItem('auth_token', token);
+      if (refreshToken) {
+        await secureStorage.setItem('auth_refresh_token', refreshToken);
+      }
+      set({ token });
+
+      const { data: raw } = await authApi.me();
+      const { user, profile, onboardingComplete } = extractMe(raw);
+      set({
+        user,
+        profile,
+        hasCompletedOnboarding: onboardingComplete,
+        isAuthenticated: true,
+        isLoading: false,
+      });
+      return true;
+    } catch (error: any) {
+      const message =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        'Google sign-in failed';
+      set({ error: message, isLoading: false });
+      throw error;
     }
   },
 

@@ -37,6 +37,7 @@
     "expo-sharing": "~12.0.1",
     "expo-splash-screen": "~0.27.5",
     "expo-status-bar": "~1.12.1",
+    "expo-web-browser": "~13.0.3",
     "posthog-react-native": "^4.43.5",
     "react": "18.2.0",
     "react-native": "0.74.5",
