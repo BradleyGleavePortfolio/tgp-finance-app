@@ -8,12 +8,12 @@ import { Input } from '../../src/components/ui/Input';
 import { Button } from '../../src/components/ui/Button';
 import { Colors, Typography, Spacing } from '../../src/theme/finance';
 import { useAuthStore } from '../../src/stores/authStore';
-import { sendPasswordResetEmail, signInWithGoogle } from '../../src/services/supabase';
+import { sendPasswordResetEmail } from '../../src/services/supabase';
 import { track, identify } from '../../src/lib/analytics';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login, isLoading, error, clearError } = useAuthStore();
+  const { login, loginWithGoogle, isLoading, error, clearError } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [resetSent, setResetSent] = useState(false);
@@ -56,15 +56,15 @@ export default function LoginScreen() {
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
     try {
-      await signInWithGoogle();
-      // signInWithGoogle() opens a browser/WebView via Supabase OAuth.
-      // The redirect back to tgp-finance://auth/callback will be handled by
-      // the deep-link listener in app/_layout.tsx (or expo-router).
-      // If the Supabase Google provider is not configured, signInWithOAuth
-      // will throw an error which we catch and show to the user.
+      const success = await loginWithGoogle();
+      if (!success) return; // user cancelled the popup
+
+      const { user } = useAuthStore.getState();
+      if (user?.id) identify(user.id, { role: user.role });
+      track('signed_in', { method: 'google' });
+      router.replace('/');
     } catch (err: any) {
       const msg = err?.message || 'Google Sign-In failed. Please try again.';
-      // Surface a clear message if the Google provider is not configured
       const isConfigError =
         msg.toLowerCase().includes('provider') ||
         msg.toLowerCase().includes('not enabled') ||
@@ -72,7 +72,7 @@ export default function LoginScreen() {
       Alert.alert(
         'Google Sign-In',
         isConfigError
-          ? 'Google Sign-In is not yet configured. Please enable the Google provider in your Supabase project settings and set up a Google Cloud OAuth client.'
+          ? 'Google Sign-In is not yet configured. Please enable the Google provider in your Supabase project settings.'
           : msg,
       );
     } finally {

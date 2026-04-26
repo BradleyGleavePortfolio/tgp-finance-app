@@ -1,7 +1,13 @@
 // Supabase client configuration for The Growth Project: Finance
 import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import { secureStorage } from '../lib/secureStorage';
+
+// Required so the OAuth WebBrowser session can complete and dismiss when
+// Google redirects back to our deep link. Safe to call at module load.
+WebBrowser.maybeCompleteAuthSession();
 
 // SECURITY: previously these fell back to a hardcoded Supabase project URL + anon key,
 // which meant every debug/preview build pointed at the production project by default.
@@ -27,15 +33,79 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   },
 });
 
-export async function signInWithGoogle(): Promise<void> {
-  const { error } = await supabase.auth.signInWithOAuth({
+/**
+ * Drive a native Google OAuth round-trip via Supabase.
+ *
+ * Returns the Google `provider_token` (Google access token) plus optional
+ * `id_token` parsed from the redirect URL fragment. The caller is responsible
+ * for trading these for a backend-issued JWT (see authStore.loginWithGoogle).
+ *
+ * Flow:
+ *   1. Ask Supabase for a Google authorization URL (`skipBrowserRedirect`
+ *      because RN has no `window.location.assign`).
+ *   2. Open Google in an in-app browser bound to our deep-link scheme.
+ *      `expo-web-browser` closes itself when Google redirects back.
+ *   3. Parse `provider_token` + `provider_id_token` (or `id_token`) out of the
+ *      URL fragment Supabase appends.
+ *
+ * Returns `null` if the user cancelled. Throws on any other failure.
+ */
+export async function getGoogleOAuthTokens(): Promise<
+  { access_token: string; id_token?: string } | null
+> {
+  const redirectTo = Linking.createURL('auth/callback');
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
       scopes: 'email profile',
-      redirectTo: 'tgp-finance://auth/callback',
+      redirectTo,
+      skipBrowserRedirect: true,
     },
   });
   if (error) throw error;
+  if (!data?.url) throw new Error('No authorization URL returned from Supabase');
+
+  const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo, {
+    showInRecents: true,
+  });
+
+  if (result.type !== 'success' || !result.url) {
+    if (result.type === 'cancel' || result.type === 'dismiss') {
+      return null;
+    }
+    throw new Error(`Google sign-in did not complete (${result.type})`);
+  }
+
+  // Supabase implicit OAuth returns tokens in the URL fragment (#access_token=…)
+  const fragmentIndex = result.url.indexOf('#');
+  if (fragmentIndex === -1) {
+    throw new Error('OAuth callback URL missing token fragment');
+  }
+  const fragment = result.url.slice(fragmentIndex + 1);
+  const params = new URLSearchParams(fragment);
+  // `provider_token` = Google access token (used as fallback by backend)
+  // `provider_id_token` = Google ID token (preferred — backend verifies via
+  // supabase.auth.signInWithIdToken). Some providers/proxies surface it as
+  // plain `id_token`; accept either.
+  const access_token = params.get('provider_token') || params.get('access_token');
+  const id_token = params.get('provider_id_token') || params.get('id_token') || undefined;
+
+  if (!access_token) {
+    const errMsg = params.get('error_description') || params.get('error') || 'Missing tokens in callback';
+    throw new Error(errMsg);
+  }
+
+  return { access_token, id_token };
+}
+
+/**
+ * @deprecated Prefer `useAuthStore().loginWithGoogle()` which threads the
+ * resulting tokens through our backend `/auth/google` endpoint and hydrates
+ * the auth store. Kept only so callers don't break at type-check time.
+ */
+export async function signInWithGoogle(): Promise<void> {
+  await getGoogleOAuthTokens();
 }
 
 export async function signOut(): Promise<void> {

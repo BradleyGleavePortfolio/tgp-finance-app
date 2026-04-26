@@ -154,6 +154,11 @@ export const authApi = {
   selectRole: (role: string, coach_access_code?: string) =>
     api.post('/api/auth/select-role', { role, ...(coach_access_code ? { coach_access_code } : {}) }),
   logout: () => api.post('/api/auth/logout'),
+  // Trade Google OAuth tokens (returned by Supabase implicit flow) for our
+  // own backend-issued JWT. Backend verifies via supabase.auth.signInWithIdToken
+  // and either creates or returns an existing user record.
+  googleLogin: (params: { access_token: string; id_token?: string }) =>
+    api.post('/api/auth/google', params),
 };
 
 // Accounts API
