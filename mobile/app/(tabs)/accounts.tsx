@@ -133,7 +133,7 @@ export default function AccountsScreen() {
             {activeTab === 'debts' && (
               <>
                 {debtAccounts.length === 0 ? (
-                  <EmptyState icon="✅" title="No debts tracked" description="Great! If you have debt, add it to see your payoff timeline." actionText="Add Debt Account" onAction={() => router.push('/accounts/add')} />
+                  <EmptyState icon="✅" title="No debts tracked" description="If you have debt, add it to see your payoff timeline." actionText="Add Debt Account" onAction={() => router.push('/accounts/add')} />
                 ) : (
                   <>
                     <InterestBleedTicker dailyInterest={dailyInterest} onPress={() => router.push('/interest-bleed')} />

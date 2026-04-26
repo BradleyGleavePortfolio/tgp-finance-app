@@ -134,7 +134,7 @@ export async function scheduleStreakRiskReminder(opts: {
   await Notifications.scheduleNotificationAsync({
     content: {
       title: 'Streak at Risk',
-      body: "Your streak is at risk. Don't break the chain.",
+      body: 'Check in today. The streak holds.',
       data: { type: 'streak_risk', screen: '/eod' },
     },
     trigger: {
@@ -236,7 +236,7 @@ export async function maybeSendPriorityLevelUpNotification(current: {
   await Notifications.scheduleNotificationAsync({
     content: {
       title: 'Priority Level-Up',
-      body: `New priority unlocked: ${current.title}`,
+      body: `Next priority: ${current.title}`,
       data: { type: 'priority_levelup', screen: '/' },
     },
     trigger: null,

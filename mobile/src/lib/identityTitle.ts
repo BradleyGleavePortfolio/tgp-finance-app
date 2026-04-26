@@ -23,7 +23,7 @@ export type IdentityTitleInput = {
  * 1. "Day-One Founder"  — founding member AND active (streak ≥ 1 or isOnTrack)
  * 2. "Comeback Saver"   — joined more than 2 weeks ago but streak reset to 0 or 1
  *                         (returned after a gap)
- * 3. "Debt Crusher"     — primary goal contains "debt" or "payoff"
+ * 3. "The Debt Plan"    — primary goal contains "debt" or "payoff"
  * 4. "Future Builder"   — primary goal contains "sav" | "invest" | "build" | "wealth"
  * 5. "Money Architect"  — default fallback
  */
@@ -51,9 +51,9 @@ export function resolveIdentityTitle(input: IdentityTitleInput): string {
     return 'Comeback Saver';
   }
 
-  // 3. Debt Crusher — debt payoff goal
+  // 3. The Debt Plan — debt payoff goal
   if (goal.includes('debt') || goal.includes('payoff') || goal.includes('pay off')) {
-    return 'Debt Crusher';
+    return 'The Debt Plan';
   }
 
   // 4. Future Builder — savings / invest / wealth-building goal

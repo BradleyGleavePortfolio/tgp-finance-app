@@ -76,7 +76,7 @@ export default function RegisterScreen() {
         </TouchableOpacity>
 
         <Text style={styles.title}>Create Account</Text>
-        <Text style={styles.subtitle}>Join The Growth Project: Finance</Text>
+        <Text style={styles.subtitle}>A practice for the long-form.</Text>
 
         {error && (
           <View style={styles.errorBanner}>

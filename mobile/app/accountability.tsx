@@ -28,7 +28,7 @@ const PRIORITY_LABELS = [
   'Build $1K Cash Buffer',
   'Pay Off High-APR Debt',
   'Build 3-Month Emergency Fund',
-  'Maximize Tax-Advantaged Investing',
+  'Invest Tax-Advantaged',
   'Pay Off Remaining Secured Debt',
   'Build Investment Portfolio',
   'Financial Independence',

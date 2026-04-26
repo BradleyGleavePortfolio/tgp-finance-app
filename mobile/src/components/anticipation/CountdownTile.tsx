@@ -91,7 +91,7 @@ export function CountdownTile({ event, onPress }: CountdownTileProps) {
         {/* Right: day count badge */}
         <View style={[styles.badge, { backgroundColor: accent + '22' }]}>
           <Text style={[styles.badgeCount, { color: accent }]}>
-            {event.daysUntil === 0 ? '!' : event.daysUntil}
+            {event.daysUntil === 0 ? '0' : event.daysUntil}
           </Text>
           <Text style={[styles.badgeUnit, { color: accent }]}>
             {event.daysUntil === 0 ? '' : 'd'}

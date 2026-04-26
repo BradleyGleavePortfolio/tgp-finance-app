@@ -71,7 +71,7 @@ export function ChatPanel() {
             </View>
             <Text style={styles.emptyChatTitle}>Ask FP anything</Text>
             <Text style={styles.emptyChatText}>
-              Debt strategy, investing, budgeting, income growth, financial independence — I have full context on your finances.
+              Debt, savings, investments, income, financial independence. Full context on your finances.
             </Text>
           </View>
         )}

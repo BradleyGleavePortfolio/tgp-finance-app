@@ -258,7 +258,7 @@ export function getVelocityLevel(score: number): { name: string; color: string }
   if (score <= 15) return { name: 'Starting Line', color: '#8895A7' };
   if (score <= 30) return { name: 'Debt Fighter', color: '#E63946' };
   if (score <= 45) return { name: 'Cash Builder', color: '#F39C12' };
-  if (score <= 60) return { name: 'Wealth Builder', color: '#F9C74F' };
+  if (score <= 60) return { name: 'Building Position', color: '#F9C74F' };
   if (score <= 75) return { name: 'Asset Machine', color: '#06D6A0' };
   if (score <= 90) return { name: 'Freedom Tier', color: '#06D6A0' };
   return { name: 'Operator Level', color: '#F9C74F' };

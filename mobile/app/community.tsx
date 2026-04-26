@@ -122,7 +122,7 @@ export default function CommunityScreen() {
           <HapticPressable intent="light" onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="chevron-back" size={22} color={Colors.frostWhite} />
           </HapticPressable>
-          <Text style={styles.navTitle}>Inner Circle Wins</Text>
+          <Text style={styles.navTitle}>Community</Text>
           <View style={{ width: 38 }} />
         </View>
 

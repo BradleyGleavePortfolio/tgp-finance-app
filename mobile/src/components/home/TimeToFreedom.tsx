@@ -27,7 +27,7 @@ export function TimeToFreedom({
 }: TimeToFreedomProps) {
   return (
     <Card variant="gold" style={styles.card}>
-      <Text style={styles.title}>⏱ Time to Freedom</Text>
+      <Text style={styles.title}>TIME TO FREEDOM</Text>
       <View style={styles.lines}>
         <FreedomLine
           label="Debt-free in:"
