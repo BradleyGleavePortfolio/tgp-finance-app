@@ -20,8 +20,6 @@ import { ScreenErrorBoundary } from '../../src/components/ui/ScreenErrorBoundary
 import { IdentityBadge } from '../../src/components/IdentityBadge';
 import { resolveIdentityTitle } from '../../src/lib/identityTitle';
 import { usersApi } from '../../src/services/api';
-// UX Psychology Report #5: Contribution Loops
-import { BadgeCabinet } from '../../src/components/community/BadgeCabinet';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -180,9 +178,6 @@ export default function ProfileScreen() {
             )}
           </Card>
         )}
-
-        {/* Badge Cabinet — UX Psychology Report #5: Contribution Loops */}
-        <BadgeCabinet isFoundingMember={foundingData?.isFoundingMember ?? false} />
 
         {/* Settings navigation */}
         <View style={styles.settingsSection}>
