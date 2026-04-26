@@ -34,6 +34,7 @@ import { track } from '../../src/lib/analytics';
 import { TrustCueRow } from '../../src/components/trust/TrustCueRow';
 // UX Psychology Report #5: Contribution Loops
 import { HapticPressable } from '../../src/components/HapticPressable';
+import { usePreferences } from '../../src/hooks/usePreferences';
 
 // ---------------------------------------------------------------------------
 // Hero status computation
@@ -326,6 +327,8 @@ export default function HomeScreen() {
           status={heroStatus}
           weekStat={weekStat}
           onPress={onHeroPress}
+          tone={prefs.motivationalTone}
+          currency={prefs.currency}
         />
 
         {/* Circle stat — social proof */}
@@ -463,8 +466,8 @@ export default function HomeScreen() {
         {/* Trust Cue Row — UX Psychology Report #2: Trust as Emotion */}
         <TrustCueRow style={styles.trustCueRow} />
 
-        {/* Inner Circle Wins — UX Psychology Report #5: Contribution Loops */}
-        <HapticPressable
+        {/* Inner Circle Wins — UX Psychology Report #5: Contribution Loops, gated by community pref */}
+        {enabledModules.includes('community') && <HapticPressable
           intent="light"
           style={styles.communityRow}
           onPress={() => router.push('/community')}
@@ -477,7 +480,7 @@ export default function HomeScreen() {
             </View>
           </View>
           <Text style={styles.communityRowChevron}>›</Text>
-        </HapticPressable>
+        </HapticPressable>}
 
         {/* Interest Bleed Ticker */}
         <View style={styles.tickerSection}>

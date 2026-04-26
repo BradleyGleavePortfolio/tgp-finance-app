@@ -77,6 +77,8 @@ export default function ProfileScreen() {
   const totalAccounts = safeAccounts.length;
 
   const settingsItems = [
+    // UX Psychology Report #4: Preference-Controlled Personalization
+    { icon: 'color-palette-outline', label: 'Personalization', route: '/preferences' },
     { icon: 'notifications-outline', label: 'Notification Preferences', route: '/settings/notifications' },
     { icon: 'shield-checkmark-outline', label: 'Account & Security', route: '/settings/security' },
     // UX Psychology Report #2: Trust as Emotion
