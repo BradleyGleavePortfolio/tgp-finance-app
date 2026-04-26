@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: Colors.cardSurfaceNavy,
-    borderRadius: 24,
+    borderRadius: 4, // radius.lg
     borderWidth: 2,
     borderColor: Colors.accentGold,
     padding: Spacing.xxxl,
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.accentGold,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.xxxl,
-    borderRadius: 12,
+    borderRadius: 4, // radius.lg
     alignItems: 'center',
   },
   btnText: {
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.accentGold,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.xxxl,
-    borderRadius: 12,
+    borderRadius: 4, // radius.lg
     alignItems: 'center',
   },
   shareBtnText: {

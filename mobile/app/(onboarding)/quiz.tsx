@@ -450,7 +450,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: Spacing.base,
-    borderRadius: 14,
+    borderRadius: 4, // radius.lg
     borderWidth: 1.5,
     borderColor: Colors.graphiteBorder,
     marginBottom: Spacing.sm,
@@ -492,7 +492,7 @@ const styles = StyleSheet.create({
   connectButton: {
     backgroundColor: Colors.accentGold,
     padding: Spacing.base,
-    borderRadius: 12,
+    borderRadius: 0, // radius.sm — primary CTA button
     alignItems: 'center',
     marginBottom: Spacing.sm,
   },

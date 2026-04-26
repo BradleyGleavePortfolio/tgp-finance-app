@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.backgroundDeepNavy },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.base, paddingTop: Spacing.base, paddingBottom: Spacing.sm },
   title: { fontFamily: 'Inter_700Bold', fontSize: Typography.titleLarge, color: Colors.frostWhite },
-  addBtn: { backgroundColor: Colors.accentGold, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderRadius: 20 },
+  addBtn: { backgroundColor: Colors.accentGold, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderRadius: 0 }, // radius.sm — primary CTA
   addBtnText: { fontFamily: 'Inter_700Bold', fontSize: Typography.bodySmall, color: Colors.backgroundDeepNavy },
   tabs: { flexDirection: 'row', paddingHorizontal: Spacing.base, gap: Spacing.sm, marginBottom: Spacing.base },
   tab: { flex: 1, paddingVertical: Spacing.sm, borderRadius: BorderRadius.full, borderWidth: 1, borderColor: Colors.graphiteBorder, alignItems: 'center' },

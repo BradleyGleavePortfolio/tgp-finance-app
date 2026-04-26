@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
   },
   insightBox: {
     backgroundColor: Colors.cardSurfaceNavy,
-    borderRadius: 10,
+    borderRadius: 4, // radius.lg
     borderLeftWidth: 3,
     borderLeftColor: Colors.accentGold,
     padding: Spacing.base,

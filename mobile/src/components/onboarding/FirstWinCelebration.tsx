@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: Colors.cardSurfaceNavy,
-    borderRadius: 24,
+    borderRadius: 4, // radius.lg
     borderWidth: 2,
     borderColor: Colors.accentGold,
     padding: Spacing.xxxl,
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(249,199,79,0.10)',
     borderWidth: 1,
     borderColor: Colors.accentGold,
-    borderRadius: 100,
+    borderRadius: 999, // radius.pill — circle
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.sm,
     alignItems: 'center',
@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.accentGold,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.xxxl,
-    borderRadius: 14,
+    borderRadius: 4, // radius.lg
     alignItems: 'center',
     width: '100%',
   },

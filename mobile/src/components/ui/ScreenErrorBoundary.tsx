@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9C74F',
     paddingHorizontal: 32,
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: 4, // radius.lg
     marginBottom: 12,
   },
   retryText: {
