@@ -145,7 +145,7 @@ export default function IncomeGapScreen() {
         <Card style={styles.mainCard}>
           <Text style={styles.cardLabel}>INCOME GAP TO DREAM LIFESTYLE</Text>
           <Text style={[styles.gapAmount, { color: gap > 0 ? Colors.debtCrimson : Colors.profitGreen }]}>
-            {gap > 0 ? `-${formatCurrency(gap)}/mo` : 'Gap closed!'}
+            {gap > 0 ? `-${formatCurrency(gap)}/mo` : 'Gap closed.'}
           </Text>
 
           <View style={styles.comparison}>

@@ -19,7 +19,7 @@ interface AccountGroupProps {
 
 const GROUP_CONFIG: Record<GroupType, { label: string; color: string }> = {
   cash: { label: 'CASH', color: Colors.profitGreen },
-  investments: { label: 'INVESTMENTS', color: Colors.investmentTeal },
+  investments: { label: 'INVESTMENTS', color: Colors.slateGray },
   assets: { label: 'ASSETS', color: Colors.accentGold },
   debts: { label: 'DEBTS', color: Colors.debtCrimson },
 };

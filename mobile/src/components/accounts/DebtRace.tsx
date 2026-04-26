@@ -49,7 +49,7 @@ export function DebtRace({ debts, extraPayment = 0, onMethodSelect }: DebtRacePr
               activeOpacity={0.8}
             >
               <Text style={[styles.methodName, isSelected && styles.methodNameSelected]}>
-                {method === 'avalanche' ? '⚡ Avalanche' : '❄️ Snowball'}
+                {method === 'avalanche' ? 'Avalanche' : 'Snowball'}
               </Text>
               <Text style={[styles.methodMonths, isSelected && styles.methodValueSelected]}>
                 {formatMonths(data.monthsToDebtFree)}

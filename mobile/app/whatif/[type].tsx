@@ -61,7 +61,7 @@ export default function WhatIfScenario() {
   const handleSaveScenario = () => {
     try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch { /* ignore */ }
     saveScenario({ scenario_type: type as ScenarioType, label: scenarioConfig.title, parameters: params, result_summary: displayResult });
-    Alert.alert('Saved!', 'Scenario saved to your What-If library.');
+    Alert.alert('Saved', 'Scenario saved to your What-If library.');
   };
 
   const handleBack = () => {

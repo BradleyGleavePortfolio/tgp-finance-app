@@ -27,7 +27,7 @@ interface StreakBadgeProps {
 export function StreakBadge({ streak, style }: StreakBadgeProps) {
   const color = streak >= 30 ? Colors.accentGold : streak >= 7 ? Colors.profitGreen : Colors.slateGray;
   return (
-    <Badge text={`🔥 ${streak}d`} color={color} style={style} />
+    <Badge text={`${streak}d`} color={color} style={style} />
   );
 }
 

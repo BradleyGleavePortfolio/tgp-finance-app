@@ -67,7 +67,7 @@ export function ChatPanel() {
         {messages.length === 0 && (
           <View style={styles.emptyChat}>
             <View style={styles.emptyChatIcon}>
-              <Text style={{ fontSize: 40 }}>💰</Text>
+              <Text style={{ fontSize: 40, color: Colors.slateGray }}>$</Text>
             </View>
             <Text style={styles.emptyChatTitle}>Ask FP anything</Text>
             <Text style={styles.emptyChatText}>

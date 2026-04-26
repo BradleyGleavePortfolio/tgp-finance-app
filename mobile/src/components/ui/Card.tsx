@@ -39,13 +39,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.cardSurfaceNavy,
     borderColor: Colors.accentGold,
     borderWidth: 1.5,
-    ...Shadows.glow,
+    ...Shadows.card,
   },
   crimson: {
     backgroundColor: Colors.cardSurfaceNavy,
     borderColor: Colors.debtCrimson,
     borderWidth: 1.5,
-    ...Shadows.glowCrimson,
+    ...Shadows.card,
   },
   elevated: {
     backgroundColor: Colors.cardSurfaceNavyElevated,

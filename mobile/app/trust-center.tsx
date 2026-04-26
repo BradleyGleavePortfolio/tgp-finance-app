@@ -160,7 +160,7 @@ export default function TrustCenterScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>SECURITY STATUS</Text>
           {loading ? (
-            <ActivityIndicator color={Colors.investmentTeal} style={{ marginVertical: Spacing.base }} />
+            <ActivityIndicator color={Colors.slateGray} style={{ marginVertical: Spacing.base }} />
           ) : meta ? (
             <View style={styles.metaCard}>
               <MetaRow
@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
   back: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: Typography.bodyLarge,
-    color: Colors.investmentTeal,
+    color: Colors.slateGray,
     width: 60,
   },
   title: {
@@ -438,7 +438,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   actionBtnExport: {
-    backgroundColor: Colors.investmentTeal,
+    backgroundColor: Colors.slateGray,
   },
   actionBtnDelete: {
     backgroundColor: 'transparent',
@@ -466,7 +466,7 @@ const styles = StyleSheet.create({
   bulletDot: {
     fontFamily: 'Inter_400Regular',
     fontSize: Typography.bodySmall,
-    color: Colors.investmentTeal,
+    color: Colors.slateGray,
     lineHeight: 20,
   },
   bulletText: {

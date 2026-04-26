@@ -183,7 +183,7 @@ export default function CommunityScreen() {
               {posting ? (
                 <ActivityIndicator size="small" color={Colors.backgroundDeepNavy} />
               ) : (
-                <Text style={styles.postBtnText}>Post Win 🏆</Text>
+                <Text style={styles.postBtnText}>Post Win</Text>
               )}
             </HapticPressable>
           </View>
@@ -194,7 +194,7 @@ export default function CommunityScreen() {
             <ActivityIndicator color={Colors.accentGold} style={{ marginTop: Spacing.xl }} />
           ) : wins.length === 0 ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyText}>No wins yet — be the first to share one! 🎉</Text>
+              <Text style={styles.emptyText}>No wins yet. Be the first to share one.</Text>
             </View>
           ) : (
             wins.map((win) => (

@@ -57,14 +57,14 @@ function buildMotivationalCopy(
   remaining: number,
   unit: 'dollars' | 'days' | 'percent',
 ): string {
-  if (remaining <= 0) return `${title} — milestone unlocked!`;
+  if (remaining <= 0) return `${title} — milestone complete.`;
 
   if (unit === 'dollars') {
     const str = formatAmount(remaining);
     return `Just ${str} away from your ${title} milestone`;
   }
   if (unit === 'days') {
-    return `${remaining} day${remaining === 1 ? '' : 's'} left — keep the streak going!`;
+    return `${remaining} day${remaining === 1 ? '' : 's'} left.`;
   }
   return `${Math.round(remaining)}% left to reach ${title}`;
 }

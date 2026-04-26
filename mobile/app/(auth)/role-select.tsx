@@ -48,7 +48,7 @@ export default function RoleSelectScreen() {
         onPress={handleStudentSelect}
         activeOpacity={0.8}
       >
-        <Text style={styles.roleIcon}>🎯</Text>
+        <Text style={styles.roleIcon}>→</Text>
         <Text style={styles.roleTitle}>I'm a Student</Text>
         <Text style={styles.roleDesc}>Track my finances, build wealth, follow the priority waterfall</Text>
       </TouchableOpacity>

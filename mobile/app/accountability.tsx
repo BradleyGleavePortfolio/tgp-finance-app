@@ -170,7 +170,7 @@ function CoachPairView() {
     setPairing(true);
     try {
       const { data } = await accountabilityApi.pair(student1Id, student2Id);
-      Alert.alert('Paired!', data?.message || 'Students have been paired as accountability partners.');
+      Alert.alert('Paired', data?.message || 'Students have been paired as accountability partners.');
       setStudent1Id('');
       setStudent2Id('');
     } catch (err: any) {

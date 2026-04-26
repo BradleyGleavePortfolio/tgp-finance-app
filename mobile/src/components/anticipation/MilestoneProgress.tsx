@@ -94,7 +94,7 @@ export function MilestoneProgress({ milestone, onPress }: MilestoneProgressProps
 
   // Dynamic border for founders
   const borderStyle = isFounder
-    ? { borderColor: gold[400], borderWidth: 1, ...shadows.glowGold }
+    ? { borderColor: gold[400], borderWidth: 1, ...shadows.md }
     : { borderColor: neutral[700], borderWidth: 1 };
 
   return (
@@ -135,10 +135,7 @@ export function MilestoneProgress({ milestone, onPress }: MilestoneProgressProps
                   outputRange: ['0%', '100%'],
                 }),
                 // Near-target: add soft glow
-                shadowColor: milestone.isNearTarget ? accent : 'transparent',
-                shadowOpacity: milestone.isNearTarget ? 0.6 : 0,
-                shadowRadius: milestone.isNearTarget ? 8 : 0,
-                elevation: milestone.isNearTarget ? 4 : 0,
+                // glow removed (luxury/wave1)
               },
             ]}
           />

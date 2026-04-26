@@ -51,7 +51,7 @@ export function SubmissionResult({
       <View style={styles.streakRow}>
         <StreakBadge streak={streak} />
         <Text style={styles.streakText}>
-          {streak >= 7 ? '🔥 Keep the chain alive!' : 'Build your streak — check in tomorrow'}
+          {streak >= 7 ? 'Keep the chain alive.' : 'Build your streak — check in tomorrow'}
         </Text>
       </View>
 

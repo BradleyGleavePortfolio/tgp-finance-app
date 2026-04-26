@@ -10,7 +10,7 @@ import { AnimatedCounter } from '../../src/components/ui/AnimatedCounter';
 import { VitalSigns } from '../../src/components/home/VitalSigns';
 import { TimeToFreedom } from '../../src/components/home/TimeToFreedom';
 import { PriorityCard } from '../../src/components/home/PriorityCard';
-import { InterestBleedTicker } from '../../src/components/home/InterestBleedTicker';
+// InterestBleedTicker import removed — ticker commented out on home (luxury/wave1)
 import { QuickActions } from '../../src/components/home/QuickActions';
 import { HeroAction, HeroStatus } from '../../src/components/home/HeroAction';
 import { CelebrationModal } from '../../src/components/milestones/CelebrationModal';
@@ -482,7 +482,7 @@ export default function HomeScreen() {
           onPress={() => router.push('/community')}
         >
           <View style={styles.communityRowLeft}>
-            <Text style={styles.communityRowEmoji}>🏆</Text>
+            <Text style={styles.communityRowEmoji}>→</Text>
             <View>
               <Text style={styles.communityRowTitle}>Inner Circle Wins</Text>
               <Text style={styles.communityRowSub}>See what your circle is achieving</Text>
@@ -491,13 +491,13 @@ export default function HomeScreen() {
           <Text style={styles.communityRowChevron}>›</Text>
         </HapticPressable>}
 
-        {/* Interest Bleed Ticker */}
-        <View style={styles.tickerSection}>
+        {/* Interest Bleed Ticker — removed from home (luxury/wave1). Component file kept for Wave 3 hero rewrite decision. */}
+        {/* <View style={styles.tickerSection}>
           <InterestBleedTicker
             dailyInterest={safeDailyInterest}
             onPress={() => router.push('/interest-bleed')}
           />
-        </View>
+        </View> */}
       </ScrollView>
 
       {/* Milestone celebration modal */}

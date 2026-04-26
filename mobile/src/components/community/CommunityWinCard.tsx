@@ -66,7 +66,7 @@ export function CommunityWinCard({ win, onReact }: CommunityWinCardProps) {
           style={[styles.reactBtn, win.myReactions.fire && styles.reactBtnActive]}
           onPress={() => onReact(win.id, 'fire')}
         >
-          <Text style={styles.emoji}>🔥</Text>
+          <Text style={styles.emoji}>+1</Text>
           <Text style={[styles.reactCount, win.myReactions.fire && styles.reactCountActive]}>
             {win.reactions.fire + (win.myReactions.fire ? 0 : 0)}
           </Text>
@@ -77,7 +77,7 @@ export function CommunityWinCard({ win, onReact }: CommunityWinCardProps) {
           style={[styles.reactBtn, win.myReactions.clap && styles.reactBtnActive]}
           onPress={() => onReact(win.id, 'clap')}
         >
-          <Text style={styles.emoji}>👏</Text>
+          <Text style={styles.emoji}>+1</Text>
           <Text style={[styles.reactCount, win.myReactions.clap && styles.reactCountActive]}>
             {win.reactions.clap}
           </Text>
@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Colors.investmentTeal,
+    backgroundColor: Colors.graphiteBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
