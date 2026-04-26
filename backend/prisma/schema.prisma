@@ -97,6 +97,7 @@ model User {
   coach_notes_sent     CoachNote[]              @relation("CoachNotes")
   program_templates    ProgramTemplate[]
   community_wins       CommunityWin[]
+  preferences          UserPreferences?
 
   @@map("users")
 }
@@ -345,41 +346,20 @@ model WinReaction {
 }
 
 // ============================================================
-// COMMUNITY — UX Psychology Report #5: Contribution Loops
+// PREFERENCES — UX Psychology Report #4: Personalization
 // ============================================================
 
-enum WinVisibility {
-  circle
-  public
-}
+model UserPreferences {
+  id                   String   @id @default(uuid())
+  user_id              String   @unique
+  user                 User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  home_modules         String[] @default(["hero","milestone","trustcues","secondary"])
+  notification_cadence String   @default("weekly")
+  motivational_tone    String   @default("direct")
+  currency             String   @default("USD")
+  first_day_of_week    Int      @default(1)
+  updated_at           DateTime @updatedAt
+  created_at           DateTime @default(now())
 
-enum ReactionKind {
-  fire
-  clap
-}
-
-model CommunityWin {
-  id         String        @id @default(uuid())
-  user_id    String
-  user       User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  action     String
-  visibility WinVisibility @default(public)
-  created_at DateTime      @default(now())
-  reactions  WinReaction[]
-
-  @@index([visibility, created_at])
-  @@map("community_wins")
-}
-
-model WinReaction {
-  id         String       @id @default(uuid())
-  win_id     String
-  win        CommunityWin @relation(fields: [win_id], references: [id], onDelete: Cascade)
-  user_id    String
-  kind       ReactionKind
-  created_at DateTime     @default(now())
-
-  @@unique([win_id, user_id, kind])
-  @@index([user_id])
-  @@map("win_reactions")
+  @@map("user_preferences")
 }

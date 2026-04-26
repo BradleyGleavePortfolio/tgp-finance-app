@@ -1,5 +1,6 @@
 // HeroAction — UX Psychology Report #1: One Dominant Home Action
 // UX Psychology Report #3: Haptic feedback — medium impact on hero press.
+// UX Psychology Report #4: Tone variants (gentle/direct/drill) + currency prop.
 // UX Psychology Report #5: Premium Visual System — tokens-driven styles,
 //   card shadow from tokens, subtle radial-style gradient via dual-layer View,
 //   founder tier gets gold accent stop on the glow overlay.
@@ -17,11 +18,16 @@ import { neutral, semantic, gold, typography, spacing, radius, shadows, motion }
 import { useTheme } from '../../theme/ThemeProvider';
 
 export type HeroStatus = 'on_track' | 'needs_attention' | 'no_goals' | 'loading';
+export type MotivationalTone = 'gentle' | 'direct' | 'drill';
 
 interface HeroActionProps {
   status: HeroStatus;
   weekStat?: string;       // e.g. "$1,240 spent · $360 left in budget"
   onPress: () => void;
+  /** UX Psych #4: motivational tone variant */
+  tone?: MotivationalTone;
+  /** UX Psych #4: currency code for display */
+  currency?: string;
 }
 
 interface HeroConfig {
@@ -36,11 +42,28 @@ interface HeroConfig {
   badgeColor?: string;
 }
 
-function getHeroConfig(status: HeroStatus, isFounder: boolean): HeroConfig {
+// Tone-aware title map for on_track / needs_attention states
+const TONE_TITLES: Record<MotivationalTone, { on_track: string; needs_attention: string }> = {
+  gentle: {
+    on_track: "When you're ready, take a peek",
+    needs_attention: "One small thing needs a look",
+  },
+  direct: {
+    on_track: "You're On Track \u2713",
+    needs_attention: "Make a Move",
+  },
+  drill: {
+    on_track: "Move money. Now.",
+    needs_attention: "Fix it. Today.",
+  },
+};
+
+function getHeroConfig(status: HeroStatus, isFounder: boolean, tone: MotivationalTone): HeroConfig {
+  const titles = TONE_TITLES[tone];
   switch (status) {
     case 'needs_attention':
       return {
-        title: 'Make a Move',
+        title: titles.needs_attention,
         subtitle: '1 thing needs your attention today',
         backgroundColor: '#1A0F0F',
         borderColor: semantic.danger,
@@ -52,14 +75,14 @@ function getHeroConfig(status: HeroStatus, isFounder: boolean): HeroConfig {
       };
     case 'on_track':
       return {
-        title: "You're On Track ✓",
+        title: titles.on_track,
         subtitle: 'Review this week',
         backgroundColor: '#0A1A14',
         borderColor: semantic.success,
         glowColor: semantic.successBg,
         chevronColor: semantic.success,
         titleColor: semantic.success,
-        badgeText: '✓',
+        badgeText: '\u2713',
         badgeColor: semantic.success,
       };
     case 'no_goals':
@@ -81,7 +104,7 @@ function fireHeroHaptic() {
   try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch { /* ignore */ }
 }
 
-export function HeroAction({ status, weekStat, onPress }: HeroActionProps) {
+export function HeroAction({ status, weekStat, onPress, tone = 'direct', currency }: HeroActionProps) {
   const { isFounder } = useTheme();
 
   if (status === 'loading') {
@@ -94,7 +117,7 @@ export function HeroAction({ status, weekStat, onPress }: HeroActionProps) {
     );
   }
 
-  const cfg = getHeroConfig(status, isFounder);
+  const cfg = getHeroConfig(status, isFounder, tone);
 
   const handlePress = () => {
     fireHeroHaptic();

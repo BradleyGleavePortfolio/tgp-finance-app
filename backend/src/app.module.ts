@@ -28,6 +28,8 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { SystemModule } from './system/system.module';
 // UX Psychology Report #5: Contribution Loops
 import { CommunityModule } from './community/community.module';
+// UX Psychology Report #4: Preference-Controlled Personalization
+import { PreferencesModule } from './preferences/preferences.module';
 
 import { HealthController } from './health/health.controller';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -81,6 +83,7 @@ import { TenantGuard } from './auth/guards/tenant.guard';
     UsersModule,
     SystemModule,
     CommunityModule,
+    PreferencesModule,
   ],
   controllers: [HealthController],
   providers: [
