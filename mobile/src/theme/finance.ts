@@ -1,114 +1,132 @@
-// The Growth Project: Finance — Design System
-// Single source of truth for all colors, typography, and spacing
+/**
+ * The Growth Project: Finance — Design System
+ * ════════════════════════════════════════════
+ * Wave 2: This file now RE-EXPORTS from tokens.ts (the canonical source).
+ * Legacy named exports are preserved so existing component imports continue to
+ * compile. Migrate call-sites to import directly from tokens.ts over time.
+ */
+export {
+  colors,
+  neutral,
+  gold,
+  semantic,
+  brand,
+  typography,
+  spacing,
+  radius,
+  shadows,
+  motion,
+} from './tokens';
 
+import {
+  colors,
+  typography,
+  spacing,
+  radius,
+  shadows,
+} from './tokens';
+
+// ── Legacy named exports (kept for backward-compat) ──────────────────────────
+
+/** @deprecated Import from tokens.ts instead. All color values are in `colors`. */
 export const Colors = {
-  // Backgrounds
-  backgroundDeepNavy: '#0D1117',
-  cardSurfaceNavy: '#161B22',
-  cardSurfaceNavyElevated: '#1C2333',
+  // Backgrounds → bone/cream
+  backgroundDeepNavy:       colors.bone,      // was '#0D1117'
+  cardSurfaceNavy:          colors.cream,     // was '#161B22'
+  cardSurfaceNavyElevated:  colors.cream,     // was '#1C2333'
 
-  // Accents
-  accentGold: '#F9C74F',
-  deepGoldPressed: '#D4A017',
+  // Finance accent — single oxblood replaces all four old accents
+  accentGold:      colors.oxblood,    // was '#F9C74F'
+  deepGoldPressed: colors.oxblood,    // was '#D4A017'
+  profitGreen:     colors.oxblood,    // was '#06D6A0'
+  debtCrimson:     colors.oxblood,    // was '#E63946'
+  amberWarning:    colors.oxblood,    // was '#F39C12'
+  investmentTeal:  colors.oxblood,    // was '#4DD9E5'
 
-  // Status
-  profitGreen: '#06D6A0',
-  debtCrimson: '#E63946',
-  amberWarning: '#F39C12',
-
-  // Text
-  frostWhite: '#F1F5F9',
-  slateGray: '#8895A7',
+  // Text → ink/stone on bone background
+  frostWhite: colors.ink,     // was '#F1F5F9'
+  slateGray:  colors.stone,   // was '#8895A7'
 
   // Borders
-  graphiteBorder: '#3A3A4A',
+  graphiteBorder: colors.camel,  // was '#3A3A4A' → hairline camel
 
-  // Transparent overlays
-  cardOverlay: 'rgba(22, 27, 34, 0.85)',
-  glassOverlay: 'rgba(13, 17, 23, 0.6)',
+  // Overlays (legacy — phase out)
+  cardOverlay:  'rgba(245, 239, 228, 0.85)' as const,
+  glassOverlay: 'rgba(245, 239, 228, 0.60)' as const,
 
-  // Extended palette
-  investmentTeal: '#4DD9E5',
+  // Chart glows — deleted (Wave 1)
+  // chartGreenGlow, chartCrimsonGlow, chartGoldGlow removed
 
-  // Chart colors
-  chartGreenGlow: 'rgba(6, 214, 160, 0.3)',
-  chartCrimsonGlow: 'rgba(230, 57, 70, 0.3)',
-  chartGoldGlow: 'rgba(249, 199, 79, 0.3)',
+  // Tab bar (Wave 3 will migrate these to bone/oxblood/stone)
+  tabBarBackground: colors.bone,
+  tabBarBorder:     colors.camel,
+  tabBarActive:     colors.oxblood,
+  tabBarInactive:   colors.stone,
 
-  // Tab bar
-  tabBarBackground: '#0D1117',
-  tabBarBorder: '#3A3A4A',
-  tabBarActive: '#F9C74F',
-  tabBarInactive: '#8895A7',
+  // Founding badge (use mutedGold, never as fill)
+  mutedGold: colors.mutedGold,
 } as const;
 
+/** @deprecated Import from tokens.ts instead. */
 export const Typography = {
   // Font families
-  fontPrimary: 'Inter_400Regular',
-  fontPrimaryBold: 'Inter_700Bold',
-  fontPrimarySemiBold: 'Inter_600SemiBold',
-  fontPrimaryMedium: 'Inter_500Medium',
-  fontMono: 'JetBrainsMono_400Regular',
-  fontMonoBold: 'JetBrainsMono_700Bold',
+  fontPrimary:         typography.families.regular,
+  fontPrimaryBold:     typography.families.bold,
+  fontPrimarySemiBold: typography.families.semiBold,
+  fontPrimaryMedium:   typography.families.medium,
+  fontSerif:           typography.families.serif,
+  fontSerifMedium:     typography.families.serifMedium,
+  fontMono:            typography.families.mono,
+  fontMonoBold:        typography.families.monoBold,
 
-  // Font sizes (in sp/dp)
-  heroNumber: 48,
-  displayLarge: 36,
-  displayMedium: 28,
-  displaySmall: 24,
-  titleLarge: 22,
-  titleMedium: 20,
-  titleSmall: 18,
-  bodyLarge: 16,
-  bodyMedium: 14,
-  bodySmall: 12,
-  microLabel: 11,
+  // Font sizes (legacy flat values — prefer typography.scale.* objects)
+  heroNumber:    44,   // was 48 — display size
+  displayLarge:  44,   // was 36
+  displayMedium: 32,   // was 28
+  displaySmall:  24,
+  titleLarge:    18,   // was 22
+  titleMedium:   16,   // was 20
+  titleSmall:    16,   // was 18
+  bodyLarge:     16,
+  bodyMedium:    14,
+  bodySmall:     12,
+  microLabel:    11,
 
   // Line heights
-  lineHeightHero: 56,
-  lineHeightDisplay: 44,
-  lineHeightTitle: 32,
-  lineHeightBody: 22,
-  lineHeightSmall: 18,
+  lineHeightHero:    46,   // was 56
+  lineHeightDisplay: 35,   // was 44
+  lineHeightTitle:   26,   // was 32
+  lineHeightBody:    26,   // was 22 (brief: 1.625 ratio)
+  lineHeightSmall:   18,
 } as const;
 
+/** @deprecated Import from tokens.ts instead. */
 export const Spacing = {
-  xs: 4,
-  sm: 8,
-  md: 12,
-  base: 16,
-  lg: 20,
-  xl: 24,
-  xxl: 32,
-  xxxl: 40,
-  section: 48,
-  huge: 64,
+  xs:      spacing.xs,
+  sm:      spacing.sm,
+  md:      spacing.md,
+  base:    spacing.base,
+  lg:      spacing.lg,
+  xl:      spacing.xl,
+  xxl:     spacing['2xl'],
+  xxxl:    40,
+  section: spacing['3xl'],
+  huge:    spacing['4xl'],
 } as const;
 
+/** @deprecated Import from tokens.ts instead. */
 export const BorderRadius = {
-  sm: 6,
-  md: 10,
-  lg: 14,
-  xl: 18,
-  xxl: 24,
-  full: 9999,
+  sm:   radius.sm,    // 0
+  md:   radius.md,    // 2
+  lg:   radius.lg,    // 4
+  xl:   radius.lg,    // collapsed — no value > 4
+  xxl:  radius.lg,    // collapsed — no value > 4
+  full: radius.pill,  // 999 (chips only)
 } as const;
 
+/** @deprecated Import from tokens.ts instead. */
 export const Shadows = {
-  card: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  cardLarge: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  // glow, glowGreen, glowCrimson — deleted (luxury/wave1)
+  card:      shadows.md,
+  cardLarge: shadows.lg,
+  // glow, glowGreen, glowCrimson — deleted (Wave 1)
 } as const;
-

@@ -157,7 +157,7 @@ export function MilestoneProgress({ milestone, onPress }: MilestoneProgressProps
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: radius.xl,
+    borderRadius: radius.lg,
     backgroundColor: neutral[900],
     marginBottom: spacing.sm,
     overflow: 'hidden',
