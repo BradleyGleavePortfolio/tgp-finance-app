@@ -15,6 +15,8 @@ import { useAccountsStore } from '../../src/stores/accountsStore';
 import { formatCurrency } from '../../src/utils/formatters';
 import type { FinancialAccount } from '../../src/types';
 import { ScreenErrorBoundary } from '../../src/components/ui/ScreenErrorBoundary';
+// UX Psychology Report #2: Trust as Emotion
+import { ReadOnlyPill } from '../../src/components/trust/ReadOnlyPill';
 
 type Tab = 'all' | 'assets' | 'debts';
 
@@ -67,6 +69,9 @@ export default function AccountsScreen() {
           <Text style={styles.addBtnText}>+ Add</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Read-only pill — UX Psychology Report #2 */}
+      <ReadOnlyPill screenId="accounts" />
 
       {/* Tab bar */}
       <View style={styles.tabs}>

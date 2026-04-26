@@ -79,6 +79,8 @@ export default function ProfileScreen() {
   const settingsItems = [
     { icon: 'notifications-outline', label: 'Notification Preferences', route: '/settings/notifications' },
     { icon: 'shield-checkmark-outline', label: 'Account & Security', route: '/settings/security' },
+    // UX Psychology Report #2: Trust as Emotion
+    { icon: 'lock-closed-outline', label: 'Trust Center', route: '/trust-center' },
     { icon: 'mail-outline', label: 'Future Self Letter', route: '/future-letter' },
     { icon: 'analytics-outline', label: 'Spending DNA', route: '/spending-dna' },
     { icon: 'trending-up-outline', label: 'Income Gap', route: '/income-gap' },
