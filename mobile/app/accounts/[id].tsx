@@ -14,6 +14,8 @@ import { formatCurrency, formatDate, formatAPR } from '../../src/utils/formatter
 import { ACCOUNT_TYPE_LABELS } from '../../src/utils/constants';
 import type { AccountBalanceLog } from '../../src/types';
 import { track } from '../../src/lib/analytics';
+// UX Psychology Report #2: Trust as Emotion
+import { ReadOnlyPill } from '../../src/components/trust/ReadOnlyPill';
 
 export default function AccountDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -135,6 +137,9 @@ export default function AccountDetailScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Read-only pill — UX Psychology Report #2 */}
+      <ReadOnlyPill screenId="account_detail" />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Balance hero */}

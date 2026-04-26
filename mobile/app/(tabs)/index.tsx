@@ -30,6 +30,8 @@ import { IdentityBadge } from '../../src/components/IdentityBadge';
 import { resolveIdentityTitle } from '../../src/lib/identityTitle';
 import { usersApi } from '../../src/services/api';
 import { track } from '../../src/lib/analytics';
+// UX Psychology Report #2: Trust as Emotion
+import { TrustCueRow } from '../../src/components/trust/TrustCueRow';
 
 // ---------------------------------------------------------------------------
 // Hero status computation
@@ -374,6 +376,9 @@ export default function HomeScreen() {
           </View>
         )}
 
+        {/* Trust Cue Row — UX Psychology Report #2: Trust as Emotion */}
+        <TrustCueRow style={styles.trustCueRow} />
+
         {/* Interest Bleed Ticker */}
         <View style={styles.tickerSection}>
           <InterestBleedTicker
@@ -450,6 +455,7 @@ const styles = StyleSheet.create({
   eodDone: { alignItems: 'center', paddingVertical: Spacing.sm },
   eodDoneText: { fontFamily: 'Inter_500Medium', fontSize: Typography.bodySmall, color: Colors.profitGreen },
   tickerSection: { marginTop: Spacing.base, paddingBottom: Spacing.base },
+  trustCueRow: { marginBottom: Spacing.sm },
 
   // Identity reinforcement (UX Psych Report #3)
   identityRow: {

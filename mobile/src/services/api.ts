@@ -250,10 +250,17 @@ export const aiApi = {
   getLatestSpendingDna: () => api.get('/api/ai/spending-dna/latest'),
 };
 
-// Users / Identity API — UX Psychology Report #3
+// Users / Identity API — UX Psychology Reports #2 & #3
 export const usersApi = {
   getFoundingNumber: () => api.get('/users/me/founding-number'),
   getCircleStats: () => api.get('/users/me/circle-stats'),
+  requestDataExport: () => api.post('/users/me/data-export'),
+  deleteAccount: () => api.delete('/users/me/account'),
+};
+
+// Trust / System API — UX Psychology Report #2: "Trust as Emotion"
+export const trustApi = {
+  getMeta: () => api.get('/system/trust-meta'),
 };
 
 // Profile API
