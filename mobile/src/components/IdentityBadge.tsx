@@ -23,7 +23,7 @@ export function IdentityBadge({ rank, isFoundingMember, style }: IdentityBadgePr
     : `Member #${rank}`;
 
   const badgeColor  = isFoundingMember ? gold[400]  : neutral[400];
-  const badgeBg     = isFoundingMember ? gold.overlay12 : 'rgba(136, 149, 167, 0.10)';
+  const badgeBg     = isFoundingMember ? 'rgba(197, 162, 83, 0.10)' : 'rgba(177, 168, 159, 0.10)';
 
   return (
     <View

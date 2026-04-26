@@ -93,7 +93,7 @@ function getHeroConfig(status: HeroStatus, isFounder: boolean, tone: Motivationa
         backgroundColor: neutral[800],
         // Founders get a slightly richer gold border; free tier is standard accent gold
         borderColor: gold[400],
-        glowColor: isFounder ? gold.overlay20 : gold.overlay12,
+        glowColor: isFounder ? 'rgba(74, 4, 4, 0.10)' : 'rgba(74, 4, 4, 0.08),',
         chevronColor: gold[400],
         titleColor: gold[400],
       };
@@ -183,7 +183,7 @@ export function HeroAction({ status, weekStat, onPress, tone = 'direct', currenc
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: radius['2xl'],
+    borderRadius: radius.lg,
     borderWidth: 1.5,
     minHeight: 168,
     paddingHorizontal: spacing.lg,
@@ -195,18 +195,18 @@ const styles = StyleSheet.create({
   },
   glowOverlay: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: radius['2xl'],
+    borderRadius: radius.lg,
   },
-  // Founder accent: narrow gold luminance band at top of card
+  // Founder accent: narrow hairline band at top of card (no glow — Wave 2)
   founderAccentStop: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     height: 56,
-    backgroundColor: gold.overlay12,
-    borderTopLeftRadius: radius['2xl'],
-    borderTopRightRadius: radius['2xl'],
+    backgroundColor: 'rgba(197, 162, 83, 0.08)',
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
   },
   labelRow: {
     flexDirection: 'row',

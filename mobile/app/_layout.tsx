@@ -25,8 +25,12 @@ import {
   JetBrainsMono_400Regular,
   JetBrainsMono_700Bold,
 } from '@expo-google-fonts/jetbrains-mono';
+import {
+  CormorantGaramond_400Regular,
+  CormorantGaramond_500Medium,
+} from '@expo-google-fonts/cormorant-garamond';
 import { useAuthStore } from '../src/stores/authStore';
-import { Colors } from '../src/theme/finance';
+import { colors } from '../src/theme/tokens';
 import { ThemeProvider } from '../src/theme/ThemeProvider';
 import { authEvents } from '../src/utils/authEvents';
 import { signOut } from '../src/lib/signOut';
@@ -58,9 +62,9 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
   render() {
     if (this.state.hasError) {
       return (
-        <View style={{ flex: 1, backgroundColor: '#0D1117', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
-          <Text style={{ color: '#F9C74F', fontSize: 20, fontWeight: 'bold', marginBottom: 12 }}>Something went wrong</Text>
-          <Text style={{ color: '#8895A7', fontSize: 14, textAlign: 'center' }}>{this.state.error}</Text>
+        <View style={{ flex: 1, backgroundColor: '#F5EFE4', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+          <Text style={{ color: '#4A0404', fontSize: 20, fontWeight: 'bold', marginBottom: 12 }}>Something went wrong</Text>
+          <Text style={{ color: '#B1A89F', fontSize: 14, textAlign: 'center' }}>{this.state.error}</Text>
         </View>
       );
     }
@@ -76,6 +80,8 @@ function RootLayout() {
     Inter_700Bold,
     JetBrainsMono_400Regular,
     JetBrainsMono_700Bold,
+    CormorantGaramond_400Regular,
+    CormorantGaramond_500Medium,
   });
 
   const { initialize, isLoading, checkVerification, pendingVerification, isAuthenticated, user } = useAuthStore();
@@ -205,11 +211,11 @@ function RootLayout() {
   const inner = (
     <ThemeProvider>
     <ErrorBoundary>
-      <StatusBar style="light" backgroundColor={Colors.backgroundDeepNavy} />
+      <StatusBar style="dark" backgroundColor="#F5EFE4" />
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: Colors.backgroundDeepNavy },
+          contentStyle: { backgroundColor: colors.bone },
           animation: 'slide_from_right',
         }}
       >

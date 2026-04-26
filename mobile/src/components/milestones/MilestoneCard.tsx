@@ -139,7 +139,7 @@ export function MilestoneCard({ milestone, isUnlocked, unlockedAt, onPress }: Mi
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: radius.xl,
+    borderRadius: radius.lg,
     borderWidth: 1.5,
     marginBottom: spacing.sm,
     overflow: 'hidden',
@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   checkBadgeFounder: {
-    backgroundColor: gold.overlay12,
+    backgroundColor: 'rgba(197, 162, 83, 0.10)',
   },
   checkText: {
     fontFamily: typography.families.bold,

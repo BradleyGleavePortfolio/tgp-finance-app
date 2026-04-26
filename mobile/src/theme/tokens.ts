@@ -1,165 +1,224 @@
 /**
- * The Growth Project: Finance — Design Token System
- * ═══════════════════════════════════════════════════
- * Single source of truth for colors, typography, spacing, radius, shadows, and motion.
- * Dual-tier: freeTheme uses brand-primary accents; founderTheme overlays gold accents.
+ * The Growth Project: Finance — Design Token System (Wave 2: Luxury)
+ * ═══════════════════════════════════════════════════════════════════
+ * Canonical source of truth. finance.ts re-exports from here.
  *
- * ─── WCAG AA Contrast Matrix ────────────────────────────────────────────────────────
- *  Text token            Background            Contrast ratio  Pass AA (4.5:1 body)
- *  frostWhite #F1F5F9    backgroundDeepNavy    ≈ 15.2:1        ✓ AAA
- *  frostWhite #F1F5F9    cardSurfaceNavy       ≈ 13.1:1        ✓ AAA
- *  frostWhite #F1F5F9    cardSurfaceNavyElev   ≈ 11.4:1        ✓ AAA
- *  accentGold #F9C74F    backgroundDeepNavy    ≈  9.8:1        ✓ AAA
- *  accentGold #F9C74F    cardSurfaceNavy       ≈  8.5:1        ✓ AAA
- *  profitGreen #06D6A0   backgroundDeepNavy    ≈  7.3:1        ✓ AAA
- *  debtCrimson #E63946   backgroundDeepNavy    ≈  4.7:1        ✓ AA (large text)
- *  slateGray #8895A7     backgroundDeepNavy    ≈  4.6:1        ✓ AA (18px+)
- *  goldScale[400] #D4A017 backgroundDeepNavy   ≈  6.1:1        ✓ AA
- *  goldScale[200] #FDE68A backgroundDeepNavy   ≈ 12.4:1        ✓ AAA
+ * PALETTE: Old-money bone/cream + single oxblood accent.
+ * TYPOGRAPHY: Cormorant Garamond (display) + Inter (body/UI).
+ * No dark navy, no neon, no four-accent system.
  *
- *  NOTE: debtCrimson on dark card meets AA for large text (≥18px bold or ≥24px regular).
- *        All interactive labels use frostWhite or accentGold which exceed AA for normal text.
- * ────────────────────────────────────────────────────────────────────────────────────
+ * Wave history:
+ *   Wave 1 — deleted gradients, glows, shimmer, four-accent decoration, InterestBleedTicker
+ *   Wave 2 — new token system: bone/oxblood, Cormorant + Inter, motion/radius/shadow
+ *   Wave 3 — hero screen rewrites (index.tsx → navy bg)
  */
 
-// ─── Neutral Scale (0 = near-white, 1000 = deepest navy) ─────────────────────
+// ─── Core Palette ─────────────────────────────────────────────────────────────
+export const colors = {
+  // Backgrounds / surfaces
+  bone:      '#F5EFE4',   // primary background (replaces #0D1117 dark)
+  cream:     '#F1E8D5',   // card surface, warm
+
+  // Text
+  ink:       '#1A1A18',   // primary text (replaces frostWhite on dark)
+  charcoal:  '#3D3D3A',   // secondary text on light
+  stone:     '#B1A89F',   // tertiary text, hairlines, meta
+
+  // Finance accent — single semantic accent (replaces profitGreen / debtCrimson / accentGold / investmentTeal)
+  oxblood:   '#4A0404',   // PRIMARY accent
+
+  // Optional dark variant for hero (Wave 3 applies to finance home)
+  navy:      '#1B2A41',
+
+  // Sparingly — specific use cases only
+  mutedGold: '#C5A253',   // founding badge typography ONLY — never as fill
+  camel:     '#B08D57',   // hairline borders ONLY
+
+  // ── Legacy aliases (kept for gradual migration; prefer named slots above) ──
+  // Background
+  backgroundDeepNavy:       '#0D1117',  // → colors.bone (most screens) | colors.navy (home, Wave 3)
+  cardSurfaceNavy:          '#161B22',  // → colors.cream
+  cardSurfaceNavyElevated:  '#1C2333',  // → colors.cream
+
+  // Text
+  frostWhite: '#F1F5F9',  // → colors.ink (on bone/cream bg)
+  slateGray:  '#8895A7',  // → colors.stone
+
+  // Old accents — all mapped to oxblood for semantic uses
+  accentGold:      '#F9C74F',  // → colors.oxblood (semantic) | colors.mutedGold (badge only)
+  deepGoldPressed: '#D4A017',  // → colors.oxblood
+  profitGreen:     '#06D6A0',  // → colors.oxblood
+  debtCrimson:     '#E63946',  // → colors.oxblood
+  amberWarning:    '#F39C12',  // → colors.oxblood
+  investmentTeal:  '#4DD9E5',  // → colors.oxblood | delete
+
+  // Borders (legacy)
+  graphiteBorder: '#3A3A4A',   // → colors.camel (hairline) | colors.stone
+
+  // Overlays (legacy — phase out)
+  cardOverlay:  'rgba(22, 27, 34, 0.85)',
+  glassOverlay: 'rgba(13, 17, 23, 0.6)',
+
+  // Chart glows — deleted (Wave 1); kept as tombstones for grep safety
+  // chartGreenGlow, chartCrimsonGlow, chartGoldGlow — removed
+
+  // Tab bar (legacy — Wave 3 will update)
+  tabBarBackground: '#0D1117',  // → colors.bone
+  tabBarBorder:     '#3A3A4A',  // → colors.camel
+  tabBarActive:     '#F9C74F',  // → colors.oxblood
+  tabBarInactive:   '#8895A7',  // → colors.stone
+} as const;
+
+// ── Neutral scale (kept for any code still referencing neutral.NNN) ───────────
 export const neutral = {
   0:   '#FFFFFF',
-  100: '#F1F5F9',  // frostWhite
+  100: '#F1F5F9',
   200: '#CBD5E1',
   300: '#94A3B8',
-  400: '#8895A7',  // slateGray
+  400: '#8895A7',
   500: '#64748B',
   600: '#4B5563',
-  700: '#3A3A4A',  // graphiteBorder
-  800: '#1C2333',  // cardSurfaceNavyElevated
-  900: '#161B22',  // cardSurfaceNavy
-  950: '#0D1117',  // backgroundDeepNavy
+  700: '#3A3A4A',
+  800: '#1C2333',
+  900: '#161B22',
+  950: '#0D1117',
   1000: '#070A0E',
 } as const;
 
-// ─── Brand Primary Scale ──────────────────────────────────────────────────────
-export const brand = {
-  lightest: '#4DD9E5',   // investmentTeal
-  light:    '#06D6A0',   // profitGreen
-  base:     '#0EA5B2',   // mid-teal
-  dark:     '#0D8C98',
-  darkest:  '#0A6F78',
-} as const;
-
-// ─── Semantic Colours ─────────────────────────────────────────────────────────
-export const semantic = {
-  success:  '#06D6A0',  // profitGreen
-  successBg: 'rgba(6, 214, 160, 0.12)',
-  warn:     '#F39C12',  // amberWarning
-  warnBg:   'rgba(243, 156, 18, 0.12)',
-  danger:   '#E63946',  // debtCrimson
-  dangerBg: 'rgba(230, 57, 70, 0.12)',
-  info:     '#4DD9E5',  // investmentTeal
-  infoBg:   'rgba(77, 217, 229, 0.12)',
-} as const;
-
-// ─── Gold Scale (Founding-tier accents) ───────────────────────────────────────
+// ── Gold scale (kept only for badge-level references; prefer colors.mutedGold) ─
 export const gold = {
   50:   '#FFFBEB',
   100:  '#FEF3C7',
-  200:  '#FDE68A',  // highlight / shimmer peak
+  200:  '#FDE68A',
   300:  '#FCD34D',
-  400:  '#F9C74F',  // accentGold — primary gold accent
-  500:  '#D4A017',  // deepGoldPressed / interactive
+  400:  '#F9C74F',   // accentGold legacy — map to colors.mutedGold for badge use
+  500:  '#D4A017',
   600:  '#B07D00',
   700:  '#8C6200',
-  glow: 'rgba(249, 199, 79, 0.25)',
-  overlay12: 'rgba(249, 199, 79, 0.12)',
-  overlay20: 'rgba(249, 199, 79, 0.20)',
+  // glow, overlay12, overlay20 — deleted (Wave 1)
 } as const;
 
-// ─── Typography Scale ─────────────────────────────────────────────────────────
-// Families: Inter (primary) · JetBrains Mono (numeric/mono)
+// ── Semantic colours (single-accent — all point to oxblood) ───────────────────
+export const semantic = {
+  success:  colors.oxblood,
+  successBg: 'rgba(74, 4, 4, 0.08)',
+  warn:     colors.oxblood,
+  warnBg:   'rgba(74, 4, 4, 0.08)',
+  danger:   colors.oxblood,
+  dangerBg: 'rgba(74, 4, 4, 0.08)',
+  info:     colors.oxblood,
+  infoBg:   'rgba(74, 4, 4, 0.08)',
+} as const;
+
+// ─── Brand scale (legacy alias — maps to oxblood) ─────────────────────────────
+export const brand = {
+  lightest: colors.oxblood,
+  light:    colors.oxblood,
+  base:     colors.oxblood,
+  dark:     '#3A0303',
+  darkest:  '#2A0202',
+} as const;
+
+// ─── Typography Tokens ────────────────────────────────────────────────────────
+// Families: Cormorant Garamond (display/serif) · Inter (body/UI)
+// Note: fontWeight '800' is the single biggest amateur tell — display is always '400'
 export const typography = {
   families: {
-    regular:   'Inter_400Regular',
-    medium:    'Inter_500Medium',
-    semiBold:  'Inter_600SemiBold',
-    bold:      'Inter_700Bold',
-    mono:      'JetBrainsMono_400Regular',
-    monoBold:  'JetBrainsMono_700Bold',
+    // Serif display (Cormorant Garamond)
+    serif:         'CormorantGaramond_400Regular',
+    serifMedium:   'CormorantGaramond_500Medium',
+    // Sans body/UI (Inter)
+    regular:       'Inter_400Regular',
+    medium:        'Inter_500Medium',
+    semiBold:      'Inter_600SemiBold',
+    bold:          'Inter_700Bold',
+    // Mono (kept for numeric display)
+    mono:          'JetBrainsMono_400Regular',
+    monoBold:      'JetBrainsMono_700Bold',
   },
+  // scale: size + line-height + spacing only — fontFamily comes from typography.families.*
+  // This lets components do: { fontFamily: typography.families.serif, ...typography.scale.h1 }
   scale: {
-    display:   { fontSize: 36, lineHeight: 44, fontWeight: '700' as const, letterSpacing: -0.5 },
-    h1:        { fontSize: 28, lineHeight: 36, fontWeight: '700' as const, letterSpacing: -0.3 },
-    h2:        { fontSize: 24, lineHeight: 32, fontWeight: '700' as const, letterSpacing: -0.2 },
-    h3:        { fontSize: 22, lineHeight: 30, fontWeight: '600' as const, letterSpacing: -0.1 },
-    h4:        { fontSize: 20, lineHeight: 28, fontWeight: '600' as const, letterSpacing:  0   },
-    body:      { fontSize: 16, lineHeight: 24, fontWeight: '400' as const, letterSpacing:  0   },
-    bodySmall: { fontSize: 14, lineHeight: 20, fontWeight: '400' as const, letterSpacing:  0   },
-    caption:   { fontSize: 12, lineHeight: 18, fontWeight: '500' as const, letterSpacing:  0.2 },
-    micro:     { fontSize: 11, lineHeight: 16, fontWeight: '600' as const, letterSpacing:  1.5 },
+    // ── Serif display sizes (use with typography.families.serif) — weight 400 always ──
+    display:   { fontSize: 44, lineHeight: 46,  letterSpacing: 0.4,  fontWeight: '400' as const },
+    h1:        { fontSize: 32, lineHeight: 35,  letterSpacing: 0.6,  fontWeight: '400' as const },
+    h2:        { fontSize: 24, lineHeight: 29,  letterSpacing: 0.5,  fontWeight: '400' as const },
+    // ── Sans body/UI sizes (use with typography.families.regular / medium) ──
+    body:      { fontSize: 16, lineHeight: 26,  letterSpacing: -0.16, fontWeight: '400' as const },
+    bodyMd:    { fontSize: 16, lineHeight: 26,  letterSpacing: -0.16, fontWeight: '500' as const },
+    caption:   { fontSize: 12, lineHeight: 18,  letterSpacing: 0.96,  fontWeight: '500' as const },
+    eyebrow:   { fontSize: 11, lineHeight: 13,  letterSpacing: 1.98,  fontWeight: '500' as const, textTransform: 'uppercase' as const },
+    // ── Legacy keys (kept for gradual migration) ──
+    h3:        { fontSize: 18, lineHeight: 24,  letterSpacing: 0,     fontWeight: '500' as const },
+    h4:        { fontSize: 16, lineHeight: 22,  letterSpacing: 0,     fontWeight: '500' as const },
+    bodySmall: { fontSize: 14, lineHeight: 20,  letterSpacing: 0,     fontWeight: '400' as const },
+    micro:     { fontSize: 11, lineHeight: 16,  letterSpacing: 1.5,   fontWeight: '500' as const },
   },
 } as const;
 
 // ─── Spacing Scale (4 px base grid) ──────────────────────────────────────────
 export const spacing = {
-  xs:   4,
-  sm:   8,
-  md:   12,
-  base: 16,
-  lg:   20,
-  xl:   24,
+  xs:    4,
+  sm:    8,
+  md:    12,
+  base:  16,
+  lg:    20,
+  xl:    24,
   '2xl': 32,
   '3xl': 48,
   '4xl': 64,
 } as const;
 
 // ─── Border Radius Scale ──────────────────────────────────────────────────────
+// Old-money scale: nearly zero radius. Pill ONLY on small chips.
 export const radius = {
-  sm:   4,
-  md:   8,
-  lg:   12,
-  xl:   16,
-  '2xl': 24,
-  pill: 999,
+  sm:   0,    // buttons, primary CTAs (was 4)
+  md:   2,    // inputs (was 8)
+  lg:   4,    // cards (was 12)
+  // xl, 2xl removed — any literal borderRadius > 4 is flagged in FINANCE_RADIUS_HITS.md
+  pill: 999,  // SMALL CHIPS ONLY (status, tier badge) — never primary surfaces
 } as const;
 
 // ─── Shadow Tokens ────────────────────────────────────────────────────────────
+// Luxury: opacity capped at 0.08. No glow. Shadow color is ink, not pure black.
 export const shadows = {
   sm: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowColor:   colors.ink,
+    shadowOffset:  { width: 0, height: 1 },
     shadowOpacity: 0.04,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowRadius:  2,
+    elevation:     1,
   },
   md: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowColor:   colors.ink,
+    shadowOffset:  { width: 0, height: 2 },
     shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowRadius:  6,
+    elevation:     2,
   },
   lg: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor:   colors.ink,
+    shadowOffset:  { width: 0, height: 4 },
     shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowRadius:  12,
+    elevation:     4,
   },
-  // glowGold, glowGreen, glowCrimson — deleted (luxury/wave1)
+  // glowGold, glowGreen, glowCrimson — deleted (Wave 1)
 } as const;
 
 // ─── Motion Tokens ────────────────────────────────────────────────────────────
+// Velvet, not confetti. Decel curve: cubic-bezier(0.16, 1, 0.3, 1)
 export const motion = {
   duration: {
-    fast: 120,
-    base: 200,
-    slow: 320,
-    // shimmer: deleted (luxury/wave1)
+    fast:       120,   // haptic feedback only
+    base:       400,   // standard transition (was 200 — twice as slow)
+    slow:       800,   // content reveals, image fades (was 320)
+    deliberate: 1200,  // hero reveals, scene changes
+    // shimmer — deleted (Wave 1)
   },
   easing: {
-    // Approximations for Animated.timing (use with Easing from RN)
-    standard:    [0.4, 0.0, 0.2, 1.0] as [number, number, number, number],   // material standard
-    decelerate:  [0.0, 0.0, 0.2, 1.0] as [number, number, number, number],   // enter screen
-    accelerate:  [0.4, 0.0, 1.0, 1.0] as [number, number, number, number],   // exit screen
-    spring:      [0.34, 1.56, 0.64, 1.0] as [number, number, number, number], // playful spring
+    decel:  [0.16, 1, 0.3, 1] as const,   // expo-out — primary for all transitions
+    smooth: [0.4, 0, 0.2, 1] as const,    // standard, used sparingly
+    // spring, accelerate, standard — deleted (Wave 2)
   },
 } as const;
