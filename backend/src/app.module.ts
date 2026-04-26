@@ -26,6 +26,8 @@ import { PushModule } from './push/push.module';
 import { UsersModule } from './users/users.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { SystemModule } from './system/system.module';
+// UX Psychology Report #5: Contribution Loops
+import { CommunityModule } from './community/community.module';
 
 import { HealthController } from './health/health.controller';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -78,6 +80,7 @@ import { TenantGuard } from './auth/guards/tenant.guard';
     PushModule,
     UsersModule,
     SystemModule,
+    CommunityModule,
   ],
   controllers: [HealthController],
   providers: [

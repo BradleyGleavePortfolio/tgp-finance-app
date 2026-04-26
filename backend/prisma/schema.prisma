@@ -96,6 +96,7 @@ model User {
   coach_notes_received CoachNote[]              @relation("StudentNotes")
   coach_notes_sent     CoachNote[]              @relation("CoachNotes")
   program_templates    ProgramTemplate[]
+  community_wins       CommunityWin[]
 
   @@map("users")
 }
@@ -300,4 +301,85 @@ model SpendingDnaReport {
 
   @@unique([user_id, month])
   @@map("spending_dna_reports")
+}
+
+
+// ============================================================
+// COMMUNITY — UX Psychology Report #5: Contribution Loops
+// ============================================================
+
+enum WinVisibility {
+  circle
+  public
+}
+
+enum ReactionKind {
+  fire
+  clap
+}
+
+model CommunityWin {
+  id         String        @id @default(uuid())
+  user_id    String
+  user       User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  action     String
+  visibility WinVisibility @default(public)
+  created_at DateTime      @default(now())
+  reactions  WinReaction[]
+
+  @@index([visibility, created_at])
+  @@map("community_wins")
+}
+
+model WinReaction {
+  id         String       @id @default(uuid())
+  win_id     String
+  win        CommunityWin @relation(fields: [win_id], references: [id], onDelete: Cascade)
+  user_id    String
+  kind       ReactionKind
+  created_at DateTime     @default(now())
+
+  @@unique([win_id, user_id, kind])
+  @@index([user_id])
+  @@map("win_reactions")
+}
+
+// ============================================================
+// COMMUNITY — UX Psychology Report #5: Contribution Loops
+// ============================================================
+
+enum WinVisibility {
+  circle
+  public
+}
+
+enum ReactionKind {
+  fire
+  clap
+}
+
+model CommunityWin {
+  id         String        @id @default(uuid())
+  user_id    String
+  user       User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  action     String
+  visibility WinVisibility @default(public)
+  created_at DateTime      @default(now())
+  reactions  WinReaction[]
+
+  @@index([visibility, created_at])
+  @@map("community_wins")
+}
+
+model WinReaction {
+  id         String       @id @default(uuid())
+  win_id     String
+  win        CommunityWin @relation(fields: [win_id], references: [id], onDelete: Cascade)
+  user_id    String
+  kind       ReactionKind
+  created_at DateTime     @default(now())
+
+  @@unique([win_id, user_id, kind])
+  @@index([user_id])
+  @@map("win_reactions")
 }

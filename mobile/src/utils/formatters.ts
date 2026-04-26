@@ -1,27 +1,35 @@
 // Formatters for currency, percentage, dates, and numbers
 
+// UX Psychology Report #4: Preference-Controlled Personalization — currency symbols
+export const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: '$', EUR: '€', GBP: '£', CAD: 'CA$', AUD: 'A$',
+};
+
 /**
- * Format a number as USD currency
- * e.g. 12345.67 → "$12,345.67"
+ * Format a number as currency, respecting the user's currency preference.
+ * Defaults to USD ($) when no currency option is provided.
+ * e.g. formatCurrency(12345.67) → "$12,345.67"
+ * e.g. formatCurrency(12345.67, { currency: 'EUR' }) → "€12,345.67"
  */
 export function formatCurrency(
   value: number,
-  options?: { compact?: boolean; decimals?: number; showSign?: boolean }
+  options?: { compact?: boolean; decimals?: number; showSign?: boolean; currency?: string }
 ): string {
-  const { compact = false, decimals = 2, showSign = false } = options || {};
+  const { compact = false, decimals = 2, showSign = false, currency = 'USD' } = options || {};
+  const sym = CURRENCY_SYMBOLS[currency] ?? '$';
   const abs = Math.abs(value);
   const sign = showSign ? (value >= 0 ? '+' : '-') : value < 0 ? '-' : '';
 
   if (compact) {
     if (abs >= 1_000_000) {
-      return `${sign}$${(abs / 1_000_000).toFixed(1)}M`;
+      return `${sign}${sym}${(abs / 1_000_000).toFixed(1)}M`;
     }
     if (abs >= 1_000) {
-      return `${sign}$${(abs / 1_000).toFixed(1)}K`;
+      return `${sign}${sym}${(abs / 1_000).toFixed(1)}K`;
     }
   }
 
-  return `${sign}$${abs.toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+  return `${sign}${sym}${abs.toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 }
 
 /**

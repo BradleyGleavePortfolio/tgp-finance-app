@@ -278,4 +278,20 @@ export const paydayApi = {
     api.post('/api/payday/templates', { name, allocations }),
 };
 
+// User Preferences API — UX Psychology Report #4: Preference-Controlled Personalization
+export const preferencesApi = {
+  get: (): Promise<{ data: any }> => api.get('/users/me/preferences'),
+  patch: (data: Record<string, unknown>): Promise<{ data: any }> => api.patch('/users/me/preferences', data),
+};
+
 export default api;
+
+// Community API — UX Psychology Report #5: Contribution Loops
+export const communityApi = {
+  getFeed: () => api.get('/community/feed'),
+  react: (winId: string, kind: 'fire' | 'clap') =>
+    api.post(`/community/wins/${winId}/react`, { kind }),
+  postWin: (action: string, visibility: 'circle' | 'public') =>
+    api.post('/community/wins', { action, visibility }),
+  getBadges: () => api.get('/users/me/badges'),
+};

@@ -1,15 +1,20 @@
-// Users controller — identity endpoints for UX Psychology Reports #2 & #3
+// Users controller — identity endpoints for UX Psychology Reports #2, #3 & #5
 // #2: "Trust as Emotion" — data-export + account-deletion stubs
 // #3: "Identity Reinforcement / Inner Circle"
+// #5: "Contribution Loops" — badges
 import { Controller, Delete, Get, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { UsersService } from './users.service';
+import { CommunityService } from '../community/community.service';
 
 @Controller('users/me')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly communityService: CommunityService,
+  ) {}
 
   /**
    * GET /users/me/founding-number
@@ -53,5 +58,15 @@ export class UsersController {
   @Delete('account')
   async deleteAccount(@CurrentUser() _user: any) {
     return { scheduled: true, gracePeriodDays: 30 };
+  }
+
+  /**
+   * GET /users/me/badges
+   * UX Psychology Report #5: Contribution Loops
+   * Returns earned + locked badges for the current user.
+   */
+  @Get('badges')
+  async getBadges(@CurrentUser() user: any) {
+    return this.communityService.getBadges(user.id);
   }
 }
