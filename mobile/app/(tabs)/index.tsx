@@ -112,6 +112,9 @@ export default function HomeScreen() {
   const { currentPriority, fetchCurrent } = usePriorityStore();
   const { pendingCelebration, dismissCelebration, unlocked: unlockedMilestones } = useMilestonesStore();
   const { todaySubmission, fetchToday } = useEODStore();
+  // UX Psychology Report #4: Preference-Controlled Personalization
+  const { prefs } = usePreferences();
+  const enabledModules: string[] = prefs.homeModules;
 
   useEffect(() => {
     fetchAccounts();
@@ -460,6 +463,22 @@ export default function HomeScreen() {
         {/* Trust Cue Row — UX Psychology Report #2: Trust as Emotion */}
         <TrustCueRow style={styles.trustCueRow} />
 
+        {/* Inner Circle Wins — UX Psychology Report #5: Contribution Loops */}
+        <HapticPressable
+          intent="light"
+          style={styles.communityRow}
+          onPress={() => router.push('/community')}
+        >
+          <View style={styles.communityRowLeft}>
+            <Text style={styles.communityRowEmoji}>🏆</Text>
+            <View>
+              <Text style={styles.communityRowTitle}>Inner Circle Wins</Text>
+              <Text style={styles.communityRowSub}>See what your circle is achieving</Text>
+            </View>
+          </View>
+          <Text style={styles.communityRowChevron}>›</Text>
+        </HapticPressable>
+
         {/* Interest Bleed Ticker */}
         <View style={styles.tickerSection}>
           <InterestBleedTicker
@@ -576,5 +595,43 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: Spacing.sm,
     marginBottom: Spacing.sm,
+  },
+
+  // Inner Circle Wins row — UX Psych Report #5
+  communityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.cardSurfaceNavy,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.graphiteBorder,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+    justifyContent: 'space-between',
+  },
+  communityRowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    flex: 1,
+  },
+  communityRowEmoji: {
+    fontSize: 22,
+  },
+  communityRowTitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: Typography.bodyMedium,
+    color: Colors.frostWhite,
+  },
+  communityRowSub: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: Typography.bodySmall,
+    color: Colors.slateGray,
+    marginTop: 1,
+  },
+  communityRowChevron: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 22,
+    color: Colors.slateGray,
   },
 });
