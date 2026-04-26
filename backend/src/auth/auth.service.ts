@@ -9,6 +9,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { PrismaService } from '../prisma/prisma.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 
 // Cleanup (round 5): dropped `bcrypt` import and `BCRYPT_SALT_ROUNDS` constant.
 // Password hashing is handled entirely by Supabase Auth (see `register` / `login`
@@ -24,6 +25,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly analytics: AnalyticsService,
   ) {
     const supabaseUrl = this.config.get<string>('SUPABASE_URL', '');
     const supabaseKey = this.config.get<string>('SUPABASE_SERVICE_ROLE_KEY', '');
@@ -117,6 +119,15 @@ export class AuthService {
         role: 'student', // Default; updated after role selection
       },
     });
+
+    // Track user registration (fire-and-forget — never block the response)
+    try {
+      this.analytics.capture(user.id, 'user_registered', {
+        has_referral: !!dto.referral_code,
+        role: user.role,
+      });
+      this.analytics.identify(user.id, { role: user.role });
+    } catch { /* best-effort */ }
 
     return {
       user: { id: user.id, email: user.email, name: user.name },

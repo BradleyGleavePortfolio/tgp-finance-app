@@ -16,6 +16,7 @@ import { useWhatIfStore } from '../../src/stores/whatifStore';
 import { useAccountsStore } from '../../src/stores/accountsStore';
 import { useAuthStore } from '../../src/stores/authStore';
 import { WHATIF_SCENARIOS } from '../../src/utils/constants';
+import { track } from '../../src/lib/analytics';
 import { formatCurrency, formatMonths } from '../../src/utils/formatters';
 import { futureValue, futureValueAnnuity, computeFINumber } from '../../src/utils/financial';
 import type { ScenarioType } from '../../src/types';
@@ -53,6 +54,7 @@ export default function WhatIfScenario() {
 
   const handleRunLocal = () => {
     try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch { /* ignore */ }
+    track('whatif_run', { scenario_type: type });
     runLocal();
   };
 

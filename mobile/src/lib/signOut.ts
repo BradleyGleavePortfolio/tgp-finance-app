@@ -16,6 +16,7 @@ import { useNetWorthStore } from '../stores/networthStore';
 import { usePriorityStore } from '../stores/priorityStore';
 import { useProfileStore } from '../stores/profileStore';
 import { useWhatIfStore } from '../stores/whatifStore';
+import { reset as analyticsReset } from './analytics';
 
 export async function signOut(): Promise<void> {
   // Kick off the API-side logout. The auth store owns the network call + token
@@ -34,6 +35,9 @@ export async function signOut(): Promise<void> {
   } catch {
     // ignore
   }
+
+  // Reset analytics identity so the next session starts clean
+  analyticsReset();
 
   // Reset every slice of client state so no previous-user data lingers.
   useAuthStore.getState().reset();

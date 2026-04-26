@@ -6,7 +6,9 @@ import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
+import { PostHogProvider } from 'posthog-react-native';
 import { initSentry, captureError, setSentryUser, wrap as sentryWrap } from '../src/services/sentry';
+import { track, getPostHogClient } from '../src/lib/analytics';
 import {
   registerPushTokenIfGranted,
   refreshForegroundNotifications,
@@ -88,6 +90,11 @@ function RootLayout() {
   }, [isAuthenticated, user?.id]);
   const router = useRouter();
   const notifTapSubRef = useRef<Notifications.Subscription | null>(null);
+
+  // Track app_opened on every cold start
+  useEffect(() => {
+    track('app_opened');
+  }, []);
 
   useEffect(() => {
     // Read-only init (hydrate session from storage). authStore surfaces failures via its own error state.
@@ -191,7 +198,10 @@ function RootLayout() {
 
   if (!fontsLoaded && !fontError) return null;
 
-  return (
+  // PostHog client — may be null when key is absent (NO-OP in that case)
+  const postHogClient = getPostHogClient();
+
+  const inner = (
     <ErrorBoundary>
       <StatusBar style="light" backgroundColor={Colors.backgroundDeepNavy} />
       <Stack
@@ -230,6 +240,16 @@ function RootLayout() {
       </Stack>
     </ErrorBoundary>
   );
+
+  // Wrap with PostHogProvider only when a client is available
+  if (postHogClient) {
+    return (
+      <PostHogProvider client={postHogClient}>
+        {inner}
+      </PostHogProvider>
+    );
+  }
+  return inner;
 }
 
 // Sentry.wrap() injects automatic crash reporting + touch tracking. When the

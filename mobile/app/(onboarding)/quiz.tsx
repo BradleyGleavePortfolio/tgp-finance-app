@@ -19,6 +19,7 @@ import { scheduleFutureSelfDelivery } from '../../src/services/notifications';
 import { notificationsApi } from '../../src/services/api';
 import { Colors, Typography, Spacing } from '../../src/theme/finance';
 import { FirstWinCelebration } from '../../src/components/onboarding/FirstWinCelebration';
+import { track } from '../../src/lib/analytics';
 
 // ---------------------------------------------------------------------------
 // Q1 — Primary financial goal
@@ -63,6 +64,9 @@ export default function QuizScreen() {
   const refreshUser = useAuthStore((s) => s.refreshUser);
 
   const [step, setStep] = useState<Step>('goal');
+
+  // Track onboarding start once on mount
+  React.useEffect(() => { track('onboarding_started'); }, []);
   const [selectedGoal, setSelectedGoal] = useState<(typeof GOAL_OPTIONS)[number] | null>(null);
   const [selectedIncome, setSelectedIncome] = useState<string | null>(null);
   const [bankConnected, setBankConnected] = useState(false);
@@ -75,6 +79,7 @@ export default function QuizScreen() {
   const handleGoalSelect = (goal: (typeof GOAL_OPTIONS)[number]) => {
     try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { /* ignore */ }
     setSelectedGoal(goal);
+    track('onboarding_step_completed', { step: 'goal', goal: goal.id });
     // Auto-advance after brief pause so the selection registers visually
     setTimeout(() => setStep('income'), 200);
   };
@@ -83,6 +88,7 @@ export default function QuizScreen() {
   const handleIncomeSelect = (value: string) => {
     try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { /* ignore */ }
     setSelectedIncome(value);
+    track('onboarding_step_completed', { step: 'income' });
     setTimeout(() => setStep('bank'), 200);
   };
 
@@ -95,6 +101,7 @@ export default function QuizScreen() {
 
   const handleSkipBank = async () => {
     try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { /* ignore */ }
+    track('onboarding_step_completed', { step: 'bank', connected: false });
     await submitAndCelebrate(false);
   };
 
@@ -149,6 +156,12 @@ export default function QuizScreen() {
       const title = resolveTitle(selectedGoal);
       setIdentityTitle(title);
 
+      // Track onboarding completion
+      track('onboarding_completed', {
+        goal: selectedGoal?.id,
+        bank_connected: connected,
+      });
+
       // Celebration!
       try {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -176,6 +189,7 @@ export default function QuizScreen() {
 
   // ── Skip entire onboarding ───────────────────────────────────────────────
   const handleSkipAll = async () => {
+    track('onboarding_skipped', { at_step: step });
     try {
       await AsyncStorage.setItem('hasOnboarded', 'true');
       await AsyncStorage.setItem('quiz_answers', JSON.stringify({ skipped: 'true' }));

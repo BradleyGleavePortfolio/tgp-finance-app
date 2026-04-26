@@ -29,6 +29,7 @@ import { computeDTI } from '../../src/utils/financial';
 import { IdentityBadge } from '../../src/components/IdentityBadge';
 import { resolveIdentityTitle } from '../../src/lib/identityTitle';
 import { usersApi } from '../../src/services/api';
+import { track } from '../../src/lib/analytics';
 
 // ---------------------------------------------------------------------------
 // Hero status computation
@@ -214,6 +215,7 @@ export default function HomeScreen() {
 
   // Hero CTA navigation — each status routes to the most impactful destination
   const onHeroPress = () => {
+    track('hero_action_tapped', { state: heroStatus === 'loading' ? 'no_goals' : heroStatus });
     if (heroStatus === 'no_goals') {
       // No goals → start goal creation (onboarding quiz / goals tab)
       router.push('/(tabs)/goals');
@@ -255,14 +257,26 @@ export default function HomeScreen() {
             IDENTITY REINFORCEMENT — UX Psych Report #3
             Identity title + founding badge above hero; circle stat below.
         ════════════════════════════════════════════════════════════════════ */}
-        <View style={styles.identityRow}>
+        <View
+          style={styles.identityRow}
+          onLayout={() => {
+            if (foundingData && foundingData.rank > 0) {
+              track('identity_badge_viewed', { is_founding_member: foundingData.isFoundingMember, rank: foundingData.rank });
+            }
+          }}
+        >
           <Text style={styles.identityTitle}>{identityTitle}</Text>
           {foundingData && foundingData.rank > 0 && (
-            <IdentityBadge
-              rank={foundingData.rank}
-              isFoundingMember={foundingData.isFoundingMember}
-              style={styles.identityBadge}
-            />
+            <TouchableOpacity
+              onPress={() => track('identity_badge_tapped', { is_founding_member: foundingData.isFoundingMember, rank: foundingData.rank })}
+              activeOpacity={0.8}
+            >
+              <IdentityBadge
+                rank={foundingData.rank}
+                isFoundingMember={foundingData.isFoundingMember}
+                style={styles.identityBadge}
+              />
+            </TouchableOpacity>
           )}
         </View>
 

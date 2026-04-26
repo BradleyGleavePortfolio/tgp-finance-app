@@ -9,6 +9,7 @@ import { Button } from '../../src/components/ui/Button';
 import { Colors, Typography, Spacing, BorderRadius } from '../../src/theme/finance';
 import { useAccountsStore } from '../../src/stores/accountsStore';
 import { ACCOUNT_TYPE_LABELS } from '../../src/utils/constants';
+import { track } from '../../src/lib/analytics';
 import type { AccountType } from '../../src/types';
 
 const ACCOUNT_TYPES: Array<{ type: AccountType; label: string; isDebt: boolean }> = [
@@ -53,6 +54,7 @@ export default function AddAccountScreen() {
         currency: 'USD',
         is_active: true,
       });
+      track('goal_created', { account_type: accountType, is_debt: isDebt });
       router.back();
     } catch {
       Alert.alert('Error', 'Failed to add account. Please try again.');

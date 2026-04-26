@@ -9,6 +9,7 @@ import { Button } from '../../src/components/ui/Button';
 import { Colors, Typography, Spacing } from '../../src/theme/finance';
 import { useAuthStore } from '../../src/stores/authStore';
 import { sendPasswordResetEmail, signInWithGoogle } from '../../src/services/supabase';
+import { track, identify } from '../../src/lib/analytics';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -41,6 +42,10 @@ export default function LoginScreen() {
     if (!validate()) return;
     try {
       await login(email, password);
+      // Identify + track after successful login (user id from store)
+      const { user } = useAuthStore.getState();
+      if (user?.id) identify(user.id, { role: user.role });
+      track('signed_in', { method: 'email' });
       // Navigate to index which will route based on auth/onboarding state
       router.replace('/');
     } catch {
