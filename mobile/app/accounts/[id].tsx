@@ -13,6 +13,7 @@ import { useAccountsStore } from '../../src/stores/accountsStore';
 import { formatCurrency, formatDate, formatAPR } from '../../src/utils/formatters';
 import { ACCOUNT_TYPE_LABELS } from '../../src/utils/constants';
 import type { AccountBalanceLog } from '../../src/types';
+import { track } from '../../src/lib/analytics';
 
 export default function AccountDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -86,6 +87,7 @@ export default function AccountDetailScreen() {
       }
       if (editNotes.trim()) payload.notes = editNotes.trim();
       await updateAccount(account.id, payload as any);
+      track('transaction_categorized', { account_type: account.account_type, is_debt: account.is_debt });
       setEditModalVisible(false);
     } catch {
       Alert.alert('Error', 'Failed to save changes. Please try again.');

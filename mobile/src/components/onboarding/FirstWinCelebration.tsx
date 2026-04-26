@@ -13,6 +13,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { Colors, Typography, Spacing } from '../../theme/finance';
+import { track } from '../../lib/analytics';
 
 interface FirstWinCelebrationProps {
   identityTitle: string;
@@ -102,6 +103,8 @@ export function FirstWinCelebration({
   const glowAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    // Fire first_win_celebrated once on mount
+    track('first_win_celebrated', { identity_title: identityTitle, bank_connected: bankConnected });
     Animated.parallel([
       Animated.spring(scaleAnim, {
         toValue: 1,

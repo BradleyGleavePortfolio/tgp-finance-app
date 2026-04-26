@@ -24,6 +24,7 @@ import { PaydayModule } from './payday/payday.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { PushModule } from './push/push.module';
 import { UsersModule } from './users/users.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 import { HealthController } from './health/health.controller';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -54,6 +55,7 @@ import { TenantGuard } from './auth/guards/tenant.guard';
 
     // Core
     PrismaModule,
+    AnalyticsModule,
     AuthModule,
 
     // Feature modules

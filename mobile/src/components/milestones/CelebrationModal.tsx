@@ -6,6 +6,7 @@ import { MILESTONE_DEFINITIONS } from '../../utils/constants';
 import type { MilestoneUnlock } from '../../types';
 import { ShareCard } from '../ShareCard';
 import { useShareCard } from '../../hooks/useShareCard';
+import { track } from '../../lib/analytics';
 
 interface CelebrationModalProps {
   milestone: MilestoneUnlock | null;
@@ -19,6 +20,8 @@ export function CelebrationModal({ milestone, onDismiss }: CelebrationModalProps
 
   useEffect(() => {
     if (milestone) {
+      // Track goal_completed when a milestone is celebrated
+      track('goal_completed', { milestone_key: milestone.milestone_key });
       Animated.parallel([
         Animated.spring(scaleAnim, { toValue: 1, tension: 40, friction: 7, useNativeDriver: true }),
         Animated.timing(opacityAnim, { toValue: 1, duration: 500, useNativeDriver: true }),

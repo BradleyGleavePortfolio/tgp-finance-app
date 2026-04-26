@@ -9,6 +9,7 @@ import { Button } from '../../src/components/ui/Button';
 import { ProgressBar } from '../../src/components/ui/ProgressBar';
 import { Colors, Typography, Spacing } from '../../src/theme/finance';
 import { useAuthStore } from '../../src/stores/authStore';
+import { track, identify } from '../../src/lib/analytics';
 
 function getPasswordStrength(password: string): { score: number; label: string; color: string } {
   let score = 0;
@@ -51,6 +52,8 @@ export default function RegisterScreen() {
     if (!validate()) return;
     try {
       await register({ name, email, password, phone: phone || undefined, referral_code: referral || undefined });
+      // Track sign-up (user id not yet available — identify after verification)
+      track('signed_up', { has_referral: !!referral });
       // Navigate to email verification screen
       router.replace('/(auth)/verify-email');
     } catch {
