@@ -35,6 +35,15 @@ import { TrustCueRow } from '../../src/components/trust/TrustCueRow';
 // UX Psychology Report #5: Contribution Loops
 import { HapticPressable } from '../../src/components/HapticPressable';
 import { usePreferences } from '../../src/hooks/usePreferences';
+// UX Psychology Report #4: Healthy Anticipation
+import {
+  resolveNextMilestones,
+  resolveCountdownEvents,
+  type ResolvedMilestone,
+  type CountdownEvent,
+} from '../../src/lib/milestones';
+import { MilestoneProgress } from '../../src/components/anticipation/MilestoneProgress';
+import { CountdownTileRow } from '../../src/components/anticipation/CountdownTile';
 
 // ---------------------------------------------------------------------------
 // Hero status computation
