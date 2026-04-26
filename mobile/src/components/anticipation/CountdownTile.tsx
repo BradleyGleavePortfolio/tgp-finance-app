@@ -25,10 +25,10 @@ interface CountdownTileProps {
 // ─── Event icon + accent ──────────────────────────────────────────────────────
 function eventMeta(type: CountdownEvent['type']): { icon: string; accent: string } {
   switch (type) {
-    case 'paycheck':     return { icon: '💸', accent: semantic.success };
-    case 'budget_reset': return { icon: '📅', accent: gold[400] };
-    case 'goal_deadline':return { icon: '🎯', accent: semantic.info };
-    default:             return { icon: '⏱️', accent: neutral[400] };
+    case 'paycheck':     return { icon: '→', accent: semantic.success };
+    case 'budget_reset': return { icon: '→', accent: gold[400] };
+    case 'goal_deadline':return { icon: '→', accent: semantic.info };
+    default:             return { icon: '·', accent: neutral[400] };
   }
 }
 

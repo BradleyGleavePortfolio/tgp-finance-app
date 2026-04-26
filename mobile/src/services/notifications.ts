@@ -164,8 +164,8 @@ export async function cancelStreakRiskReminders(): Promise<void> {
 export async function sendMilestoneNotification(milestoneTitle: string): Promise<void> {
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: 'Milestone Achieved!',
-      body: `${milestoneTitle} achieved! Open the app to celebrate.`,
+      title: 'Milestone Achieved.',
+      body: `${milestoneTitle} achieved. Open the app to celebrate.`,
       data: { type: 'milestone', screen: '/milestones' },
     },
     trigger: null,

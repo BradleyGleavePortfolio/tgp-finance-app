@@ -2,7 +2,6 @@
 // Privacy: callers must pass only non-PII copy. No account balances, names, or identifiers here.
 import React, { forwardRef } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Typography, Spacing, BorderRadius } from '../theme/finance';
 
 export type ShareCardTheme = 'gold' | 'green' | 'teal';
@@ -22,7 +21,7 @@ export interface ShareCardProps {
 const THEME_ACCENT: Record<ShareCardTheme, string> = {
   gold: Colors.accentGold,
   green: Colors.profitGreen,
-  teal: Colors.investmentTeal,
+  teal: Colors.slateGray,
 };
 
 const CARD_WIDTH = 360;
@@ -46,12 +45,7 @@ export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard(
 
   return (
     <View ref={ref} collapsable={false} style={styles.wrapper}>
-      <LinearGradient
-        colors={[Colors.backgroundDeepNavy, Colors.cardSurfaceNavyElevated]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.card}
-      >
+      <View style={[styles.card, { backgroundColor: '#0D1117' }]}>
         <View style={[styles.accentBar, { backgroundColor: accent }]} />
 
         <View style={styles.header}>
@@ -95,7 +89,7 @@ export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard(
           <View style={[styles.footerDot, { backgroundColor: accent }]} />
           <Text style={styles.footer}>{footer}</Text>
         </View>
-      </LinearGradient>
+      </View>
     </View>
   );
 });

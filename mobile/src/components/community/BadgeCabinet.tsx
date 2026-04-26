@@ -47,7 +47,7 @@ export function BadgeCabinet({ isFoundingMember = false }: BadgeCabinetProps) {
         <Text style={styles.headerTitle}>Badges</Text>
         {isFoundingMember && (
           <View style={styles.foundingTag}>
-            <Text style={styles.foundingTagText}>🏛️ Founding Member</Text>
+            <Text style={styles.foundingTagText}>FOUNDING MEMBER</Text>
           </View>
         )}
       </View>
@@ -92,8 +92,8 @@ const styles = StyleSheet.create({
     color: Colors.frostWhite,
   },
   foundingTag: {
-    backgroundColor: 'rgba(249, 199, 79, 0.12)',
-    borderRadius: BorderRadius.full,
+    backgroundColor: 'transparent',
+    borderRadius: 2,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 3,
     borderWidth: 1,
@@ -117,9 +117,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   badgeEarned: {
-    backgroundColor: 'rgba(249, 199, 79, 0.08)',
+    backgroundColor: Colors.cardSurfaceNavyElevated,
     borderWidth: 1,
-    borderColor: 'rgba(249, 199, 79, 0.3)',
+    borderColor: Colors.graphiteBorder,
   },
   badgeLocked: {
     backgroundColor: Colors.cardSurfaceNavyElevated,
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   badgeTitleEarned: {
-    color: Colors.accentGold,
+    color: Colors.frostWhite,
   },
   badgeTitleLocked: {
     color: Colors.slateGray,

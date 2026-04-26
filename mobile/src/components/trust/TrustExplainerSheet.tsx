@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   footerLink: {
-    color: Colors.investmentTeal,
+    color: Colors.slateGray,
     fontFamily: 'Inter_600SemiBold',
   },
   closeBtn: {

@@ -125,46 +125,26 @@ export const radius = {
 export const shadows = {
   sm: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
   },
   md: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
   lg: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.45,
-    shadowRadius: 24,
-    elevation: 14,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
-  glowGold: {
-    shadowColor: gold[400],
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.35,
-    shadowRadius: 18,
-    elevation: 10,
-  },
-  glowGreen: {
-    shadowColor: semantic.success,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.30,
-    shadowRadius: 14,
-    elevation: 8,
-  },
-  glowCrimson: {
-    shadowColor: semantic.danger,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.30,
-    shadowRadius: 14,
-    elevation: 8,
-  },
+  // glowGold, glowGreen, glowCrimson — deleted (luxury/wave1)
 } as const;
 
 // ─── Motion Tokens ────────────────────────────────────────────────────────────
@@ -173,7 +153,7 @@ export const motion = {
     fast: 120,
     base: 200,
     slow: 320,
-    shimmer: 1200,
+    // shimmer: deleted (luxury/wave1)
   },
   easing: {
     // Approximations for Animated.timing (use with Easing from RN)

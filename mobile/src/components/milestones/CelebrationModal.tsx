@@ -49,6 +49,7 @@ export function CelebrationModal({ milestone, onDismiss }: CelebrationModalProps
         ))}
 
         <Animated.View style={[styles.card, { transform: [{ scale: scaleAnim }] }]}>
+          {/* Milestone icon — emoji from data (luxury/wave4 will replace). Rendered as-is from server data. */}
           <Text style={styles.icon}>{definition.icon}</Text>
           <Text style={styles.achieved}>ACHIEVEMENT UNLOCKED</Text>
           <Text style={styles.title}>{definition.title}</Text>
@@ -88,7 +89,7 @@ export function CelebrationModal({ milestone, onDismiss }: CelebrationModalProps
 }
 
 function ConfettiDot({ index }: { index: number }) {
-  const colors = [Colors.accentGold, Colors.profitGreen, Colors.debtCrimson, Colors.investmentTeal];
+  const colors = [Colors.accentGold, Colors.profitGreen, Colors.debtCrimson, Colors.slateGray];
   const anim = useRef(new Animated.Value(0)).current;
   const color = colors[index % colors.length];
   const left = `${(index * 8) + 4}%` as `${number}%`;
@@ -135,11 +136,11 @@ const styles = StyleSheet.create({
     padding: Spacing.xxxl,
     alignItems: 'center',
     width: '100%',
-    shadowColor: Colors.accentGold,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 32,
-    elevation: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
   icon: {
     fontSize: 72,

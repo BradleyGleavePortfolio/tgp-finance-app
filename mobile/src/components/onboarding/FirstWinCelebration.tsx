@@ -29,7 +29,7 @@ function ConfettiDot({ index }: { index: number }) {
     Colors.accentGold,
     Colors.profitGreen,
     Colors.debtCrimson,
-    Colors.investmentTeal,
+    Colors.slateGray,
     '#A78BFA', // violet accent
   ];
   const anim = useRef(new Animated.Value(0)).current;
@@ -100,7 +100,6 @@ export function FirstWinCelebration({
 }: FirstWinCelebrationProps) {
   const scaleAnim = useRef(new Animated.Value(0.6)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
-  const glowAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     // Fire first_win_celebrated once on mount
@@ -119,19 +118,10 @@ export function FirstWinCelebration({
       }),
     ]).start();
 
-    // Pulsing glow loop
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(glowAnim, { toValue: 1, duration: 1200, useNativeDriver: false }),
-        Animated.timing(glowAnim, { toValue: 0, duration: 1200, useNativeDriver: false }),
-      ])
-    ).start();
+    // Glow loop removed (luxury/wave1)
   }, []);
 
-  const borderGlow = glowAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['rgba(249,199,79,0.25)', 'rgba(249,199,79,0.65)'],
-  });
+  // Glow animation removed (luxury/wave1)
 
   const confettiCount = 16;
   const heroAction = bankConnected ? 'Review your accounts' : 'Set your first goal';
@@ -150,9 +140,9 @@ export function FirstWinCelebration({
           { opacity: opacityAnim, transform: [{ scale: scaleAnim }] },
         ]}
       >
-        <Animated.View style={[styles.card, { shadowColor: borderGlow as any }]}>
-          {/* Trophy */}
-          <Text style={styles.trophy}>🏆</Text>
+        <Animated.View style={[styles.card]}>
+          {/* Trophy — emoji removed, use typographic marker (luxury/wave1) */}
+          <Text style={styles.trophy}>·</Text>
 
           {/* Headline */}
           <Text style={styles.achieved}>GOAL LOCKED IN</Text>
@@ -206,11 +196,11 @@ const styles = StyleSheet.create({
     borderColor: Colors.accentGold,
     padding: Spacing.xxxl,
     alignItems: 'center',
-    // Gold glow
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 40,
-    elevation: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
   trophy: {
     fontSize: 72,

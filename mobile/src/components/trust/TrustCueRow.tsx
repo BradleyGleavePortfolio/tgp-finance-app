@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   chipText: {
     fontFamily: 'Inter_500Medium',
     fontSize: Typography.bodySmall,
-    color: Colors.investmentTeal,
+    color: Colors.slateGray,
     letterSpacing: 0.1,
   },
 });

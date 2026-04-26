@@ -81,37 +81,37 @@ export const PRIORITY_WATERFALL = [
 
 export const MILESTONE_DEFINITIONS: MilestoneDefinition[] = [
   // Cash milestones
-  { key: 'cash_1k', title: 'Starter Pack Achieved', description: 'First $1,000 in cash', category: 'cash', icon: '💵' },
-  { key: 'cash_5k', title: 'Buffer Mode Unlocked', description: '$5,000 in cash', category: 'cash', icon: '💰' },
-  { key: 'cash_10k', title: 'Cash Stack Building', description: '$10,000 in cash', category: 'cash', icon: '🏦' },
-  { key: 'cash_20k', title: 'Emergency Fund: Complete', description: '$20,000 in cash', category: 'cash', icon: '🛡️' },
+  { key: 'cash_1k', title: 'Starter Pack Achieved', description: 'First $1,000 in cash', category: 'cash', icon: '·' },
+  { key: 'cash_5k', title: 'Buffer Mode Unlocked', description: '$5,000 in cash', category: 'cash', icon: '·' },
+  { key: 'cash_10k', title: 'Cash Stack Building', description: '$10,000 in cash', category: 'cash', icon: '·' },
+  { key: 'cash_20k', title: 'Emergency Fund: Complete', description: '$20,000 in cash', category: 'cash', icon: '·' },
 
   // Debt milestones
-  { key: 'first_debt_paid', title: 'First Blood: Debt Slayer', description: 'First debt account reaches $0', category: 'debt', icon: '⚔️' },
-  { key: 'debt_half', title: 'Halfway There', description: 'Total debt cut in half', category: 'debt', icon: '🔥' },
-  { key: 'debt_zero', title: 'DEBT FREE — Wealth Mode Unlocked', description: 'All debt = $0', category: 'debt', icon: '🎉' },
+  { key: 'first_debt_paid', title: 'First Debt Cleared', description: 'First debt account reaches $0', category: 'debt', icon: '·' },
+  { key: 'debt_half', title: 'Halfway There', description: 'Total debt cut in half', category: 'debt', icon: '·' },
+  { key: 'debt_zero', title: 'Debt Free', description: 'All debt = $0', category: 'debt', icon: '·' },
 
   // Net worth milestones
-  { key: 'nw_positive', title: 'Into the Black', description: 'Net worth turns positive', category: 'net_worth', icon: '📈' },
-  { key: 'nw_1k', title: 'First Rung', description: '$1K net worth', category: 'net_worth', icon: '🪜' },
-  { key: 'nw_5k', title: 'Climbing', description: '$5K net worth', category: 'net_worth', icon: '🧗' },
-  { key: 'nw_10k', title: 'Five Figures', description: '$10K net worth', category: 'net_worth', icon: '⭐' },
-  { key: 'nw_25k', title: 'Quarter to Fifty', description: '$25K net worth', category: 'net_worth', icon: '✨' },
-  { key: 'nw_50k', title: 'Wealth Builder', description: '$50K net worth', category: 'net_worth', icon: '🌟' },
-  { key: 'nw_100k', title: 'Six Figures', description: '$100K net worth', category: 'net_worth', icon: '💎' },
-  { key: 'nw_250k', title: 'Quarter Millionaire', description: '$250K net worth', category: 'net_worth', icon: '🏆' },
-  { key: 'nw_500k', title: 'Half Millionaire', description: '$500K net worth', category: 'net_worth', icon: '🥈' },
-  { key: 'nw_1m', title: 'The Million Dollar Moment', description: '$1M net worth', category: 'net_worth', icon: '👑' },
+  { key: 'nw_positive', title: 'Into the Black', description: 'Net worth turns positive', category: 'net_worth', icon: '·' },
+  { key: 'nw_1k', title: 'First Rung', description: '$1K net worth', category: 'net_worth', icon: '·' },
+  { key: 'nw_5k', title: 'Climbing', description: '$5K net worth', category: 'net_worth', icon: '·' },
+  { key: 'nw_10k', title: 'Five Figures', description: '$10K net worth', category: 'net_worth', icon: '·' },
+  { key: 'nw_25k', title: 'Quarter to Fifty', description: '$25K net worth', category: 'net_worth', icon: '·' },
+  { key: 'nw_50k', title: 'Wealth Builder', description: '$50K net worth', category: 'net_worth', icon: '·' },
+  { key: 'nw_100k', title: 'Six Figures', description: '$100K net worth', category: 'net_worth', icon: '·' },
+  { key: 'nw_250k', title: 'Quarter Millionaire', description: '$250K net worth', category: 'net_worth', icon: '·' },
+  { key: 'nw_500k', title: 'Half Millionaire', description: '$500K net worth', category: 'net_worth', icon: '·' },
+  { key: 'nw_1m', title: 'The Million Dollar Moment', description: '$1M net worth', category: 'net_worth', icon: '·' },
 
   // Streak milestones
-  { key: 'streak_7', title: 'Week Warrior', description: '7-day EOD streak', category: 'streak', icon: '🔥' },
-  { key: 'streak_30', title: 'Month Master', description: '30-day EOD streak', category: 'streak', icon: '⚡' },
-  { key: 'streak_90', title: '90-Day Operator', description: '90-day EOD streak', category: 'streak', icon: '🎯' },
-  { key: 'streak_365', title: 'Financial Discipline: Elite', description: '365-day EOD streak', category: 'streak', icon: '🏅' },
+  { key: 'streak_7', title: 'Week One', description: '7-day EOD streak', category: 'streak', icon: '·' },
+  { key: 'streak_30', title: 'Month One', description: '30-day EOD streak', category: 'streak', icon: '·' },
+  { key: 'streak_90', title: 'Day 90', description: '90-day EOD streak', category: 'streak', icon: '·' },
+  { key: 'streak_365', title: 'Year One', description: '365-day EOD streak', category: 'streak', icon: '·' },
 
   // Income milestones
-  { key: 'income_100k', title: 'Six-Figure Earner', description: 'Annual income hits $100K', category: 'income', icon: '💼' },
-  { key: 'income_200k', title: 'Top 5% Earner', description: 'Annual income $200K', category: 'income', icon: '🚀' },
+  { key: 'income_100k', title: 'Six-Figure Earner', description: 'Annual income hits $100K', category: 'income', icon: '·' },
+  { key: 'income_200k', title: 'Top Five Percent', description: 'Annual income $200K', category: 'income', icon: '·' },
 ];
 
 // ─── Daily Habits ─────────────────────────────────────────────────────────────
@@ -131,73 +131,73 @@ export const WHATIF_SCENARIOS = [
     type: 'extra_debt_payment',
     title: 'Extra Debt Payment',
     description: 'See how extra monthly payments accelerate your debt payoff',
-    icon: '💳',
+    icon: '→',
   },
   {
     type: 'income_increase',
     title: 'Income Increase',
     description: 'Model a raise or new income source',
-    icon: '📈',
+    icon: '→',
   },
   {
     type: 'relocate_country',
     title: 'Relocate to Another Country',
     description: 'Geo-arbitrage: earn USD, spend less',
-    icon: '🌍',
+    icon: '→',
   },
   {
     type: 'relocate_city',
     title: 'Relocate Within the US',
     description: 'Move to a no-income-tax state',
-    icon: '🗺️',
+    icon: '→',
   },
   {
     type: 'cut_expense',
     title: 'Cut a Recurring Expense',
     description: 'See the long-term impact of cutting monthly costs',
-    icon: '✂️',
+    icon: '→',
   },
   {
     type: 'invest_lump_sum',
     title: 'Invest a Lump Sum',
     description: 'Model compound growth on a one-time investment',
-    icon: '📊',
+    icon: '→',
   },
   {
     type: 'sell_asset',
     title: 'Pay Off Debt Completely',
     description: 'Clear a specific debt and see the cash flow freed',
-    icon: '🎯',
+    icon: '→',
   },
   {
     type: 'salary_negotiation',
     title: 'Negotiate a Raise',
     description: 'Quantify the lifetime value of asking for more',
-    icon: '🤝',
+    icon: '→',
   },
   {
     type: 'start_business',
     title: 'Start a Side Business',
     description: 'Model revenue scenarios and break-even timeline',
-    icon: '🚀',
+    icon: '→',
   },
   {
     type: 'pay_off_debt_early',
     title: 'Early Debt-Free Day',
     description: 'Set a target date — see what it takes',
-    icon: '🗓️',
+    icon: '→',
   },
   {
     type: 'tax_optimization',
     title: 'Tax Optimization',
     description: 'Reduce your tax bill with 401k, HSA, deductions',
-    icon: '📋',
+    icon: '→',
   },
   {
     type: 'retire_early',
     title: 'Financial Independence',
     description: 'When can you retire early? Model your FI number',
-    icon: '🏖️',
+    icon: '→',
   },
 ];
 
@@ -240,5 +240,5 @@ export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://tgp-fina
 
 // ─── Mood Emojis ──────────────────────────────────────────────────────────────
 
-export const MOOD_EMOJIS = ['😰', '😐', '🙂', '😊', '🤑'];
-export const MOOD_LABELS = ['Stressed', 'Neutral', 'Okay', 'Good', 'Crushing It'];
+export const MOOD_EMOJIS = ['1', '2', '3', '4', '5'];  // luxury/wave1: emoji removed, use numeric labels
+export const MOOD_LABELS = ['Stressed', 'Neutral', 'Okay', 'Good', 'Strong'];

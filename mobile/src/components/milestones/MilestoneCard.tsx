@@ -76,7 +76,7 @@ export function MilestoneCard({ milestone, isUnlocked, unlockedAt, onPress }: Mi
       : neutral[900]
     : 'rgba(22,27,34,0.5)';
 
-  const shadowStyle = isUnlocked && isFounder ? shadows.glowGold : {};
+  const shadowStyle = isUnlocked && isFounder ? shadows.md : {};
 
   return (
     <Animated.View
@@ -130,7 +130,7 @@ export function MilestoneCard({ milestone, isUnlocked, unlockedAt, onPress }: Mi
             <Text style={styles.checkText}>✓</Text>
           </View>
         ) : (
-          <Text style={styles.lock}>🔒</Text>
+          <Text style={styles.lock}>—</Text>
         )}
       </HapticPressable>
     </Animated.View>
