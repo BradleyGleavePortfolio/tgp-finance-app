@@ -32,6 +32,8 @@ import { usersApi } from '../../src/services/api';
 import { track } from '../../src/lib/analytics';
 // UX Psychology Report #2: Trust as Emotion
 import { TrustCueRow } from '../../src/components/trust/TrustCueRow';
+// UX Psychology Report #5: Contribution Loops
+import { HapticPressable } from '../../src/components/HapticPressable';
 
 // ---------------------------------------------------------------------------
 // Hero status computation
@@ -81,8 +83,9 @@ function buildWeekStat(params: {
   cashFlow: number;
   monthlyIncome: number;
   totalDebt: number;
+  currency?: string;
 }): string {
-  const { cashFlow, monthlyIncome, totalDebt } = params;
+  const { cashFlow, monthlyIncome, totalDebt, currency = 'USD' } = params;
 
   if (monthlyIncome <= 0) return '';
 
@@ -96,8 +99,8 @@ function buildWeekStat(params: {
 
   if (weeklySpent <= 0 && weeklyLeft <= 0) return '';
 
-  const spentStr = formatCurrency(weeklySpent, { decimals: 0 });
-  const leftStr = formatCurrency(weeklyLeft, { decimals: 0 });
+  const spentStr = formatCurrency(weeklySpent, { decimals: 0, currency });
+  const leftStr = formatCurrency(weeklyLeft, { decimals: 0, currency });
   return `${spentStr} spent · ${leftStr} left this week`;
 }
 
@@ -107,7 +110,7 @@ export default function HomeScreen() {
   const { accounts, netWorth, totalDebt, dailyInterest, fetchAccounts, isLoading } = useAccountsStore();
   const { history: nwHistory, currentNetWorth, previousNetWorth, fetchHistory, fetchCurrent: fetchCurrentNetWorth } = useNetWorthStore();
   const { currentPriority, fetchCurrent } = usePriorityStore();
-  const { pendingCelebration, dismissCelebration } = useMilestonesStore();
+  const { pendingCelebration, dismissCelebration, unlocked: unlockedMilestones } = useMilestonesStore();
   const { todaySubmission, fetchToday } = useEODStore();
 
   useEffect(() => {
@@ -142,6 +145,34 @@ export default function HomeScreen() {
 
   // BULLETPROOF: Safe array & numeric guards
   const safeAccounts = Array.isArray(accounts) ? accounts : [];
+
+  // ---------------------------------------------------------------------------
+  // Healthy Anticipation (UX Psych Report #4) — milestone + countdown data
+  // ---------------------------------------------------------------------------
+  const unlockedKeys = useMemo(
+    () => (Array.isArray(unlockedMilestones) ? unlockedMilestones.map((m) => m.milestone_key) : []),
+    [unlockedMilestones],
+  );
+
+  const nextMilestones = useMemo<ResolvedMilestone[]>(
+    () =>
+      resolveNextMilestones({
+        // profile from authStore is UserProfile (loose index-signature type) but contains
+        // FinancialProfile shape at runtime — cast to satisfy the resolver.
+        profile: (profile as any) ?? null,
+        accounts: safeAccounts,
+        unlockedKeys,
+        limit: 3,
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [profile, safeAccounts, unlockedKeys],
+  );
+
+  const countdownEvents = useMemo<CountdownEvent[]>(
+    () => resolveCountdownEvents((profile as any) ?? null),
+    [profile],
+  );
+
   const safeNetWorth = isFinite(netWorth) ? netWorth : 0;
   const safeCurrent = isFinite(currentNetWorth) ? currentNetWorth : 0;
   const safePrevious = isFinite(previousNetWorth) ? previousNetWorth : 0;
@@ -213,7 +244,8 @@ export default function HomeScreen() {
     cashFlow,
     monthlyIncome,
     totalDebt: monthlyDebts,
-  }), [cashFlow, monthlyIncome, monthlyDebts]);
+    currency: prefs.currency,
+  }), [cashFlow, monthlyIncome, monthlyDebts, prefs.currency]);
 
   // Hero CTA navigation — each status routes to the most impactful destination
   const onHeroPress = () => {
@@ -301,6 +333,53 @@ export default function HomeScreen() {
         )}
 
         {/* ═══════════════════════════════════════════════════════════════
+            UP NEXT — UX Psych Report #4: Healthy Anticipation
+            Milestone progress bars + countdown chips below hero.
+        ════════════════════════════════════════════════════════════════ */}
+        {(nextMilestones.length > 0 || countdownEvents.length > 0) && (
+          <View
+            style={styles.anticipationSection}
+            onLayout={() => {
+              track('milestone_progress_viewed', { milestone_count: nextMilestones.length });
+              if (countdownEvents.length > 0) {
+                track('countdown_tile_viewed', { first_event_type: countdownEvents[0]?.type, days: countdownEvents[0]?.daysUntil });
+              }
+            }}
+          >
+            {/* Section header */}
+            <View style={styles.anticipationHeader}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerLabel}>UP NEXT</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Countdown tiles */}
+            {countdownEvents.length > 0 && (
+              <View style={styles.anticipationCountdown}>
+                <CountdownTileRow
+                  events={countdownEvents}
+                  onPress={(evt) =>
+                    track('countdown_tile_viewed', { event_type: evt.type, days: evt.daysUntil })
+                  }
+                />
+              </View>
+            )}
+
+            {/* Milestone progress bars */}
+            {nextMilestones.map((milestone) => (
+              <MilestoneProgress
+                key={milestone.key}
+                milestone={milestone}
+                onPress={() => {
+                  track('milestone_progress_viewed', { milestone_key: milestone.key, progress: milestone.progress });
+                  router.push('/(tabs)/goals');
+                }}
+              />
+            ))}
+          </View>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════════
             SECONDARY SECTIONS — demoted, still fully accessible
         ════════════════════════════════════════════════════════════════ */}
 
@@ -350,14 +429,16 @@ export default function HomeScreen() {
           />
         </View>
 
-        {/* Current Priority */}
-        <View style={styles.section}>
-          <PriorityCard
-            priority={currentPriority}
-            onNextStep={() => router.push('/whatif')}
-            onViewAll={() => router.push('/(tabs)/goals')}
-          />
-        </View>
+        {/* Current Priority / Milestone — gated by 'milestone' pref */}
+        {enabledModules.includes('milestone') && (
+          <View style={styles.section}>
+            <PriorityCard
+              priority={currentPriority}
+              onNextStep={() => router.push('/whatif')}
+              onViewAll={() => router.push('/(tabs)/goals')}
+            />
+          </View>
+        )}
 
         {/* Quick Actions */}
         <View style={styles.section}>
@@ -456,6 +537,20 @@ const styles = StyleSheet.create({
   eodDoneText: { fontFamily: 'Inter_500Medium', fontSize: Typography.bodySmall, color: Colors.profitGreen },
   tickerSection: { marginTop: Spacing.base, paddingBottom: Spacing.base },
   trustCueRow: { marginBottom: Spacing.sm },
+
+  // Healthy Anticipation — Up Next section
+  anticipationSection: {
+    marginBottom: Spacing.base,
+  },
+  anticipationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  anticipationCountdown: {
+    marginBottom: Spacing.sm,
+  },
 
   // Identity reinforcement (UX Psych Report #3)
   identityRow: {
