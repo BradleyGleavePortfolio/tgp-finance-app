@@ -22,9 +22,9 @@ interface Chip {
 }
 
 const CHIPS: Chip[] = [
-  { label: '🔒 End-to-end encrypted' },
-  { label: '👤 Your data is yours' },
-  { label: '🛡 Zero ads · Zero data sales' },
+  { label: 'End-to-end encrypted' },
+  { label: 'Your data is yours' },
+  { label: 'Zero ads · Zero data sales' },
 ];
 
 interface Props {
@@ -88,9 +88,9 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(77, 217, 229, 0.10)',
+    backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: 'rgba(77, 217, 229, 0.25)',
+    borderColor: Colors.graphiteBorder,
     borderRadius: BorderRadius.full,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs + 2,

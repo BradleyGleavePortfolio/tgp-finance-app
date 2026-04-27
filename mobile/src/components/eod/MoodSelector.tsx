@@ -1,8 +1,9 @@
-// Mood selector 1-5 emoji scale
+// Mood selector — 1-to-5 numeric scale, no emoji.
+// Per mobile/DESIGN.md §4, the mood scale is numeric with text labels.
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Colors, Typography, Spacing, BorderRadius } from '../../theme/finance';
-import { MOOD_EMOJIS, MOOD_LABELS } from '../../utils/constants';
+import { MOOD_GLYPHS, MOOD_LABELS } from '../../utils/constants';
 
 interface MoodSelectorProps {
   value?: number; // 1-5
@@ -13,18 +14,18 @@ export function MoodSelector({ value, onChange }: MoodSelectorProps) {
   return (
     <View style={styles.container}>
       <Text style={styles.label}>How are you feeling about your finances today?</Text>
-      <View style={styles.emojis}>
-        {MOOD_EMOJIS.map((emoji, index) => {
+      <View style={styles.glyphs}>
+        {MOOD_GLYPHS.map((glyph, index) => {
           const mood = index + 1;
           const isSelected = value === mood;
           return (
             <TouchableOpacity
               key={mood}
-              style={[styles.emojiBtn, isSelected && styles.selected]}
+              style={[styles.glyphBtn, isSelected && styles.selected]}
               onPress={() => onChange(mood)}
               activeOpacity={0.7}
             >
-              <Text style={styles.emoji}>{emoji}</Text>
+              <Text style={styles.glyph}>{glyph}</Text>
               {isSelected && (
                 <Text style={styles.moodLabel}>{MOOD_LABELS[index]}</Text>
               )}
@@ -45,11 +46,11 @@ const styles = StyleSheet.create({
     fontSize: Typography.bodyMedium,
     color: Colors.frostWhite,
   },
-  emojis: {
+  glyphs: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  emojiBtn: {
+  glyphBtn: {
     alignItems: 'center',
     padding: Spacing.sm,
     borderRadius: BorderRadius.md,
@@ -59,16 +60,18 @@ const styles = StyleSheet.create({
     marginHorizontal: 2,
   },
   selected: {
-    borderColor: Colors.accentGold,
-    backgroundColor: 'rgba(249,199,79,0.08)',
+    borderColor: Colors.frostWhite,
+    backgroundColor: 'transparent',
   },
-  emoji: {
-    fontSize: 28,
+  glyph: {
+    fontSize: 22,
+    fontFamily: 'Inter_500Medium',
+    color: Colors.frostWhite,
   },
   moodLabel: {
     fontFamily: 'Inter_400Regular',
     fontSize: 9,
-    color: Colors.accentGold,
+    color: Colors.slateGray,
     marginTop: 2,
     textAlign: 'center',
   },

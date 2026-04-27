@@ -99,10 +99,10 @@ export default function AccountsScreen() {
       >
         {accounts.length === 0 && !isLoading ? (
           <EmptyState
-            icon="🏦"
+            eyebrow="ACCOUNTS"
             title="No accounts yet"
             description="Add your checking, savings, investments, and debts to track your net worth."
-            actionText="Add First Account"
+            actionText="Add first account"
             onAction={() => router.push('/accounts/add')}
           />
         ) : (
@@ -124,7 +124,7 @@ export default function AccountsScreen() {
                 <AccountGroup type="investments" accounts={investmentAccounts} onPressAccount={handleAccountPress} />
                 <AccountGroup type="assets" accounts={assetAccounts} onPressAccount={handleAccountPress} />
                 {cashAccounts.length === 0 && investmentAccounts.length === 0 && assetAccounts.length === 0 && (
-                  <EmptyState icon="💹" title="No assets tracked" description="Add checking, savings, or investment accounts." actionText="Add Account" onAction={() => router.push('/accounts/add')} />
+                  <EmptyState eyebrow="ASSETS" title="No assets tracked" description="Add checking, savings, or investment accounts." actionText="Add account" onAction={() => router.push('/accounts/add')} />
                 )}
               </>
             )}
@@ -133,7 +133,7 @@ export default function AccountsScreen() {
             {activeTab === 'debts' && (
               <>
                 {debtAccounts.length === 0 ? (
-                  <EmptyState icon="✅" title="No debts tracked" description="If you have debt, add it to see your payoff timeline." actionText="Add Debt Account" onAction={() => router.push('/accounts/add')} />
+                  <EmptyState eyebrow="DEBTS" title="No debts tracked" description="If you have debt, add it to see your payoff timeline." actionText="Add debt account" onAction={() => router.push('/accounts/add')} />
                 ) : (
                   <>
                     <InterestBleedTicker dailyInterest={dailyInterest} onPress={() => router.push('/interest-bleed')} />

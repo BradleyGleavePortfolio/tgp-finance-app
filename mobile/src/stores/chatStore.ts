@@ -79,7 +79,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const errorBubble: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: `⚠️ ${errorMsg}`,
+        content: errorMsg,
         timestamp: new Date(),
       };
 

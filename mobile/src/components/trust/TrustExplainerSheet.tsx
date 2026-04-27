@@ -27,19 +27,16 @@ interface Props {
 
 const PILLARS = [
   {
-    emoji: '🔒',
     title: 'End-to-end encrypted',
     body:
       'All data in transit is protected by TLS 1.3. At rest, your financial records are encrypted with AES-256 — the same standard used by major financial institutions.',
   },
   {
-    emoji: '👤',
     title: 'Your data is yours',
     body:
       'You own your data. You can request a full export at any time, or permanently delete your account. We never sell, rent, or monetise your personal or financial information.',
   },
   {
-    emoji: '🛡',
     title: 'Zero ads · Zero data sales',
     body:
       'This app has no advertising network and no third-party data brokers. Our business model is a subscription — your data is never the product.',
@@ -99,7 +96,6 @@ export function TrustExplainerSheet({ visible, onClose }: Props) {
         >
           {PILLARS.map((p) => (
             <View key={p.title} style={styles.pillarCard}>
-              <Text style={styles.pillarEmoji}>{p.emoji}</Text>
               <View style={styles.pillarText}>
                 <Text style={styles.pillarTitle}>{p.title}</Text>
                 <Text style={styles.pillarBody}>{p.body}</Text>
@@ -177,10 +173,6 @@ const styles = StyleSheet.create({
     padding: Spacing.base,
     marginBottom: Spacing.sm,
     gap: Spacing.md,
-  },
-  pillarEmoji: {
-    fontSize: 24,
-    lineHeight: 30,
   },
   pillarText: {
     flex: 1,

@@ -159,6 +159,39 @@ describe('scheduleFutureSelfDelivery', () => {
   });
 });
 
+// Doctrine guard: per mobile/DESIGN.md §2 and §5, push titles and bodies
+// must be emoji-free, declarative, and end in a period where complete.
+// This test reads the actual content the runtime would schedule.
+describe('push copy doctrine', () => {
+  // Strips Unicode emoji ranges. Allows hairline glyphs (✓, ✕, ★) but in
+  // practice push copy doesn't use them either.
+  const emojiRegex = /[\u{1F300}-\u{1FAFF}\u{1F000}-\u{1F02F}\u{1F0A0}-\u{1F0FF}]/u;
+
+  it('streak risk notification has no emoji and reads quietly', async () => {
+    await scheduleStreakRiskReminder({ streakDays: 3, lastEodDate: null });
+    const call = (Notifications.scheduleNotificationAsync as jest.Mock).mock.calls[0][0];
+    expect(call.content.title).not.toMatch(emojiRegex);
+    expect(call.content.body).not.toMatch(emojiRegex);
+    expect(call.content.title).not.toMatch(/!|🔥|🎉/);
+  });
+
+  it('priority level-up notification has no emoji', async () => {
+    mockStore[STORAGE_KEYS.lastPriorityIndex] = '1';
+    await maybeSendPriorityLevelUpNotification({ index: 2, title: 'Build 3-Month Emergency Fund' });
+    const call = (Notifications.scheduleNotificationAsync as jest.Mock).mock.calls[0][0];
+    expect(call.content.title).not.toMatch(emojiRegex);
+    expect(call.content.body).not.toMatch(emojiRegex);
+  });
+
+  it('spending DNA notification has no emoji', async () => {
+    mockStore[STORAGE_KEYS.lastSpendingDnaMonth] = '2026-02';
+    await maybeNotifyNewSpendingDnaReport({ month: '2026-03' });
+    const call = (Notifications.scheduleNotificationAsync as jest.Mock).mock.calls[0][0];
+    expect(call.content.title).not.toMatch(emojiRegex);
+    expect(call.content.body).not.toMatch(emojiRegex);
+  });
+});
+
 describe('handleEodSubmissionNotifications', () => {
   it('fires a milestone notification for each unlocked entry when toggle is on', async () => {
     await handleEodSubmissionNotifications(
