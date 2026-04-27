@@ -43,4 +43,12 @@ describe('TenantGuard', () => {
     });
     expect(guard.canActivate(ctx)).toBe(true);
   });
+
+  it('OWNER bypass: allows owner to access any user route', () => {
+    const ctx = buildContext({
+      user: { id: 'owner-1', role: 'owner' },
+      params: { userId: 'student-b' },
+    });
+    expect(guard.canActivate(ctx)).toBe(true);
+  });
 });

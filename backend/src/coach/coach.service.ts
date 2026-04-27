@@ -1,12 +1,16 @@
 import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { scopeToCoach } from '../auth/scope';
 
 @Injectable()
 export class CoachService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getStudents(coachId: string, search?: string) {
-    const where: any = { role: 'student', coach_id: coachId };
+  async getStudents(coachId: string, search?: string, role: string = 'coach') {
+    // OWNER sees every student across every coach; coach sees only their own.
+    // scopeToCoach returns {} for owner, { coach_id: coachId } for coach.
+    const scope = scopeToCoach({ id: coachId, role });
+    const where: any = { role: 'student', ...scope };
 
     // Support email search (exact or partial)
     if (search && search.trim()) {
@@ -55,7 +59,7 @@ export class CoachService {
     });
   }
 
-  async getStudentDetail(coachId: string, studentId: string) {
+  async getStudentDetail(coachId: string, studentId: string, role: string = 'coach') {
     const student = await this.prisma.user.findUnique({
       where: { id: studentId },
       include: {
@@ -64,17 +68,20 @@ export class CoachService {
         eod_submissions: { orderBy: { submission_date: 'desc' }, take: 30 },
         milestones: true,
         notification_prefs: true,
+        // For coaches, scope notes to their own; for owners, surface all notes
+        // written by any coach about this student so the admin view is complete.
         coach_notes_received: {
-          where: { coach_id: coachId },
+          where: role === 'owner' ? {} : { coach_id: coachId },
           orderBy: { created_at: 'desc' },
         },
       },
     });
 
     if (!student) throw new NotFoundException({ error: 'Student not found', code: 'NOT_FOUND' });
-    // SECURITY: previously used `&&` which let any coach read any student (role is always 'student').
-    // Deny unless the target actually belongs to this coach OR the target isn't a student at all.
-    if (student.coach_id !== coachId || student.role !== 'student') {
+    if (student.role !== 'student') {
+      throw new ForbiddenException({ error: 'Access denied', code: 'FORBIDDEN' });
+    }
+    if (role !== 'owner' && student.coach_id !== coachId) {
       throw new ForbiddenException({ error: 'Access denied', code: 'FORBIDDEN' });
     }
 
@@ -82,25 +89,128 @@ export class CoachService {
   }
 
   // SECURITY: shared ownership check used by any coach action that targets a specific student.
-  private async assertCoachOwnsStudent(coachId: string, studentId: string): Promise<void> {
+  // OWNER bypass: an admin (role='owner') is allowed to act on any student regardless of
+  // their coach assignment. Pass `role` from the controller so the service-layer check
+  // matches the route-layer OwnsStudentGuard behavior.
+  private async assertCoachOwnsStudent(
+    coachId: string,
+    studentId: string,
+    role: string = 'coach',
+  ): Promise<void> {
     const student = await this.prisma.user.findUnique({
       where: { id: studentId },
       select: { id: true, coach_id: true, role: true },
     });
     if (!student) throw new NotFoundException({ error: 'Student not found', code: 'NOT_FOUND' });
-    if (student.coach_id !== coachId || student.role !== 'student') {
+    if (student.role !== 'student') {
+      throw new ForbiddenException({ error: 'Access denied', code: 'FORBIDDEN' });
+    }
+    if (role === 'owner') return;
+    if (student.coach_id !== coachId) {
       throw new ForbiddenException({ error: 'Access denied', code: 'FORBIDDEN' });
     }
   }
 
-  async getStudentDetailWithHistory(coachId: string, studentId: string, days: number = 90) {
+  /**
+   * Phase 1B client summary used by coach messaging UI.
+   *
+   * Returns enough structured data for a coach to be informed before/while
+   * messaging a client without paginating through the full detail view:
+   *   - identity + profile basics
+   *   - account roll-ups (debt/asset/cash totals)
+   *   - last 14 EOD submissions (net worth trajectory)
+   *   - last 14 days of habit logs (streak signals)
+   *   - any active milestones
+   *
+   * Owner bypass is honored via the role parameter (route-level guard already
+   * enforced membership for non-owners, but we re-check here for defense in
+   * depth, mirroring the rest of the service).
+   */
+  async getClientSummary(coachId: string, clientId: string, role: string = 'coach') {
+    await this.assertCoachOwnsStudent(coachId, clientId, role);
+
+    const fourteenDaysAgo = new Date();
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+    const [client, recentEods, habits, milestones] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: clientId },
+        include: {
+          profile: true,
+          accounts: { where: { is_active: true } },
+        },
+      }),
+      this.prisma.eODSubmission.findMany({
+        where: { user_id: clientId },
+        orderBy: { submission_date: 'desc' },
+        take: 14,
+      }),
+      this.prisma.habitLog.findMany({
+        where: { user_id: clientId, date: { gte: fourteenDaysAgo } },
+        orderBy: { date: 'desc' },
+      }),
+      this.prisma.milestoneUnlock.findMany({
+        where: { user_id: clientId },
+        orderBy: { unlocked_at: 'desc' },
+        take: 10,
+      }),
+    ]);
+
+    if (!client) {
+      throw new NotFoundException({ error: 'Client not found', code: 'NOT_FOUND' });
+    }
+
+    const accountTotals = (client.accounts ?? []).reduce(
+      (acc: any, a: any) => {
+        const bal = Number(a.balance ?? 0);
+        if (a.is_debt) acc.debt += bal;
+        else acc.assets += bal;
+        if (['checking', 'savings'].includes(a.account_type) && !a.is_debt) acc.cash += bal;
+        return acc;
+      },
+      { assets: 0, debt: 0, cash: 0 },
+    );
+
+    return {
+      client: {
+        id: client.id,
+        name: client.name,
+        email: client.email,
+        coach_id: client.coach_id,
+        role: client.role,
+      },
+      profile: client.profile,
+      account_totals: {
+        total_assets: Math.round(accountTotals.assets),
+        total_debt: Math.round(accountTotals.debt),
+        total_cash: Math.round(accountTotals.cash),
+        net_worth: Math.round(accountTotals.assets - accountTotals.debt),
+      },
+      recent_eods: recentEods.map((e) => ({
+        date: e.submission_date,
+        net_worth: e.net_worth_computed,
+        total_debt: e.total_debt_computed,
+        total_assets: e.total_assets_computed,
+        mood: e.mood,
+      })),
+      habit_logs: habits.map((h) => ({ habit_key: h.habit_key, date: h.date, completed: h.completed })),
+      milestones: milestones.map((m) => ({ key: m.milestone_key, unlocked_at: m.unlocked_at })),
+    };
+  }
+
+  async getStudentDetailWithHistory(
+    coachId: string,
+    studentId: string,
+    days: number = 90,
+    role: string = 'coach',
+  ) {
     const student = await this.prisma.user.findUnique({
       where: { id: studentId },
       include: { profile: true, accounts: { where: { is_active: true } } },
     });
 
     if (!student) throw new NotFoundException({ error: 'Student not found', code: 'NOT_FOUND' });
-    if (student.coach_id !== coachId) {
+    if (role !== 'owner' && student.coach_id !== coachId) {
       throw new ForbiddenException({ error: 'Access denied', code: 'FORBIDDEN' });
     }
 

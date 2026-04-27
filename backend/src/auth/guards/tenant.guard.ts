@@ -41,6 +41,9 @@ export class TenantGuard implements CanActivate {
       });
     }
 
+    // OWNER (admin) sees every tenant.
+    if (user.role === 'owner') return true;
+
     // Coach can access all student data
     if (user.role === 'coach') return true;
 

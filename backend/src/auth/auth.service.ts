@@ -63,11 +63,41 @@ export class AuthService {
     name: string;
     phone?: string;
     referral_code?: string;
+    invite_code?: string;
   }) {
     // Check if email already exists in our DB
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (existing) {
       throw new ConflictException({ error: 'Email already registered', code: 'EMAIL_EXISTS' });
+    }
+
+    // Phase 1C: resolve the optional coach invite code BEFORE creating any
+    // Supabase or DB rows, so a bad code can't leave a half-created user
+    // behind. Validation rules:
+    //   - if FEATURE_REQUIRE_COACH_CODE is on, an invite_code is mandatory
+    //   - if a code is supplied, it must resolve to an active coach profile
+    //   - if no code and the flag is off, we register as before (legacy path)
+    const requireCode = process.env.FEATURE_REQUIRE_COACH_CODE === 'true' ||
+      process.env.FEATURE_REQUIRE_COACH_CODE === '1';
+    let coachIdToAttach: string | null = null;
+    if (dto.invite_code) {
+      const profile = await this.prisma.coachProfile.findUnique({
+        where: { invite_code: dto.invite_code },
+        include: { user: { select: { id: true, role: true } } },
+      });
+      if (!profile || !profile.is_active ||
+          (profile.user.role !== 'coach' && profile.user.role !== 'owner')) {
+        throw new BadRequestException({
+          error: 'Invalid or inactive coach code',
+          code: 'INVALID_COACH_CODE',
+        });
+      }
+      coachIdToAttach = profile.user.id;
+    } else if (requireCode) {
+      throw new BadRequestException({
+        error: 'A coach invite code is required to sign up.',
+        code: 'COACH_CODE_REQUIRED',
+      });
     }
 
     // Register with Supabase Auth — auto-confirm email for MVP
@@ -117,6 +147,7 @@ export class AuthService {
         phone: dto.phone,
         referral_code: dto.referral_code,
         role: 'student', // Default; updated after role selection
+        coach_id: coachIdToAttach,
       },
     });
 

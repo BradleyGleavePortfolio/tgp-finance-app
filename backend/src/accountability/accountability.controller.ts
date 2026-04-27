@@ -33,6 +33,7 @@ export class AccountabilityController {
       user.id,
       parsed.data.student_id_1,
       parsed.data.student_id_2,
+      user.role,
     );
   }
 }
