@@ -1,13 +1,19 @@
 /**
- * SystemController — public trust-meta endpoint
- * UX Psychology Report #2: "Trust as Emotion"
+ * SystemController — public ops + trust surface.
  *
- * GET /system/trust-meta (no auth required)
- * Returns security, encryption, and data-control metadata to surface
- * in the Trust Center and trust-cue components in the mobile app.
+ * - GET /system/trust-meta    — security/encryption metadata for the mobile
+ *                               Trust Center (UX Psychology Report #2).
+ * - GET /system/release-info  — build/runtime metadata for the mobile splash,
+ *                               the coach console, and on-call. Lets a human
+ *                               or a tool answer "what's actually running?"
+ *                               without shelling into Fly.
+ *
+ * Both endpoints are intentionally @Public so the mobile app and the console
+ * can read them before authentication. Neither returns secrets.
  */
 import { Controller, Get } from '@nestjs/common';
 import { Public } from '../common/decorators/public.decorator';
+import { buildReleaseInfo } from './release-info';
 
 @Controller('system')
 export class SystemController {
@@ -23,5 +29,11 @@ export class SystemController {
       accountDeletionSupported: true,
       readOnlyAccountAccess: true,
     };
+  }
+
+  @Public()
+  @Get('release-info')
+  releaseInfo() {
+    return buildReleaseInfo();
   }
 }
