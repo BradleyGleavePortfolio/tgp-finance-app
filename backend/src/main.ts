@@ -12,41 +12,20 @@ import { Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as Sentry from '@sentry/node';
 import { AppModule } from './app.module';
-
-// Fail fast at boot if a required secret is missing. Prior behavior was to let
-// the app start and throw on the first request that needed it — making deploy
-// regressions silent until a paying user hit them. Mirrors the pattern used in
-// growth-project-backend (fitness).
-function assertRequiredEnv() {
-  const required = [
-    'DATABASE_URL',
-    'SUPABASE_URL',
-    'SUPABASE_SERVICE_ROLE_KEY',
-    'JWT_SECRET',
-    'PERPLEXITY_API_KEY',
-  ];
-  const missing = required.filter((k) => !process.env[k]);
-  if (missing.length) {
-    const msg = `Missing required env vars: ${missing.join(', ')}`;
-    new Logger('Bootstrap').error(msg);
-    throw new Error(msg);
-  }
-
-  // SECURITY: refuse to boot in production with the dev backdoor enabled.
-  // Belt-and-suspenders against an accidental Fly secret leak.
-  if (
-    process.env.NODE_ENV === 'production' &&
-    process.env.ENABLE_DEV_BACKDOOR === 'true'
-  ) {
-    const msg =
-      'ENABLE_DEV_BACKDOOR=true is not permitted when NODE_ENV=production';
-    new Logger('Bootstrap').error(msg);
-    throw new Error(msg);
-  }
-}
+import { assertRequiredEnv } from './common/env';
 
 async function bootstrap() {
-  assertRequiredEnv();
+  // Fail fast at boot if a required secret is missing. Prior behavior was to
+  // let the app start and throw on the first request that needed it, making
+  // deploy regressions silent until a paying user hit them. The list lives in
+  // src/common/env.ts so the standalone `npm run check:env` script and the
+  // boot path stay in sync.
+  try {
+    assertRequiredEnv();
+  } catch (err) {
+    new Logger('Bootstrap').error((err as Error).message);
+    throw err;
+  }
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log'],
   });
