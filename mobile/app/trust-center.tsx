@@ -136,19 +136,19 @@ export default function TrustCenterScreen() {
       >
         {/* Hero tagline */}
         <View style={styles.heroCard}>
-          <Text style={styles.heroEmoji}>🛡</Text>
-          <Text style={styles.heroTitle}>Your finances, protected</Text>
+          <Text style={styles.heroEyebrow}>TRUST CENTER</Text>
+          <Text style={styles.heroTitle}>Your finances, protected.</Text>
           <Text style={styles.heroSubtitle}>
-            We are obsessed with your trust. Here is everything you need to know
-            about how we store, protect, and respect your data.
+            How your data is stored, who can see it, and the controls you have
+            over it.
           </Text>
         </View>
 
         {/* Section 2: Read-only badge */}
         <View style={styles.readOnlyCard}>
-          <Text style={styles.readOnlyIcon}>👁</Text>
           <View style={styles.readOnlyText}>
-            <Text style={styles.readOnlyTitle}>Read-only · Never moves money</Text>
+            <Text style={styles.readOnlyEyebrow}>ACCESS</Text>
+            <Text style={styles.readOnlyTitle}>Read-only · Never moves money.</Text>
             <Text style={styles.readOnlyDesc}>
               This app only reads your financial data. It cannot initiate
               transfers, make payments, or move funds on your behalf — ever.
@@ -164,25 +164,21 @@ export default function TrustCenterScreen() {
           ) : meta ? (
             <View style={styles.metaCard}>
               <MetaRow
-                icon="🔒"
                 label="Encryption"
                 value={meta.encryptionLevel}
               />
               <Separator />
               <MetaRow
-                icon="📅"
                 label="Last security update"
                 value={formatDate(meta.lastSecurityUpdate)}
               />
               <Separator />
               <MetaRow
-                icon="🌍"
                 label="Data residency"
                 value={meta.dataResidency.toUpperCase()}
               />
               <Separator />
               <MetaRow
-                icon="📋"
                 label="Audit policy"
                 value={meta.auditPolicyVersion}
               />
@@ -209,7 +205,7 @@ export default function TrustCenterScreen() {
               accessibilityLabel="Request data export"
             >
               <Text style={styles.actionBtnText}>
-                {exportPending ? 'Requesting…' : '📥  Request Data Export'}
+                {exportPending ? 'Requesting…' : 'Request data export'}
               </Text>
             </HapticPressable>
 
@@ -224,7 +220,7 @@ export default function TrustCenterScreen() {
               accessibilityLabel="Delete account"
             >
               <Text style={[styles.actionBtnText, styles.actionBtnDeleteText]}>
-                {deletePending ? 'Processing…' : '🗑  Delete My Account'}
+                {deletePending ? 'Processing…' : 'Delete my account'}
               </Text>
             </HapticPressable>
           </View>
@@ -234,19 +230,19 @@ export default function TrustCenterScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>HOW IT WORKS</Text>
           <View style={styles.metaCard}>
-            <BulletSection title="👤  Who has access">
+            <BulletSection title="Who has access">
               <BulletItem text="Only you can access your account" />
               <BulletItem text="Our support team never has your password" />
               <BulletItem text="No third-party advertisers or data brokers" />
             </BulletSection>
             <Separator />
-            <BulletSection title="🔒  What is encrypted">
+            <BulletSection title="What is encrypted">
               <BulletItem text="All data in transit (TLS 1.3)" />
               <BulletItem text="All data at rest (AES-256)" />
               <BulletItem text="Authentication tokens (never stored in plain text)" />
             </BulletSection>
             <Separator />
-            <BulletSection title="🌍  Where data lives">
+            <BulletSection title="Where data lives">
               <BulletItem text="Servers located in US-East data centres" />
               <BulletItem text="Backups are encrypted and geo-redundant" />
               <BulletItem text="Data is never transferred to ad networks" />
@@ -262,10 +258,9 @@ export default function TrustCenterScreen() {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function MetaRow({ icon, label, value }: { icon: string; label: string; value: string }) {
+function MetaRow({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.metaRow}>
-      <Text style={styles.metaRowIcon}>{icon}</Text>
       <View style={styles.metaRowContent}>
         <Text style={styles.metaRowLabel}>{label}</Text>
         <Text style={styles.metaRowValue}>{value}</Text>
@@ -324,15 +319,22 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.base, paddingBottom: Spacing.base },
 
   heroCard: {
-    backgroundColor: 'rgba(77, 217, 229, 0.08)',
+    backgroundColor: Colors.cardSurfaceNavy,
     borderWidth: 1,
-    borderColor: 'rgba(77, 217, 229, 0.20)',
+    borderColor: Colors.graphiteBorder,
     borderRadius: BorderRadius.xl,
     padding: Spacing.xl,
     alignItems: 'center',
     marginBottom: Spacing.lg,
   },
-  heroEmoji: { fontSize: 36, marginBottom: Spacing.sm },
+  heroEyebrow: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 11,
+    letterSpacing: 1.98,
+    textTransform: 'uppercase',
+    color: Colors.slateGray,
+    marginBottom: Spacing.sm,
+  },
   heroTitle: {
     fontFamily: 'Inter_700Bold',
     fontSize: Typography.titleMedium,
@@ -351,20 +353,27 @@ const styles = StyleSheet.create({
   readOnlyCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(6, 214, 160, 0.08)',
+    backgroundColor: Colors.cardSurfaceNavy,
     borderWidth: 1,
-    borderColor: 'rgba(6, 214, 160, 0.25)',
+    borderColor: Colors.graphiteBorder,
     borderRadius: BorderRadius.xl,
     padding: Spacing.base,
     marginBottom: Spacing.lg,
     gap: Spacing.md,
   },
-  readOnlyIcon: { fontSize: 28 },
+  readOnlyEyebrow: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 11,
+    letterSpacing: 1.98,
+    textTransform: 'uppercase',
+    color: Colors.slateGray,
+    marginBottom: Spacing.xs,
+  },
   readOnlyText: { flex: 1 },
   readOnlyTitle: {
     fontFamily: 'Inter_700Bold',
     fontSize: Typography.titleSmall,
-    color: Colors.profitGreen,
+    color: Colors.frostWhite,
     marginBottom: Spacing.xs,
   },
   readOnlyDesc: {
@@ -404,7 +413,6 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     gap: Spacing.md,
   },
-  metaRowIcon: { fontSize: 18, width: 24, textAlign: 'center' },
   metaRowContent: { flex: 1 },
   metaRowLabel: {
     fontFamily: 'Inter_400Regular',

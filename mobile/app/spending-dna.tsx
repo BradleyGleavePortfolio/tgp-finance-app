@@ -75,7 +75,7 @@ export default function SpendingDNAScreen() {
 
         {reports.length === 0 ? (
           <EmptyState
-            icon="🧬"
+            eyebrow="SPENDING DNA"
             title="No reports yet"
             description="Submit EOD check-ins for at least 7 days, then generate your Spending DNA report."
           />

@@ -47,7 +47,7 @@ export default function FutureLetterScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {isDay90 ? (
           <Card variant="gold" style={styles.deliveredBanner}>
-            <Text style={styles.deliveredTitle}>📬 Letter Delivered</Text>
+            <Text style={styles.deliveredTitle}>Letter delivered</Text>
             <Text style={styles.deliveredText}>It's been 90 days. Your past self left you a message.</Text>
           </Card>
         ) : (

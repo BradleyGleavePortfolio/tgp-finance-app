@@ -122,7 +122,8 @@ endpoint and replace state in one shot.
 
 `mobile/test/` — Jest specs running through the same `tsconfig.json`
 the app uses. Today the meaningful coverage is `notifications.spec.ts`
-(local notification scheduling). Component tests are an open TODO.
+(local notification scheduling). Component-level coverage is not yet
+in place; see the issue tracker.
 
 ## Operations
 

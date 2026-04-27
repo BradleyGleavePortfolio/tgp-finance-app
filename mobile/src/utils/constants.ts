@@ -238,7 +238,13 @@ export const ACCOUNT_TYPE_LABELS: Record<string, string> = {
 
 export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://tgp-finance-api.fly.dev';
 
-// ─── Mood Emojis ──────────────────────────────────────────────────────────────
+// ─── Mood scale ───────────────────────────────────────────────────────────────
+// 1–5 numeric scale with text labels. The historic name `MOOD_EMOJIS` is
+// kept as a back-compat alias for `MOOD_GLYPHS`; per `mobile/DESIGN.md` §2 the
+// scale is numeric, not faces.
 
-export const MOOD_EMOJIS = ['1', '2', '3', '4', '5'];  // luxury/wave1: emoji removed, use numeric labels
+export const MOOD_GLYPHS = ['1', '2', '3', '4', '5'];
 export const MOOD_LABELS = ['Stressed', 'Neutral', 'Okay', 'Good', 'Strong'];
+
+/** @deprecated Use MOOD_GLYPHS. The scale has been numeric since Wave 1. */
+export const MOOD_EMOJIS = MOOD_GLYPHS;

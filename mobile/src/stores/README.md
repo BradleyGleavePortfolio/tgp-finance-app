@@ -31,7 +31,8 @@ coachStore       (coach role) roster + alerts + selected client
   re-renders narrow.
 - **Hydration on mount.** Each store has a `refresh()` helper the
   owning screen calls in `useEffect`. Stores do not auto-refresh on
-  app foreground today; that's a near-term TODO.
+  app foreground today; a single foreground hook in `_layout.tsx`
+  will eventually drive all of them.
 
 ## Auth store integration
 
@@ -60,7 +61,7 @@ other store needs to know — they pull from the API on next mount.
 
 ## Tests
 
-Store-specific specs are an open TODO. Today the integration is
+Store-specific specs are not yet in place. Today the integration is
 exercised via the screen-level smoke tests under `mobile/test/`.
 
 ## Operations

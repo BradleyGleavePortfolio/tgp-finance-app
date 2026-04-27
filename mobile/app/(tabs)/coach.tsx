@@ -143,7 +143,7 @@ function CoachDashboard() {
         {(digest || digestLoading) && (
           <Card style={styles.digestCard}>
             <View style={styles.digestHeader}>
-              <Text style={styles.digestTitle}>📋 Weekly Digest</Text>
+              <Text style={styles.digestTitle}>Weekly Digest</Text>
               {digest?.week_of && (
                 <Text style={styles.digestWeek}>Week of {digest.week_of}</Text>
               )}
@@ -173,7 +173,7 @@ function CoachDashboard() {
                 {Array.isArray(digest.needs_attention) && digest.needs_attention.length > 0 && (
                   <View style={styles.digestAttention}>
                     <Text style={styles.digestAttentionLabel}>
-                      ⚠ Needs Attention ({digest.needs_attention.length})
+                      Needs attention ({digest.needs_attention.length})
                     </Text>
                     {digest.needs_attention.slice(0, 3).map((s: any, i: number) => (
                       <Text key={i} style={styles.digestAttentionName}>{s.name}</Text>
@@ -206,7 +206,7 @@ function CoachDashboard() {
         {/* Red flags */}
         {alerts.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>🚨 Red Flags ({alerts.length})</Text>
+            <Text style={styles.sectionTitle}>Red flags ({alerts.length})</Text>
             {alerts.map((alert, i) => (
               <Card key={i} variant="crimson" style={styles.alertCard}>
                 <Text style={styles.alertStudent}>{alert.student_name}</Text>
@@ -239,7 +239,7 @@ function CoachDashboard() {
               </TouchableOpacity>
               {!Array.isArray(templates) || templates.length === 0 ? (
                 <EmptyState
-                  icon="📚"
+                  eyebrow="TEMPLATES"
                   title="No templates yet"
                   description="Create a program template to quickly apply structured plans to students."
                 />
@@ -341,7 +341,7 @@ function CoachDashboard() {
           </View>
 
           {sorted.length === 0 ? (
-            <EmptyState icon="👥" title="No students yet" description="Students will appear here once they join and complete onboarding." />
+            <EmptyState eyebrow="STUDENTS" title="No students yet" description="Students will appear here once they join and complete onboarding." />
           ) : (
             sorted.map((student) => (
               <TouchableOpacity

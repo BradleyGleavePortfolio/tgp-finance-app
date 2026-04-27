@@ -1,10 +1,18 @@
 # The Growth Project: Finance
 
-A production-grade, multi-tenant financial coaching and accountability app built for ambitious men in their 20s and 30s who are serious about building real wealth.
+A multi-tenant financial coaching and accountability platform. The app
+pairs a daily check-in with a long-running record of net worth, cash
+flow, debt, and a coach-curated set of priorities. It is read-only —
+it observes balances, it does not move money.
 
-**Three Pillars:** CONTROL (know where every dollar is) | MOMENTUM (daily progress visible) | FREEDOM (financial independence)
+The product is built around three ideas: a complete view of where the
+money is, a daily artefact of progress against it, and a clear
+account of how long the work to financial independence will take. The
+register is editorial and quiet by design; see
+[`mobile/DESIGN.md`](mobile/DESIGN.md) for the full doctrine.
 
-Part of The Growth Project coaching ecosystem (thegrowthproject.courses).
+Part of The Growth Project coaching ecosystem
+(thegrowthproject.courses).
 
 ## Tech Stack
 - Frontend: React Native + Expo SDK 51+ (TypeScript, Expo Router, Zustand)
@@ -150,27 +158,46 @@ cd backend && npm install
 cd ../mobile && npm install
 ```
 
-## All Features
-- Net Worth Engine (real-time after every EOD submission)
-- Financial Vital Signs (4 live metrics: Net Worth, Cash Flow, DTI, Savings Rate)
-- Wealth Velocity Score (0-100, 7 named levels)
-- Interest Bleed Counter (real-time second-by-second ticker)
-- EOD Daily Check-In with streak tracking + AI insights
-- Priority Waterfall Engine (7 levels, auto-advances)
-- 12 What-If Scenarios (debt payment, income increase, relocate to 30+ countries, cut expense, lump sum invest, sell asset, start business, early debt payoff, salary negotiation, tax optimization, retire early)
-- Net Worth Projection Engine (interactive sliders)
-- Debt Avalanche vs Snowball visual race
-- AI Coach (FP) powered by Perplexity sonar-pro (15 few-shot examples)
-- 15 Milestone Celebrations (cash, debt, net worth, streak, income)
-- Payday Deploy flow
-- Income Gap Analyzer
-- Tax Burden Estimator (2026 federal + all 50 state brackets)
-- Future Self Letter (written at onboarding, delivered at day 90)
-- Spending DNA monthly AI report
-- Coach Dashboard (red flags, student timeline, program templates)
-- Accountability Pairing (privacy-safe: streaks/scores only)
-- Spending Habits Tracker (5 daily mini-habits)
-- Deep Onboarding Quiz (16 questions across 5 phases)
+## What is in the app
+
+The surfaces below are present and wired end-to-end. None of these
+are placeholders.
+
+- **Net worth.** Recomputed after every end-of-day submission;
+  history is preserved.
+- **Financial vital signs.** Four live metrics: net worth, cash
+  flow, debt-to-income, savings rate.
+- **Wealth Velocity Score.** 0–100, with seven named levels.
+- **Interest Bleed.** A second-by-second figure for total daily
+  interest paid across debt accounts.
+- **End-of-day check-in.** Streak tracking and an AI insight per
+  submission.
+- **Priority Waterfall.** Seven levels, auto-advancing as the
+  underlying math changes.
+- **What-If scenarios.** Twelve runners covering debt payment,
+  income increase, relocating across thirty-plus countries, expense
+  cuts, lump-sum investing, asset sales, starting a business, early
+  debt payoff, salary negotiation, tax optimisation, and early
+  retirement.
+- **Net-worth projections.** Interactive sliders on top of the live
+  vital signs.
+- **Debt strategies.** Avalanche and snowball, side by side.
+- **AI coach (FP).** Backed by Perplexity sonar-pro with fifteen
+  few-shot examples.
+- **Milestones.** Fifteen unlock criteria across cash, debt, net
+  worth, streak, and income — surfaced quietly, never with confetti.
+- **Payday deploy** flow.
+- **Income gap analyser** and **tax burden estimator**
+  (2026 federal plus all fifty state brackets).
+- **Future-self letter.** Written at onboarding, delivered at day
+  ninety.
+- **Spending DNA.** A monthly AI report of behavioural patterns.
+- **Coach dashboard.** Red flags, student timeline, program
+  templates.
+- **Accountability pairing.** Streaks and scores are visible to a
+  partner; balances are not.
+- **Spending habits.** Five daily mini-habits.
+- **Onboarding quiz.** Sixteen questions across five phases.
 
 ## Extending
 - Add What-If scenario: Add to `ScenarioType` enum in `prisma/schema.prisma` → handler in `whatif.service.ts` → UI in `mobile/app/whatif/`
@@ -218,5 +245,18 @@ git add prisma/migrations
 
 Do **not** commit the auto-generated `prisma/migrations` shadow DB.
 
+## Design doctrine
+
+The app's visual and editorial register is documented in
+[`mobile/DESIGN.md`](mobile/DESIGN.md). The short version: bone, ink,
+and oxblood; Cormorant Garamond for display, Inter for body; no
+emoji, no gamification, no placeholder copy in shipped UI. New code
+that adds a colour, a fake value, a `TODO` marker, or a confetti
+animation is expected to fail review on doctrine grounds.
+
 ## Disclaimer
-This app provides financial education and tracking tools for informational purposes only. Nothing in this app constitutes financial, tax, or investment advice. Consult a licensed financial professional before making financial decisions.
+
+This app provides financial education and tracking tools for
+informational purposes only. Nothing in this app constitutes
+financial, tax, or investment advice. Consult a licensed financial
+professional before making financial decisions.
