@@ -9,6 +9,7 @@ import './instrument';
 
 import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as Sentry from '@sentry/node';
 import { AppModule } from './app.module';
 
@@ -63,6 +64,33 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
   });
+
+  // OpenAPI / Swagger UI. Always mounted in non-production. In production it
+  // is opt-in via ENABLE_SWAGGER=true so the public-facing API surface isn't
+  // documented for casual visitors by default. The JSON spec is also exposed
+  // at /api/docs-json for codegen tooling.
+  const swaggerEnabled =
+    process.env.ENABLE_SWAGGER === 'true' || process.env.NODE_ENV !== 'production';
+  if (swaggerEnabled) {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('TGP Finance API')
+      .setDescription(
+        'The Growth Project: Finance — backend API. ' +
+          'Public routes are marked; everything else requires a Supabase JWT.',
+      )
+      .setVersion(process.env.RELEASE_SHA || process.env.npm_package_version || '1.0.0')
+      .addBearerAuth(
+        { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+        'supabase-jwt',
+      )
+      .build();
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup('api/docs', app, document, {
+      jsonDocumentUrl: 'api/docs-json',
+      swaggerOptions: { persistAuthorization: true },
+    });
+    Logger.log('OpenAPI docs available at /api/docs (JSON: /api/docs-json)', 'Bootstrap');
+  }
 
   // Surface unhandled rejections / uncaught exceptions to Sentry. Without
   // these, async errors that escape Nest's filter chain would be silently

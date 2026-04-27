@@ -1,38 +1,10 @@
-import { Injectable, Logger, HttpException, HttpStatus, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-class TooManyRequestsException extends HttpException {
-  constructor(response: any) { super(response, HttpStatus.TOO_MANY_REQUESTS); }
-}
 import OpenAI from 'openai';
 import { PrismaService } from '../prisma/prisma.service';
+import { AIRateLimitService } from './ai-rate-limit.service';
 import { toN } from '../common/money';
-
-// Rate limiting: track requests per user per hour
-const requestCounts = new Map<string, { count: number; resetAt: number }>();
-
-const RATE_LIMIT = 20; // requests per user per hour
-const RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
-
-function checkRateLimit(userId: string): void {
-  const now = Date.now();
-  const userLimit = requestCounts.get(userId);
-
-  if (!userLimit || now > userLimit.resetAt) {
-    requestCounts.set(userId, { count: 1, resetAt: now + RATE_WINDOW_MS });
-    return;
-  }
-
-  if (userLimit.count >= RATE_LIMIT) {
-    const minutesLeft = Math.ceil((userLimit.resetAt - now) / 60000);
-    throw new TooManyRequestsException({
-      error: `Rate limit exceeded. You can send ${RATE_LIMIT} AI messages per hour. Reset in ${minutesLeft} minutes.`,
-      code: 'RATE_LIMITED',
-    });
-  }
-
-  userLimit.count++;
-}
 
 // The finance coach system prompt — full FP personality with 15 few-shot examples
 function buildFinanceCoachSystemPrompt(context: any): string {
@@ -248,16 +220,19 @@ export class AIService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly rateLimit: AIRateLimitService,
   ) {
+    // main.ts asserts PERPLEXITY_API_KEY is present at boot. The empty-string
+    // fallback here exists only so unit tests that construct the service
+    // without a config don't blow up at import time.
     this.perplexity = new OpenAI({
-      apiKey: this.config.get<string>('PERPLEXITY_API_KEY', 'YOUR_KEY_HERE'),
+      apiKey: this.config.get<string>('PERPLEXITY_API_KEY', ''),
       baseURL: 'https://api.perplexity.ai',
     });
   }
 
   async chat(userId: string, message: string, conversationHistory: any[]) {
-    // Rate limit check
-    checkRateLimit(userId);
+    await this.rateLimit.consume(userId, 'chat');
 
     // Safety check: validate message isn't empty
     if (!message || message.trim().length === 0) {
@@ -465,6 +440,11 @@ export class AIService {
 
     if (!submission) return { insight: null };
 
+    // EOD insight is a chargeable upstream call; count it against the same
+    // hourly budget chat does so a single user can't cycle through 20 chats +
+    // 20 EOD insight + 20 DNA reports in an hour.
+    await this.rateLimit.consume(userId, 'eod_insight');
+
     const userContext = await this.buildUserContext(userId);
 
     const prompt = `Based on this EOD submission data, generate ONE sentence of specific, actionable financial insight.
@@ -520,6 +500,8 @@ Keep it under 30 words. Be direct, specific, and forward-looking.`;
     if (submissions.length === 0) {
       return { error: 'No EOD data found for this month', month };
     }
+
+    await this.rateLimit.consume(userId, 'spending_dna');
 
     const profile = await this.prisma.financialProfile.findUnique({ where: { user_id: userId } });
 

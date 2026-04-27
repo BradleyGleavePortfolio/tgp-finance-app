@@ -1,17 +1,28 @@
 import {
   Controller, Post, Get, Body, UseGuards, BadRequestException,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AIService } from './ai.service';
+import { AIRateLimitService } from './ai-rate-limit.service';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AIChatSchema, EODInsightSchema, SpendingDnaSchema } from '../common/validators/schemas';
 
+@ApiTags('ai')
+@ApiBearerAuth('supabase-jwt')
 @Controller('api/ai')
 @UseGuards(JwtAuthGuard)
 export class AIController {
-  constructor(private readonly aiService: AIService) {}
+  constructor(
+    private readonly aiService: AIService,
+    private readonly rateLimit: AIRateLimitService,
+  ) {}
 
   @Post('chat')
+  @ApiOperation({
+    summary: 'Send a coach chat message.',
+    description: 'Counts against the per-user 20/hr AI budget tracked in ai_request_logs.',
+  })
   async chat(@Body() body: any, @CurrentUser() user: any) {
     const parsed = AIChatSchema.safeParse(body);
     if (!parsed.success) {
@@ -44,6 +55,15 @@ export class AIController {
       throw new BadRequestException({ error: 'month required (YYYY-MM format)', code: 'VALIDATION_ERROR' });
     }
     return this.aiService.generateSpendingDNA(user.id, parsed.data.month);
+  }
+
+  // Read-only quota lookup. Lets the mobile client surface "you've used 12 of
+  // 20 AI requests this hour" without consuming a request itself. Returns
+  // { limit, used, remaining, window_seconds } scoped to the calling user.
+  @Get('rate-limit')
+  @ApiOperation({ summary: 'Read-only AI quota snapshot for the calling user.' })
+  async rateLimitStatus(@CurrentUser() user: any) {
+    return this.rateLimit.snapshot(user.id);
   }
 
   // Lightweight metadata endpoint for the mobile client's "Spending DNA ready"
