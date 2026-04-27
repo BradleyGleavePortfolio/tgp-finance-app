@@ -1,0 +1,125 @@
+name: Deploy backend to Fly.io
+
+# Manual deploy job. Wired off `main` so a feature branch can never push prod
+# by accident; production releases go through "Run workflow" once CI is green.
+# The job re-runs typecheck + tests + check:env before flyctl ever touches the
+# remote so a regression that slipped past PR CI still blocks the deploy.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref to deploy (defaults to main)'
+        required: false
+        default: 'main'
+      reason:
+        description: 'Why are we deploying? (audit trail)'
+        required: true
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-backend.yml'
+      - 'fly.toml'
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+jobs:
+  pre-deploy-checks:
+    name: Pre-deploy checks (typecheck + test + env gate)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test -- --ci --passWithNoTests=false
+
+      - name: Validate required env (gate)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
+          NODE_ENV: production
+        run: |
+          # Mirror src/main.ts assertRequiredEnv so a missing secret never reaches Fly.
+          missing=()
+          for var in DATABASE_URL SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY JWT_SECRET PERPLEXITY_API_KEY; do
+            if [ -z "${!var}" ]; then missing+=("$var"); fi
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing required env vars: ${missing[*]}"
+            exit 1
+          fi
+          echo "All required env vars present."
+
+  deploy:
+    name: flyctl deploy --remote-only
+    needs: pre-deploy-checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    environment:
+      name: production
+      url: https://tgp-finance-api.fly.dev
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy to Fly.io
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: flyctl deploy --remote-only --config fly.toml --strategy rolling
+
+      - name: Smoke check — /health
+        run: |
+          for i in 1 2 3 4 5; do
+            if curl -fsS https://tgp-finance-api.fly.dev/health >/dev/null; then
+              echo "[smoke] /health ok"
+              exit 0
+            fi
+            echo "[smoke] /health attempt $i failed; retrying in 10s"
+            sleep 10
+          done
+          echo "[smoke] /health did not return 200 after 5 attempts" >&2
+          exit 1
+
+      - name: Smoke check — /system/release-info
+        run: curl -fsS https://tgp-finance-api.fly.dev/system/release-info | head -c 1024 || true
+
+      - name: Smoke check — /health/deep
+        run: curl -fsS https://tgp-finance-api.fly.dev/health/deep | head -c 1024 || true
+
+      - name: Record deploy reason
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          echo "Deploy ref: ${{ github.event.inputs.ref || github.ref }}"
+          echo "Reason: ${{ github.event.inputs.reason }}"
+          echo "Actor:  ${{ github.actor }}"
