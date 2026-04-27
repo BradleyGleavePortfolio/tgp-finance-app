@@ -106,9 +106,9 @@ function StudentPartnerView() {
                 <View style={styles.partnerStat}>
                   <Text style={[
                     styles.partnerStatValue,
-                    { color: partner.submitted_today ? Colors.profitGreen : Colors.debtCrimson },
+                    { color: partner.submitted_today ? Colors.frostWhite : Colors.slateGray },
                   ]}>
-                    {partner.submitted_today ? 'Done ✓' : 'Pending'}
+                    {partner.submitted_today ? 'Submitted' : 'Pending'}
                   </Text>
                   <Text style={styles.partnerStatLabel}>Today's Check-in</Text>
                 </View>
@@ -122,7 +122,7 @@ function StudentPartnerView() {
           </>
         ) : (
           <EmptyState
-            icon="🤝"
+            eyebrow="ACCOUNTABILITY"
             title="No partner yet"
             description={message || 'Your coach will assign you an accountability partner. Check back later.'}
           />
@@ -243,7 +243,7 @@ function CoachPairView() {
           <ActivityIndicator size="large" color={Colors.accentGold} style={{ marginTop: Spacing.xl }} />
         ) : students.length < 2 ? (
           <EmptyState
-            icon="👥"
+            eyebrow="STUDENTS"
             title="Need at least 2 students"
             description="You need at least 2 students to create an accountability pair."
           />

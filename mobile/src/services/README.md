@@ -89,9 +89,9 @@ purely a presentation aid.
 
 - `notifications.spec.ts` — local notification scheduling matches
   the user's `eod_reminder_time`.
-- The auth interceptor logic (`api.ts`) is a near-term TODO. The
-  refresh mutex pattern is identical to the fitness app, where the
-  same shape is covered by `services/api.spec.ts`.
+- The auth interceptor logic (`api.ts`) is not yet covered here.
+  The refresh mutex pattern is identical to the fitness app, where
+  the same shape is covered by `services/api.spec.ts`.
 
 ## Operations
 

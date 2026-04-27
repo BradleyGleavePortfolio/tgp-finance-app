@@ -66,8 +66,8 @@ export default function VerifyEmailScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.icon}>📧</Text>
-      <Text style={styles.title}>Check Your Email</Text>
+      <Text style={styles.eyebrow}>VERIFY EMAIL</Text>
+      <Text style={styles.title}>Check your email.</Text>
       <Text style={styles.description}>
         We sent a verification link to{'\n'}
         <Text style={styles.email}>{pendingVerification?.email || user?.email || 'your email'}</Text>
@@ -107,7 +107,14 @@ export default function VerifyEmailScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.backgroundDeepNavy, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl },
-  icon: { fontSize: 64, marginBottom: Spacing.xl },
+  eyebrow: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 11,
+    letterSpacing: 1.98,
+    textTransform: 'uppercase',
+    color: Colors.slateGray,
+    marginBottom: Spacing.lg,
+  },
   title: { fontFamily: 'Inter_700Bold', fontSize: Typography.displaySmall, color: Colors.frostWhite, marginBottom: Spacing.base, textAlign: 'center' },
   description: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodyMedium, color: Colors.slateGray, textAlign: 'center', lineHeight: 24, marginBottom: Spacing.xxl },
   email: { fontFamily: 'Inter_600SemiBold', color: Colors.accentGold },

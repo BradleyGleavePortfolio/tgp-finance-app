@@ -102,25 +102,36 @@ and is **never** enabled in production; the supported promotion path is
 
 ## Environment variables
 
-Required (backend refuses to start, or fails closed, when missing):
+The authoritative required-env list lives in `src/main.ts:assertRequiredEnv` —
+boot fails with `Missing required env vars: ...` if any of these are missing.
+This table must stay in lockstep with that function.
+
+Required (boot fails when missing):
 
 | Key | Notes |
 |-----|-------|
 | `DATABASE_URL` | Postgres URI from Supabase Settings → Database. |
 | `SUPABASE_URL` | Supabase project URL. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server-side admin key. Never ship to mobile. |
-| `SUPABASE_ANON_KEY` | Used when verifying anon-issued tokens. |
 | `JWT_SECRET` | 32+ random chars (`openssl rand -hex 32`). No fallback. |
-| `CORS_ORIGINS` | Comma-separated allowlist. Required in production. |
+| `PERPLEXITY_API_KEY` | Upstream LLM key. Boot fails if missing. AI chat / EOD insight / Spending DNA all depend on it. |
 
-Optional but feature-affecting:
+Required in production specifically:
 
-| Key | Effect when unset |
+| Key | Notes |
+|-----|-------|
+| `CORS_ORIGINS` | Comma-separated allowlist. Defaults to local Expo origins outside production; must be set explicitly in production. |
+| `SUPABASE_ANON_KEY` | Verifies anon-issued tokens. Not enforced at boot today, but auth flows assume it. |
+
+Optional, feature-affecting:
+
+| Key | Effect / behavior |
 |-----|-------------------|
-| `PERPLEXITY_API_KEY` | Upstream LLM key. Without it AI chat / EOD insight / Spending DNA fail with `AI_ERROR`. |
-| `FEATURE_REQUIRE_COACH_CODE` | Phase 1C gate is off; codeless signups allowed. |
-| `ENABLE_DEV_BACKDOOR` | Coach self-promotion disabled (correct prod default). |
-| `COACH_ACCESS_CODE` | Only honored when `ENABLE_DEV_BACKDOOR=true`. |
+| `FEATURE_REQUIRE_COACH_CODE` | When unset, Phase 1C source-of-truth gate is off and codeless signups are allowed. |
+| `ENABLE_DEV_BACKDOOR` | When unset / not `true`, coach self-promotion via access code is disabled (correct prod default). Setting it to `true` *with* `NODE_ENV=production` is rejected at boot. |
+| `COACH_ACCESS_CODE` | **Only consulted** when `ENABLE_DEV_BACKDOOR=true` AND `NODE_ENV !== 'production'`. Setting it without the backdoor flag is a no-op — the flag, not the code, is the gate. |
+| `ENABLE_SWAGGER` | In non-production, Swagger UI is mounted at `/api/docs` unconditionally. In production it is mounted only when this is `true` (JSON spec at `/api/docs-json`). |
+| `RELEASE_SHA`, `RELEASE_NAME` | Surfaced by `/system/release-info`. Falls back to Fly runtime envs and `package.json#version` when unset. |
 | `EXPO_ACCESS_TOKEN` | Push sender uses default Expo rate limits. |
 | `NUMBEO_API_KEY` | Cost-of-living scenarios fall back to bundled JSON. |
 | `SENTRY_DSN` | Errors are not forwarded to Sentry. |
@@ -153,9 +164,11 @@ See `prisma/migrations/README.md` for the full baseline / deploy story.
 - **Boot without Supabase keys** — auth routes return 500/400; everything
   else still works. The `AuthService` constructor logs a warning rather than
   crashing so unrelated work (running migrations, scripts) still functions.
-- **AI rate limit (20/hr/user)** — counted in-process, so it resets on each
-  fly.io VM restart. Acceptable today because traffic is low; if/when we
-  scale to multiple VMs this needs a Redis or DB-backed counter.
+- **AI rate limit (20/hr/user)** — counted in `ai_request_logs` (Postgres),
+  so the budget survives VM restarts and is correct under multi-VM scale-out.
+  Implementation in `src/ai/ai-rate-limit.service.ts`. Diagnostics endpoint:
+  `GET /api/ai/rate-limit` returns `{ limit, used, remaining, window_seconds }`
+  for the calling user without consuming a request.
 - **Fly.io single-VM scheduling assumption** — `ScheduleModule` runs the EOD
   push cron in-process. With multiple VMs every VM would fire it. The
   `push.module.ts` README has the migration plan.

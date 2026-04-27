@@ -93,8 +93,8 @@ export async function scheduleEODReminder(time: string, _timezone: string): Prom
 
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: 'Daily Check-in Time',
-      body: 'Daily check-in time. 2 minutes. Know your number.',
+      title: 'Daily check-in.',
+      body: 'Two minutes. Know your number.',
       data: { type: 'eod_reminder', screen: '/eod' },
     },
     trigger: {
@@ -133,8 +133,8 @@ export async function scheduleStreakRiskReminder(opts: {
 
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: 'Streak at Risk',
-      body: 'Check in today. The streak holds.',
+      title: 'Streak holds.',
+      body: 'Submit today to keep the streak intact.',
       data: { type: 'streak_risk', screen: '/eod' },
     },
     trigger: {
@@ -164,8 +164,8 @@ export async function cancelStreakRiskReminders(): Promise<void> {
 export async function sendMilestoneNotification(milestoneTitle: string): Promise<void> {
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: 'Milestone Achieved.',
-      body: `${milestoneTitle} achieved. Open the app to celebrate.`,
+      title: 'Milestone achieved.',
+      body: `${milestoneTitle}.`,
       data: { type: 'milestone', screen: '/milestones' },
     },
     trigger: null,
@@ -199,8 +199,8 @@ export async function scheduleFutureSelfDelivery(accountCreatedAt: string): Prom
   if (deliveryDate > new Date()) {
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: '90 Days Complete',
-        body: "It's been 90 days. Your past self left you a message.",
+        title: 'Ninety days.',
+        body: 'Your past self left you a message.',
         data: { type: 'future_self', screen: '/future-letter' },
       },
       trigger: { date: deliveryDate },
@@ -235,8 +235,8 @@ export async function maybeSendPriorityLevelUpNotification(current: {
 
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: 'Priority Level-Up',
-      body: `Next priority: ${current.title}`,
+      title: 'Priority advanced.',
+      body: `Next: ${current.title}.`,
       data: { type: 'priority_levelup', screen: '/' },
     },
     trigger: null,
@@ -270,8 +270,8 @@ export async function maybeNotifyNewSpendingDnaReport(latest: {
 
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: 'Spending DNA ready',
-      body: `Your Spending DNA for ${formatMonth(latest.month)} is ready.`,
+      title: 'Spending DNA ready.',
+      body: `${formatMonth(latest.month)} report is available.`,
       data: { type: 'spending_dna', screen: '/spending-dna' },
     },
     trigger: null,

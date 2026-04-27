@@ -50,8 +50,8 @@ export class ScreenErrorBoundary extends React.Component<Props, State> {
 
       return (
         <View style={styles.container}>
-          <Text style={styles.icon}>⚠️</Text>
-          <Text style={styles.title}>Something went wrong</Text>
+          <Text style={styles.eyebrow}>SOMETHING WENT WRONG</Text>
+          <Text style={styles.title}>This screen hit an issue.</Text>
           <Text style={styles.subtitle}>
             {this.props.screenName
               ? `The ${this.props.screenName} screen hit an issue.`
@@ -86,7 +86,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 32,
   },
-  icon: { fontSize: 48, marginBottom: 16 },
+  eyebrow: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 11,
+    letterSpacing: 1.98,
+    textTransform: 'uppercase',
+    color: '#8895A7',
+    marginBottom: 12,
+  },
   title: {
     fontFamily: 'Inter_700Bold',
     fontSize: 20,

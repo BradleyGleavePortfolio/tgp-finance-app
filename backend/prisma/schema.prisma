@@ -388,3 +388,23 @@ model UserPreferences {
 
   @@map("user_preferences")
 }
+
+// AI request ledger for the per-user sliding-window rate limiter. One row per
+// chargeable AI call (chat, EOD insight, spending DNA). The counter query is
+// `count(*) where user_id = $1 and created_at > now() - interval '1 hour'`,
+// which is index-served by the composite below. Old rows are pruned by a
+// best-effort retention sweep after each insert (see ai-rate-limit.service).
+//
+// Why a row-per-call ledger instead of a counter row with a reset_at:
+// horizontally-safe (any web VM can read/write without coordination), gives
+// per-call audit trail for support, and the retention sweep keeps the table
+// small enough that the count() query stays sub-ms in practice.
+model AIRequestLog {
+  id         String   @id @default(uuid())
+  user_id    String
+  endpoint   String // 'chat' | 'eod_insight' | 'spending_dna'
+  created_at DateTime @default(now())
+
+  @@index([user_id, created_at])
+  @@map("ai_request_logs")
+}

@@ -24,19 +24,35 @@ to fit comfortably inside the model's window without truncation.
 
 | Method | Path | Body | Notes |
 |--------|------|------|-------|
-| POST | `/api/ai/chat` | `{ message, conversation_history? }` | The financial-coach chat. Last 10 turns of history are forwarded. |
-| GET | `/api/ai/context` | — | Returns the structured user-context payload (without sending it to the model). Mobile reads this to render context-aware UI. |
-| POST | `/api/ai/eod-insight` | `{ eod_submission_id }` | One-sentence insight written to `EODSubmission.ai_insight`. |
-| POST | `/api/ai/spending-dna` | `{ month: 'YYYY-MM' }` | Three-paragraph monthly report; upserted into `SpendingDnaReport`. |
+| POST | `/api/ai/chat` | `{ message, conversation_history? }` | The financial-coach chat. Last 10 turns of history are forwarded. Counts against the AI quota. |
+| GET | `/api/ai/context` | — | Returns the structured user-context payload (without sending it to the model). Mobile reads this to render context-aware UI. Free. |
+| POST | `/api/ai/eod-insight` | `{ eod_submission_id }` | One-sentence insight written to `EODSubmission.ai_insight`. Counts against the AI quota. |
+| POST | `/api/ai/spending-dna` | `{ month: 'YYYY-MM' }` | Three-paragraph monthly report; upserted into `SpendingDnaReport`. Counts against the AI quota. |
 | GET | `/api/ai/spending-dna/latest` | — | Lightweight `{ month, generated_at }` for the "your report is ready" notification guard. |
+| GET | `/api/ai/rate-limit` | — | `{ limit, used, remaining, window_seconds }` for the calling user. Read-only — does not consume a request. |
 
 ## Rate limiting
 
-In-process counter: `Map<userId, { count, resetAt }>`. 20 requests per
-user per hour. Returns HTTP 429 with code `RATE_LIMITED` and a
-"reset in N minutes" message. **Caveat**: counter is per-VM. With
-multiple Fly.io instances it would no longer be a hard limit — move it
-to Redis (or a DB row) before scaling out. Today we run a single VM.
+Database-backed sliding window. Implementation lives in
+`ai-rate-limit.service.ts`; the underlying table is `ai_request_logs`
+(`user_id`, `endpoint`, `created_at`, composite index on
+`(user_id, created_at)`). Each call to `chat`, `eod_insight`, or
+`spending_dna` writes one row and counts the rows in the last hour for
+the calling user; the (limit + 1)th call returns HTTP 429
+`RATE_LIMITED` with the user-facing "Reset in N minutes" copy plus a
+machine-readable `reset_at` ISO timestamp.
+
+The counter is correct under horizontal scale-out — any web VM can
+read and write the table without coordination. A best-effort retention
+sweep (capped at one delete per process per minute) prunes rows older
+than four windows so the count query stays sub-ms.
+
+The check + insert are intentionally not transactional. Two concurrent
+calls at the boundary may both pass and both insert, leaving the user
+one over the limit on a single hour. That overage is acceptable; a
+SERIALIZABLE transaction would add latency to the hot path on every AI
+call to defend a +/- 1 boundary, which is the wrong trade-off for a
+coach chat product.
 
 ## User context payload (`buildUserContext`)
 
@@ -140,7 +156,7 @@ cheap.
 
 | Key | Effect |
 |-----|--------|
-| `PERPLEXITY_API_KEY` | Required for chat / EOD insight / Spending DNA. Without it the SDK initializes against a placeholder and the first call returns `AI_ERROR`. The variable name reflects the current upstream provider; rename if you swap providers. |
+| `PERPLEXITY_API_KEY` | Required at boot — `src/main.ts:assertRequiredEnv` refuses to start without it. The variable name reflects the current upstream provider; rename if you swap providers. |
 
 ## Failure modes
 

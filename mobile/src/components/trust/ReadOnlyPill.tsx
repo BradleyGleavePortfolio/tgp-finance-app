@@ -63,7 +63,6 @@ export function ReadOnlyPill({ screenId }: Props) {
   return (
     <Animated.View style={[styles.container, { opacity }]}>
       <View style={styles.pill}>
-        <Text style={styles.icon}>👁</Text>
         <Text style={styles.label}>Read-only · Never moves money</Text>
         <TouchableOpacity
           onPress={handleDismiss}
@@ -93,10 +92,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs + 2,
     gap: Spacing.xs,
-  },
-  icon: {
-    fontSize: 13,
-    lineHeight: 18,
   },
   label: {
     flex: 1,

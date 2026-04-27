@@ -58,7 +58,7 @@ export default function RoleSelectScreen() {
         onPress={() => setShowCodeModal(true)}
         activeOpacity={0.8}
       >
-        <Text style={styles.roleIcon}>👨‍💼</Text>
+        <Text style={styles.roleIcon}>→</Text>
         <Text style={styles.roleTitle}>I'm a Coach</Text>
         <Text style={styles.roleDesc}>Manage students, view all dashboards, coach your clients</Text>
       </TouchableOpacity>
