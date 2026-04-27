@@ -21,16 +21,27 @@ import { buildReleaseInfo } from './release-info';
 export class SystemController {
   @Public()
   @Get('trust-meta')
-  @ApiOperation({ summary: 'Trust Center metadata (UX Psychology Report #2).' })
+  @ApiOperation({ summary: 'Trust Center metadata.' })
   trustMeta() {
+    // Truthfulness rule: only assert capabilities the backend actually
+    // implements end-to-end. Self-serve export and deletion are not yet
+    // implemented (no background job, no scheduled-deletion column on the
+    // user record), so we surface them as concierge-handled and direct the
+    // mobile client to the support contact instead of pretending the
+    // requests will be processed automatically.
+    const supportContactEmail =
+      process.env.SUPPORT_CONTACT_EMAIL || 'support@thegrowthproject.courses';
+
     return {
       lastSecurityUpdate: '2026-04-25T20:00:00Z',
       encryptionLevel: 'tls1.3 + at-rest aes-256',
       dataResidency: 'us-east',
       auditPolicyVersion: 'v1.0',
-      dataExportSupported: true,
-      accountDeletionSupported: true,
+      dataExportSupported: false,
+      accountDeletionSupported: false,
       readOnlyAccountAccess: true,
+      supportContactEmail,
+      dataControlsMode: 'concierge' as const,
     };
   }
 

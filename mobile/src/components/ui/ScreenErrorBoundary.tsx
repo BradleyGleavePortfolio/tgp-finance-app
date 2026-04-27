@@ -1,6 +1,9 @@
-// Per-screen error boundary — catches crashes and shows recovery UI
+// Per-screen error boundary — catches crashes and renders a quiet recovery
+// surface. Colours come from the canonical token set so the boundary
+// doesn't leak the legacy dark-navy / amber palette into a luxury build.
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { colors, typography, spacing, radius } from '../../theme/tokens';
 
 interface Props {
   children: React.ReactNode;
@@ -27,11 +30,10 @@ export class ScreenErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     const screen = this.props.screenName || 'Unknown';
-    // Diagnostic for a real issue: preserved across builds so Sentry/native log capture can pick it up.
     console.warn(
       `[ScreenErrorBoundary] ${screen} crashed:`,
       error?.message,
-      errorInfo?.componentStack?.slice(0, 500)
+      errorInfo?.componentStack?.slice(0, 500),
     );
   }
 
@@ -51,23 +53,32 @@ export class ScreenErrorBoundary extends React.Component<Props, State> {
       return (
         <View style={styles.container}>
           <Text style={styles.eyebrow}>SOMETHING WENT WRONG</Text>
-          <Text style={styles.title}>This screen hit an issue.</Text>
-          <Text style={styles.subtitle}>
+          <Text style={styles.title}>
             {this.props.screenName
               ? `The ${this.props.screenName} screen hit an issue.`
               : 'This screen hit an issue.'}
+          </Text>
+          <Text style={styles.subtitle}>
+            The rest of the app is unaffected. Try again, or come back to the
+            screen in a moment.
           </Text>
           {__DEV__ && (
             <Text style={styles.debug} numberOfLines={4}>
               {this.state.error}
             </Text>
           )}
-          <TouchableOpacity style={styles.retryBtn} onPress={this.handleRetry} activeOpacity={0.8}>
-            <Text style={styles.retryText}>Try Again</Text>
+          <TouchableOpacity
+            style={styles.retryBtn}
+            onPress={this.handleRetry}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Try again"
+          >
+            <Text style={styles.retryText}>Try again</Text>
           </TouchableOpacity>
           {this.state.errorCount >= 2 && (
             <Text style={styles.hint}>
-              If this keeps happening, try closing and reopening the app.
+              If this keeps happening, close and reopen the app.
             </Text>
           )}
         </View>
@@ -81,59 +92,62 @@ export class ScreenErrorBoundary extends React.Component<Props, State> {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0D1117',
+    backgroundColor: colors.bone,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    padding: spacing['2xl'],
   },
   eyebrow: {
-    fontFamily: 'Inter_500Medium',
+    fontFamily: typography.families.medium,
     fontSize: 11,
     letterSpacing: 1.98,
     textTransform: 'uppercase',
-    color: '#8895A7',
-    marginBottom: 12,
+    color: colors.stone,
+    marginBottom: spacing.md,
   },
   title: {
-    fontFamily: 'Inter_700Bold',
-    fontSize: 20,
-    color: '#F9C74F',
-    marginBottom: 8,
+    fontFamily: typography.families.serif,
+    fontSize: 22,
+    color: colors.ink,
+    marginBottom: spacing.sm,
     textAlign: 'center',
+    lineHeight: 28,
   },
   subtitle: {
-    fontFamily: 'Inter_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: 14,
-    color: '#8895A7',
+    color: colors.charcoal,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: spacing.xl,
     lineHeight: 20,
+    maxWidth: 320,
   },
   debug: {
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: typography.families.mono,
     fontSize: 11,
-    color: '#F97066',
+    color: colors.charcoal,
     textAlign: 'center',
-    marginBottom: 24,
-    paddingHorizontal: 16,
+    marginBottom: spacing.xl,
+    paddingHorizontal: spacing.base,
+    opacity: 0.6,
   },
   retryBtn: {
-    backgroundColor: '#F9C74F',
-    paddingHorizontal: 32,
+    backgroundColor: colors.oxblood,
+    paddingHorizontal: spacing['2xl'],
     paddingVertical: 14,
-    borderRadius: 4, // radius.lg
-    marginBottom: 12,
+    borderRadius: radius.sm,
+    marginBottom: spacing.md,
   },
   retryText: {
-    fontFamily: 'Inter_700Bold',
+    fontFamily: typography.families.semiBold,
     fontSize: 16,
-    color: '#0D1117',
+    color: colors.bone,
   },
   hint: {
-    fontFamily: 'Inter_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: 12,
-    color: '#5A6577',
+    color: colors.stone,
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
 });

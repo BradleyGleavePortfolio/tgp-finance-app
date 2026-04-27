@@ -48,8 +48,8 @@ export class PushSchedulerService {
       if ((profile.streak_days ?? 0) < 3) return null;
       if (this.loggedTodayLocal(profile, localNow)) return null;
       return {
-        title: `🔥 ${profile.streak_days}-day streak at risk`,
-        body: "You haven't logged today. Two hours left — keep it alive.",
+        title: `${profile.streak_days}-day streak ends today.`,
+        body: 'Today’s check-in has not been logged. Two hours remain.',
         data: { screen: 'EODFlow', streak_days: profile.streak_days },
       };
     });

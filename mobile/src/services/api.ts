@@ -255,12 +255,26 @@ export const aiApi = {
   getLatestSpendingDna: () => api.get('/api/ai/spending-dna/latest'),
 };
 
-// Users / Identity API — UX Psychology Reports #2 & #3
+// Users / Identity API
+// Note: data export and account deletion are concierge-handled via the
+// support inbox surfaced in /system/trust-meta — there is no self-serve
+// endpoint until the background-job + soft-delete schema change ships.
+// `acknowledgeDataControlsContact` records that the Trust Center routed
+// the user to support so we can later reconcile inbound mail with logged
+// requests.
 export const usersApi = {
   getFoundingNumber: () => api.get('/users/me/founding-number'),
   getCircleStats: () => api.get('/users/me/circle-stats'),
-  requestDataExport: () => api.post('/users/me/data-export'),
-  deleteAccount: () => api.delete('/users/me/account'),
+  acknowledgeDataControlsContact: () =>
+    api.post('/users/me/data-controls/contact'),
+  getAccessStatus: (): Promise<{
+    data: {
+      role: 'student' | 'coach' | 'owner';
+      accessSource: 'self' | 'coach_managed' | 'owner';
+      coach: { id: string; displayName: string } | null;
+      supportContactEmail: string;
+    };
+  }> => api.get('/users/me/access-status'),
 };
 
 // Trust / System API — UX Psychology Report #2: "Trust as Emotion"

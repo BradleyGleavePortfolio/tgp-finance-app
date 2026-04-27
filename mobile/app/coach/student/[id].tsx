@@ -179,9 +179,9 @@ export default function StudentDetailScreen() {
         <Text style={styles.sectionTitle}>EOD History (Last 90 Days)</Text>
         {eodHistory.length === 0 ? (
           <EmptyState
-            icon="📊"
-            title="No submissions"
-            description="This student hasn't submitted any EOD entries yet."
+            eyebrow="HISTORY"
+            title="No submissions yet."
+            description="This student has not submitted any EOD entries yet."
           />
         ) : (
           eodHistory.slice(0, 10).map((entry: any, i: number) => (
@@ -201,8 +201,8 @@ export default function StudentDetailScreen() {
         <Text style={styles.sectionTitle}>Coach Notes</Text>
         {notes.length === 0 ? (
           <EmptyState
-            icon="📝"
-            title="No notes yet"
+            eyebrow="NOTES"
+            title="No notes yet."
             description="Add a note to track this student's progress."
           />
         ) : (

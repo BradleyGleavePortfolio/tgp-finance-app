@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authApi } from '../services/api';
+import { safeAuthError } from '../lib/authErrors';
 import { getGoogleOAuthTokens } from '../services/supabase';
 import { secureStorage } from '../lib/secureStorage';
 
@@ -174,12 +175,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
       return true;
     } catch (error: any) {
-      const message =
-        error.response?.data?.message ||
-        error.response?.data?.error ||
-        error.message ||
-        'Google sign-in failed';
-      set({ error: message, isLoading: false });
+      set({ error: safeAuthError(error), isLoading: false });
       throw error;
     }
   },
@@ -214,13 +210,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
       });
     } catch (error: any) {
-      const message =
-        error.response?.data?.message ||
-        error.response?.data?.error ||
-        error.message ||
-        'Login failed';
       set({
-        error: message,
+        error: safeAuthError(error),
         isLoading: false,
       });
       throw error;
@@ -237,13 +228,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
       });
     } catch (error: any) {
-      const message =
-        error.response?.data?.message ||
-        error.response?.data?.error ||
-        error.message ||
-        'Registration failed';
       set({
-        error: message,
+        error: safeAuthError(error),
         isLoading: false,
       });
       throw error;
@@ -284,13 +270,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
       });
     } catch (error: any) {
-      const message =
-        error.response?.data?.message ||
-        error.response?.data?.error ||
-        error.message ||
-        'Role selection failed';
       set({
-        error: message,
+        error: safeAuthError(error),
         isLoading: false,
       });
       throw error;

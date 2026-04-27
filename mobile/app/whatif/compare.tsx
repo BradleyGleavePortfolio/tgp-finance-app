@@ -46,10 +46,10 @@ export default function WhatIfCompare() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {compareScenarios.length < 2 ? (
           <EmptyState
-            icon="⚖️"
-            title="Need at least 2 scenarios"
-            description="Save at least 2 What-If scenarios to compare them side by side."
-            actionText="Run a Scenario"
+            eyebrow="COMPARE"
+            title="Two scenarios required."
+            description="Save at least two What-If scenarios to compare them side by side."
+            actionText="Run a scenario"
             onAction={() => router.push('/whatif')}
           />
         ) : (

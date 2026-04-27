@@ -1,12 +1,12 @@
-/**
- * Trust Center screen — UX Psychology Report #2: "Trust as Emotion"
- *
- * Sections:
- *  1. Trust metadata (from /system/trust-meta)
- *  2. Read-only · Never moves money — prominent row
- *  3. Data controls — export + delete buttons
- *  4. Who has access, what's encrypted, where data lives
- */
+// Trust Center — quiet, factual, truthful.
+//
+// The screen states what the platform actually does today: read-only access
+// to the user's account data, encryption-at-rest, geo-redundant backups, and
+// a concierge-handled data-controls path via the support inbox. We do not
+// surface "Request data export" / "Delete my account" CTAs that imply a
+// self-serve pipeline that does not yet exist. When that infrastructure
+// lands, the buttons return — until then the screen is honest about how
+// the request is processed.
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
@@ -16,11 +16,13 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors, Typography, Spacing, BorderRadius } from '../src/theme/finance';
+import { colors, typography, radius } from '../src/theme/tokens';
+import { Typography, Spacing as spacing } from '../src/theme/finance';
 import { HapticPressable } from '../src/components/HapticPressable';
 import { trustApi, usersApi } from '../src/services/api';
 import { track } from '../src/lib/analytics';
@@ -33,7 +35,11 @@ interface TrustMeta {
   dataExportSupported: boolean;
   accountDeletionSupported: boolean;
   readOnlyAccountAccess: boolean;
+  supportContactEmail?: string;
+  dataControlsMode?: 'concierge' | 'self_serve';
 }
+
+const FALLBACK_SUPPORT_EMAIL = 'support@thegrowthproject.courses';
 
 function formatDate(iso: string): string {
   try {
@@ -51,8 +57,7 @@ export default function TrustCenterScreen() {
   const router = useRouter();
   const [meta, setMeta] = useState<TrustMeta | null>(null);
   const [loading, setLoading] = useState(true);
-  const [exportPending, setExportPending] = useState(false);
-  const [deletePending, setDeletePending] = useState(false);
+  const [contactPending, setContactPending] = useState(false);
 
   useEffect(() => {
     track('trust_center_opened');
@@ -68,56 +73,33 @@ export default function TrustCenterScreen() {
     router.back();
   };
 
-  const handleDataExport = useCallback(async () => {
-    track('data_export_requested');
-    setExportPending(true);
-    try {
-      await usersApi.requestDataExport();
-      try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch { /* ignore */ }
-      Alert.alert(
-        'Export Requested',
-        'Your data export has been queued. You will receive a download link within 24 hours.',
-      );
-    } catch {
-      Alert.alert('Error', 'Could not request export. Please try again.');
-    } finally {
-      setExportPending(false);
-    }
-  }, []);
+  const supportEmail = meta?.supportContactEmail || FALLBACK_SUPPORT_EMAIL;
 
-  const handleDeleteAccount = useCallback(() => {
-    Alert.alert(
-      'Delete Account',
-      'Are you sure? You have a 30-day grace period to cancel before your account and all data are permanently removed.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Schedule Deletion',
-          style: 'destructive',
-          onPress: async () => {
-            track('account_deletion_requested');
-            setDeletePending(true);
-            try {
-              await usersApi.deleteAccount();
-              try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); } catch { /* ignore */ }
-              Alert.alert(
-                'Deletion Scheduled',
-                'Your account is scheduled for deletion in 30 days. Contact support to cancel.',
-              );
-            } catch {
-              Alert.alert('Error', 'Could not schedule deletion. Please try again.');
-            } finally {
-              setDeletePending(false);
-            }
-          },
-        },
-      ],
-    );
-  }, []);
+  const handleContactSupport = useCallback(
+    async (subject: string, analyticsEvent: string) => {
+      track(analyticsEvent);
+      setContactPending(true);
+      try {
+        await usersApi.acknowledgeDataControlsContact().catch(() => {});
+        const url = `mailto:${supportEmail}?subject=${encodeURIComponent(subject)}`;
+        const canOpen = await Linking.canOpenURL(url);
+        if (canOpen) {
+          await Linking.openURL(url);
+        } else {
+          Alert.alert(
+            'Email unavailable',
+            `Please write to ${supportEmail} from your preferred email client.`,
+          );
+        }
+      } finally {
+        setContactPending(false);
+      }
+    },
+    [supportEmail],
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           onPress={handleBack}
@@ -134,39 +116,33 @@ export default function TrustCenterScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero tagline */}
         <View style={styles.heroCard}>
           <Text style={styles.heroEyebrow}>TRUST CENTER</Text>
-          <Text style={styles.heroTitle}>Your finances, protected.</Text>
+          <Text style={styles.heroTitle}>Your finances, observed in private.</Text>
           <Text style={styles.heroSubtitle}>
-            How your data is stored, who can see it, and the controls you have
-            over it.
+            How your data is stored, who can see it, and the controls available
+            to you.
           </Text>
         </View>
 
-        {/* Section 2: Read-only badge */}
         <View style={styles.readOnlyCard}>
           <View style={styles.readOnlyText}>
             <Text style={styles.readOnlyEyebrow}>ACCESS</Text>
-            <Text style={styles.readOnlyTitle}>Read-only · Never moves money.</Text>
+            <Text style={styles.readOnlyTitle}>Read-only. Never moves money.</Text>
             <Text style={styles.readOnlyDesc}>
-              This app only reads your financial data. It cannot initiate
-              transfers, make payments, or move funds on your behalf — ever.
+              The app reads balances you enter. It cannot initiate transfers,
+              make payments, or move funds.
             </Text>
           </View>
         </View>
 
-        {/* Section 1: Trust metadata */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>SECURITY STATUS</Text>
           {loading ? (
-            <ActivityIndicator color={Colors.slateGray} style={{ marginVertical: Spacing.base }} />
+            <ActivityIndicator color={colors.stone} style={{ marginVertical: spacing.base }} />
           ) : meta ? (
             <View style={styles.metaCard}>
-              <MetaRow
-                label="Encryption"
-                value={meta.encryptionLevel}
-              />
+              <MetaRow label="Encryption" value={meta.encryptionLevel} />
               <Separator />
               <MetaRow
                 label="Last security update"
@@ -178,85 +154,92 @@ export default function TrustCenterScreen() {
                 value={meta.dataResidency.toUpperCase()}
               />
               <Separator />
-              <MetaRow
-                label="Audit policy"
-                value={meta.auditPolicyVersion}
-              />
+              <MetaRow label="Audit policy" value={meta.auditPolicyVersion} />
             </View>
           ) : (
             <Text style={styles.metaError}>Could not load security status.</Text>
           )}
         </View>
 
-        {/* Section 3: Data controls */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>YOUR DATA CONTROLS</Text>
           <View style={styles.metaCard}>
             <Text style={styles.controlsIntro}>
-              You are always in control. Export or delete your data at any time — no lock-in.
+              Export and account closure are handled by the support team. Write
+              to {supportEmail} and the request is fulfilled within five
+              business days.
             </Text>
 
             <HapticPressable
               intent="medium"
-              style={[styles.actionBtn, styles.actionBtnExport]}
-              onPress={handleDataExport}
-              disabled={exportPending}
+              style={[styles.actionBtn, styles.actionBtnPrimary]}
+              onPress={() =>
+                handleContactSupport(
+                  'Data export request',
+                  'data_export_contact_opened',
+                )
+              }
+              disabled={contactPending}
               accessibilityRole="button"
-              accessibilityLabel="Request data export"
+              accessibilityLabel="Email support to request a data export"
             >
               <Text style={styles.actionBtnText}>
-                {exportPending ? 'Requesting…' : 'Request data export'}
+                {contactPending ? 'Opening…' : 'Email support · data export'}
               </Text>
             </HapticPressable>
 
-            <View style={{ height: Spacing.sm }} />
+            <View style={{ height: spacing.sm }} />
 
             <HapticPressable
               intent="warning"
-              style={[styles.actionBtn, styles.actionBtnDelete]}
-              onPress={handleDeleteAccount}
-              disabled={deletePending}
+              style={[styles.actionBtn, styles.actionBtnSecondary]}
+              onPress={() =>
+                handleContactSupport(
+                  'Account closure request',
+                  'account_closure_contact_opened',
+                )
+              }
+              disabled={contactPending}
               accessibilityRole="button"
-              accessibilityLabel="Delete account"
+              accessibilityLabel="Email support to request account closure"
             >
-              <Text style={[styles.actionBtnText, styles.actionBtnDeleteText]}>
-                {deletePending ? 'Processing…' : 'Delete my account'}
+              <Text
+                style={[styles.actionBtnText, styles.actionBtnSecondaryText]}
+              >
+                {contactPending ? 'Opening…' : 'Email support · close account'}
               </Text>
             </HapticPressable>
           </View>
         </View>
 
-        {/* Section 4: Bullets — who/what/where */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>HOW IT WORKS</Text>
           <View style={styles.metaCard}>
             <BulletSection title="Who has access">
-              <BulletItem text="Only you can access your account" />
-              <BulletItem text="Our support team never has your password" />
-              <BulletItem text="No third-party advertisers or data brokers" />
+              <BulletItem text="Only you can sign in to your account." />
+              <BulletItem text="Support never has your password." />
+              <BulletItem text="No third-party advertisers or data brokers." />
             </BulletSection>
             <Separator />
             <BulletSection title="What is encrypted">
-              <BulletItem text="All data in transit (TLS 1.3)" />
-              <BulletItem text="All data at rest (AES-256)" />
-              <BulletItem text="Authentication tokens (never stored in plain text)" />
+              <BulletItem text="All data in transit (TLS 1.3)." />
+              <BulletItem text="All data at rest (AES-256)." />
+              <BulletItem text="Authentication tokens, never stored in plain text." />
             </BulletSection>
             <Separator />
             <BulletSection title="Where data lives">
-              <BulletItem text="Servers located in US-East data centres" />
-              <BulletItem text="Backups are encrypted and geo-redundant" />
-              <BulletItem text="Data is never transferred to ad networks" />
+              <BulletItem text="US-East data centres." />
+              <BulletItem text="Backups are encrypted and geo-redundant." />
+              <BulletItem text="Data is never transferred to ad networks." />
             </BulletSection>
           </View>
         </View>
 
-        <View style={{ height: Spacing.xxxl }} />
+        <View style={{ height: spacing.xxxl }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function MetaRow({ label, value }: { label: string; value: string }) {
   return (
@@ -291,61 +274,59 @@ function Separator() {
   return <View style={styles.separator} />;
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.backgroundDeepNavy },
+  container: { flex: 1, backgroundColor: colors.bone },
 
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: Spacing.base,
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.sm,
+    paddingHorizontal: spacing.base,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
   },
   back: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: Typography.bodyLarge,
-    color: Colors.slateGray,
+    fontFamily: typography.families.semiBold,
+    fontSize: Typography.bodyMedium,
+    color: colors.charcoal,
     width: 60,
   },
   title: {
-    fontFamily: 'Inter_700Bold',
+    fontFamily: typography.families.serif,
     fontSize: Typography.titleMedium,
-    color: Colors.frostWhite,
+    color: colors.ink,
   },
 
-  content: { padding: Spacing.base, paddingBottom: Spacing.base },
+  content: { padding: spacing.base, paddingBottom: spacing.base },
 
   heroCard: {
-    backgroundColor: Colors.cardSurfaceNavy,
+    backgroundColor: colors.cream,
     borderWidth: 1,
-    borderColor: Colors.graphiteBorder,
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.xl,
+    borderColor: colors.camel,
+    borderRadius: radius.lg,
+    padding: spacing.xl,
     alignItems: 'center',
-    marginBottom: Spacing.lg,
+    marginBottom: spacing.lg,
   },
   heroEyebrow: {
-    fontFamily: 'Inter_500Medium',
+    fontFamily: typography.families.medium,
     fontSize: 11,
     letterSpacing: 1.98,
     textTransform: 'uppercase',
-    color: Colors.slateGray,
-    marginBottom: Spacing.sm,
+    color: colors.stone,
+    marginBottom: spacing.sm,
   },
   heroTitle: {
-    fontFamily: 'Inter_700Bold',
+    fontFamily: typography.families.serif,
     fontSize: Typography.titleMedium,
-    color: Colors.frostWhite,
+    color: colors.ink,
     textAlign: 'center',
-    marginBottom: Spacing.sm,
+    marginBottom: spacing.sm,
   },
   heroSubtitle: {
-    fontFamily: 'Inter_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: Typography.bodySmall,
-    color: Colors.slateGray,
+    color: colors.charcoal,
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -353,134 +334,134 @@ const styles = StyleSheet.create({
   readOnlyCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.cardSurfaceNavy,
+    backgroundColor: colors.cream,
     borderWidth: 1,
-    borderColor: Colors.graphiteBorder,
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.base,
-    marginBottom: Spacing.lg,
-    gap: Spacing.md,
+    borderColor: colors.camel,
+    borderRadius: radius.lg,
+    padding: spacing.base,
+    marginBottom: spacing.lg,
+    gap: spacing.md,
   },
   readOnlyEyebrow: {
-    fontFamily: 'Inter_500Medium',
+    fontFamily: typography.families.medium,
     fontSize: 11,
     letterSpacing: 1.98,
     textTransform: 'uppercase',
-    color: Colors.slateGray,
-    marginBottom: Spacing.xs,
+    color: colors.stone,
+    marginBottom: spacing.xs,
   },
   readOnlyText: { flex: 1 },
   readOnlyTitle: {
-    fontFamily: 'Inter_700Bold',
+    fontFamily: typography.families.serif,
     fontSize: Typography.titleSmall,
-    color: Colors.frostWhite,
-    marginBottom: Spacing.xs,
+    color: colors.ink,
+    marginBottom: spacing.xs,
   },
   readOnlyDesc: {
-    fontFamily: 'Inter_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: Typography.bodySmall,
-    color: Colors.slateGray,
+    color: colors.charcoal,
     lineHeight: 18,
   },
 
-  section: { marginBottom: Spacing.lg },
+  section: { marginBottom: spacing.lg },
   sectionLabel: {
-    fontFamily: 'Inter_600SemiBold',
+    fontFamily: typography.families.semiBold,
     fontSize: Typography.microLabel,
-    color: Colors.slateGray,
+    color: colors.stone,
     letterSpacing: 1.5,
-    marginBottom: Spacing.sm,
-    marginLeft: Spacing.xs,
+    marginBottom: spacing.sm,
+    marginLeft: spacing.xs,
   },
 
   metaCard: {
-    backgroundColor: Colors.cardSurfaceNavy,
-    borderRadius: BorderRadius.xl,
+    backgroundColor: colors.cream,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: Colors.graphiteBorder,
-    padding: Spacing.base,
+    borderColor: colors.camel,
+    padding: spacing.base,
   },
   metaError: {
-    fontFamily: 'Inter_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: Typography.bodySmall,
-    color: Colors.slateGray,
+    color: colors.charcoal,
     textAlign: 'center',
-    paddingVertical: Spacing.base,
+    paddingVertical: spacing.base,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.sm,
-    gap: Spacing.md,
+    paddingVertical: spacing.sm,
+    gap: spacing.md,
   },
   metaRowContent: { flex: 1 },
   metaRowLabel: {
-    fontFamily: 'Inter_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: Typography.bodySmall,
-    color: Colors.slateGray,
+    color: colors.stone,
   },
   metaRowValue: {
-    fontFamily: 'Inter_600SemiBold',
+    fontFamily: typography.families.semiBold,
     fontSize: Typography.bodyMedium,
-    color: Colors.frostWhite,
+    color: colors.ink,
     marginTop: 2,
   },
 
   separator: {
     height: 1,
-    backgroundColor: Colors.graphiteBorder,
+    backgroundColor: colors.camel,
     marginVertical: 2,
   },
 
   controlsIntro: {
-    fontFamily: 'Inter_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: Typography.bodySmall,
-    color: Colors.slateGray,
+    color: colors.charcoal,
     lineHeight: 20,
-    marginBottom: Spacing.base,
+    marginBottom: spacing.base,
   },
   actionBtn: {
-    borderRadius: BorderRadius.full,
-    paddingVertical: Spacing.md,
+    borderRadius: radius.sm,
+    paddingVertical: spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  actionBtnExport: {
-    backgroundColor: Colors.slateGray,
+  actionBtnPrimary: {
+    backgroundColor: colors.oxblood,
   },
-  actionBtnDelete: {
+  actionBtnSecondary: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: Colors.debtCrimson,
+    borderColor: colors.oxblood,
   },
   actionBtnText: {
-    fontFamily: 'Inter_700Bold',
-    fontSize: Typography.bodyLarge,
-    color: Colors.backgroundDeepNavy,
+    fontFamily: typography.families.semiBold,
+    fontSize: Typography.bodyMedium,
+    color: colors.bone,
   },
-  actionBtnDeleteText: {
-    color: Colors.debtCrimson,
+  actionBtnSecondaryText: {
+    color: colors.oxblood,
   },
 
-  bulletSection: { paddingVertical: Spacing.sm },
+  bulletSection: { paddingVertical: spacing.sm },
   bulletSectionTitle: {
-    fontFamily: 'Inter_600SemiBold',
+    fontFamily: typography.families.semiBold,
     fontSize: Typography.bodyMedium,
-    color: Colors.frostWhite,
-    marginBottom: Spacing.sm,
+    color: colors.ink,
+    marginBottom: spacing.sm,
   },
-  bulletList: { gap: Spacing.xs },
-  bulletItem: { flexDirection: 'row', gap: Spacing.sm },
+  bulletList: { gap: spacing.xs },
+  bulletItem: { flexDirection: 'row', gap: spacing.sm },
   bulletDot: {
-    fontFamily: 'Inter_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: Typography.bodySmall,
-    color: Colors.slateGray,
+    color: colors.stone,
     lineHeight: 20,
   },
   bulletText: {
-    fontFamily: 'Inter_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: Typography.bodySmall,
-    color: Colors.slateGray,
+    color: colors.charcoal,
     flex: 1,
     lineHeight: 20,
   },

@@ -200,7 +200,7 @@ export class EODService {
             for (const m of newly_unlocked_milestones) {
               await this.pushSender
                 .send(userId, 'net_worth_milestone', {
-                  title: '🏆 Milestone unlocked',
+                  title: 'Milestone reached.',
                   body: m.title,
                   data: { milestone_key: m.key, screen: 'Milestones' },
                 })

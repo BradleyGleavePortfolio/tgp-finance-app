@@ -21,6 +21,7 @@ import { formatCurrency } from '../../src/utils/formatters';
 import { computeFINumber } from '../../src/utils/financial';
 import { ScreenErrorBoundary } from '../../src/components/ui/ScreenErrorBoundary';
 import { IdentityBadge } from '../../src/components/IdentityBadge';
+import { MembershipCard } from '../../src/components/profile/MembershipCard';
 import { resolveIdentityTitle } from '../../src/lib/identityTitle';
 import { usersApi } from '../../src/services/api';
 
@@ -194,6 +195,9 @@ export default function ProfileScreen() {
             />
           )}
         </View>
+
+        {/* Membership / access posture */}
+        <MembershipCard />
 
         {/* Stats */}
         <Card style={styles.statsCard}>

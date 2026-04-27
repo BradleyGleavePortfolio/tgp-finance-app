@@ -52,15 +52,15 @@ export function BadgeCabinet({ isFoundingMember = false }: BadgeCabinetProps) {
         )}
       </View>
 
-      {/* Badge grid */}
+      {/* Badge grid — neutral glyph, no emoji per mobile/DESIGN.md §2 */}
       <View style={styles.grid}>
         {badges.map((badge) => (
           <View
             key={badge.key}
             style={[styles.badgeItem, badge.earned ? styles.badgeEarned : styles.badgeLocked]}
           >
-            <Text style={[styles.badgeIcon, badge.earned ? {} : styles.badgeIconLocked]}>
-              {badge.icon}
+            <Text style={[styles.badgeIcon, badge.earned ? styles.badgeIconEarned : styles.badgeIconLocked]}>
+              {badge.earned ? '✓' : '◦'}
             </Text>
             <Text style={[styles.badgeTitle, badge.earned ? styles.badgeTitleEarned : styles.badgeTitleLocked]}>
               {badge.title}
@@ -128,10 +128,15 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   badgeIcon: {
-    fontSize: 28,
+    fontFamily: 'Inter_400Regular',
+    fontSize: 18,
+  },
+  badgeIconEarned: {
+    color: Colors.frostWhite,
   },
   badgeIconLocked: {
-    opacity: 0.4,
+    color: Colors.slateGray,
+    opacity: 0.6,
   },
   badgeTitle: {
     fontFamily: 'Inter_700Bold',

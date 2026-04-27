@@ -196,8 +196,8 @@ export default function EODHistoryScreen() {
         </View>
       ) : entries.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>📋</Text>
-          <Text style={styles.emptyTitle}>No check-ins yet</Text>
+          <Text style={styles.emptyEyebrow}>HISTORY</Text>
+          <Text style={styles.emptyTitle}>No check-ins yet.</Text>
           <Text style={styles.emptyDesc}>Complete your first daily check-in to see it here.</Text>
         </View>
       ) : (
@@ -253,8 +253,14 @@ const styles = StyleSheet.create({
   loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md },
   loadingText: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodyMedium, color: Colors.slateGray },
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl, gap: Spacing.md },
-  emptyIcon: { fontSize: 48 },
-  emptyTitle: { fontFamily: 'Inter_700Bold', fontSize: Typography.titleSmall, color: Colors.frostWhite },
+  emptyEyebrow: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 11,
+    letterSpacing: 1.98,
+    textTransform: 'uppercase',
+    color: Colors.slateGray,
+  },
+  emptyTitle: { fontFamily: Typography.fontSerif, fontSize: Typography.titleMedium, color: Colors.frostWhite },
   emptyDesc: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodyMedium, color: Colors.slateGray, textAlign: 'center' },
   content: { padding: Spacing.base, paddingBottom: 100 },
   editHint: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodySmall, color: Colors.slateGray, marginBottom: Spacing.base },

@@ -10,6 +10,7 @@ import { Colors, Typography, Spacing } from '../../src/theme/finance';
 import { useAuthStore } from '../../src/stores/authStore';
 import { sendPasswordResetEmail } from '../../src/services/supabase';
 import { track, identify } from '../../src/lib/analytics';
+import { safeAuthError } from '../../src/lib/authErrors';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -64,17 +65,7 @@ export default function LoginScreen() {
       track('signed_in', { method: 'google' });
       router.replace('/');
     } catch (err: any) {
-      const msg = err?.message || 'Google Sign-In failed. Please try again.';
-      const isConfigError =
-        msg.toLowerCase().includes('provider') ||
-        msg.toLowerCase().includes('not enabled') ||
-        msg.toLowerCase().includes('oauth');
-      Alert.alert(
-        'Google Sign-In',
-        isConfigError
-          ? 'Google Sign-In is not yet configured. Please enable the Google provider in your Supabase project settings.'
-          : msg,
-      );
+      Alert.alert('Google sign-in', safeAuthError(err));
     } finally {
       setGoogleLoading(false);
     }
@@ -89,7 +80,7 @@ export default function LoginScreen() {
       await sendPasswordResetEmail(email);
       setResetSent(true);
     } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Failed to send reset email. Please try again.');
+      Alert.alert('Password reset', safeAuthError(err));
     }
   };
 
