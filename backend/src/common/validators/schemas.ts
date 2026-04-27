@@ -14,6 +14,10 @@ export const RegisterSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100),
   phone: z.string().optional(),
   referral_code: z.string().optional(),
+  // Phase 1C: client signups must travel via a coach. Optional at the schema
+  // level so existing clients still work; the auth service decides whether
+  // the code is REQUIRED based on FEATURE_REQUIRE_COACH_CODE.
+  invite_code: z.string().min(1).max(64).optional(),
 });
 
 export const LoginSchema = z.object({

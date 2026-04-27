@@ -296,7 +296,11 @@ export class AIService {
   }
 
   async buildUserContext(userId: string) {
-    const [profile, accounts, recentEODs] = await Promise.all([
+    // Pull a wider context now that AI replies need to relay coach + behavior
+    // signal back to the model. Everything still goes through the existing
+    // FP system prompt, so the new fields are additive — guarded blocks the
+    // prompt builder reads only when present.
+    const [profile, accounts, recentEODs, recentHabits, userRow] = await Promise.all([
       this.prisma.financialProfile.findUnique({
         where: { user_id: userId },
         include: { user: { select: { name: true } } },
@@ -308,11 +312,55 @@ export class AIService {
       this.prisma.eODSubmission.findMany({
         where: { user_id: userId },
         orderBy: { submission_date: 'desc' },
-        take: 3,
+        take: 7,
+      }),
+      this.prisma.habitLog.findMany({
+        where: { user_id: userId },
+        orderBy: { date: 'desc' },
+        take: 14,
+      }),
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          role: true,
+          coach_id: true,
+          // pull a minimal coach profile so the AI knows who the user is paired with
+          // without leaking the coach's full row.
+        },
       }),
     ]);
 
-    if (!profile) return { profile: null, financials: null };
+    // Resolve the coach (if any) in a separate, scoped query — only the
+    // public-safe fields. We don't want to relay PII the AI doesn't need.
+    let coachContext: any = null;
+    if (userRow?.coach_id) {
+      const coach = await this.prisma.user.findUnique({
+        where: { id: userRow.coach_id },
+        select: {
+          id: true,
+          name: true,
+          coach_profile: { select: { display_name: true } },
+        },
+      });
+      if (coach) {
+        coachContext = {
+          coach_id: coach.id,
+          coach_display_name: coach.coach_profile?.display_name || coach.name,
+        };
+      }
+    }
+
+    if (!profile) {
+      // Even without a profile we still want to relay role + coach so the AI
+      // can react ("you haven't set up your profile yet"). Keep payload tiny.
+      return {
+        profile: null,
+        financials: null,
+        relationship: { role: userRow?.role ?? 'student', ...(coachContext ?? {}) },
+        guardrails: this.buildGuardrails(),
+      };
+    }
 
     // Money fields are Prisma.Decimal after the round-2 migration; collapse to
     // Number with toN before arithmetic.
@@ -363,8 +411,48 @@ export class AIService {
       recent_eod: recentEODs.map((e) => ({
         date: e.submission_date,
         net_worth: e.net_worth_computed,
+        total_debt: e.total_debt_computed,
+        total_assets: e.total_assets_computed,
         mood: e.mood,
       })),
+      recent_habits: this.summarizeHabits(recentHabits),
+      relationship: { role: userRow?.role ?? 'student', ...(coachContext ?? {}) },
+      guardrails: this.buildGuardrails(),
+    };
+  }
+
+  /**
+   * Reduce raw habit logs to per-key counts over the window so the AI sees
+   * adherence signal ("checked balances 12/14 days") rather than a dump of
+   * rows. Keeps the prompt small and cache-friendly.
+   */
+  private summarizeHabits(rows: { habit_key: string; completed: boolean; date: Date }[]) {
+    const totals = new Map<string, { completed: number; days: number }>();
+    for (const row of rows) {
+      const key = row.habit_key;
+      const cur = totals.get(key) ?? { completed: 0, days: 0 };
+      cur.days += 1;
+      if (row.completed) cur.completed += 1;
+      totals.set(key, cur);
+    }
+    return Array.from(totals.entries()).map(([habit_key, v]) => ({
+      habit_key,
+      completed: v.completed,
+      days_logged: v.days,
+    }));
+  }
+
+  /**
+   * Static guardrails block surfaced to the model as part of the user
+   * context. The system prompt already has its safety section; this is the
+   * machine-readable mirror for downstream consumers (e.g. the mobile app
+   * inspecting the context payload from /api/ai/context). Nothing here is PII.
+   */
+  private buildGuardrails() {
+    return {
+      no_individual_stocks: true,
+      no_early_retirement_withdrawals: true,
+      escalation_resources: ['nfcc.org', '211.org'],
     };
   }
 

@@ -41,7 +41,14 @@ export class OwnsStudentGuard implements CanActivate {
 
     // JwtAuthGuard runs before this in the global guard chain, so user is
     // populated. Defense in depth: if it isn't, fail closed.
-    if (!user || user.role !== 'coach') {
+    if (!user) {
+      throw new ForbiddenException({
+        error: 'Authentication required',
+        code: 'UNAUTHORIZED',
+      });
+    }
+
+    if (user.role !== 'coach' && user.role !== 'owner') {
       throw new ForbiddenException({
         error: 'Coach role required',
         code: 'NOT_A_COACH',
@@ -60,6 +67,20 @@ export class OwnsStudentGuard implements CanActivate {
       where: { id: studentId },
       select: { id: true, coach_id: true, role: true },
     });
+
+    // OWNER bypass: admins can act on any student, regardless of which coach
+    // owns them. Still require the target to be an actual student record so
+    // coach-on-coach mutations are not silently allowed via these routes.
+    if (user.role === 'owner') {
+      if (!student || student.role !== 'student') {
+        throw new ForbiddenException({
+          error: 'Student not found',
+          code: 'NOT_YOUR_STUDENT',
+        });
+      }
+      req.ownedStudent = student;
+      return true;
+    }
 
     if (!student || student.role !== 'student' || student.coach_id !== user.id) {
       // Single error shape regardless of which check failed \u2014 don't leak

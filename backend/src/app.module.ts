@@ -37,6 +37,9 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
 import { DecimalToNumberInterceptor } from './common/interceptors/decimal-to-number.interceptor';
 import { JwtAuthGuard } from './auth/guards/jwt.guard';
 import { TenantGuard } from './auth/guards/tenant.guard';
+import { ClientCoachLinkedGuard } from './auth/guards/client-coach-linked.guard';
+import { AdminModule } from './admin/admin.module';
+import { InvitesModule } from './invites/invites.module';
 
 @Module({
   imports: [
@@ -84,6 +87,8 @@ import { TenantGuard } from './auth/guards/tenant.guard';
     SystemModule,
     CommunityModule,
     PreferencesModule,
+    AdminModule,
+    InvitesModule,
   ],
   controllers: [HealthController],
   providers: [
@@ -115,6 +120,11 @@ import { TenantGuard } from './auth/guards/tenant.guard';
     // 3) TenantGuard — ensures multi-tenant data isolation. Reads
     //    request.user populated by step 2, so JwtAuthGuard MUST run first.
     { provide: APP_GUARD, useClass: TenantGuard },
+    //
+    // 4) ClientCoachLinkedGuard — Phase 1C source-of-truth: clients must be
+    //    attached to a coach before they can use client-only routes. Behind
+    //    a feature flag so legacy traffic isn't broken on first deploy.
+    { provide: APP_GUARD, useClass: ClientCoachLinkedGuard },
   ],
 })
 export class AppModule {}

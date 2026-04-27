@@ -18,13 +18,25 @@ export class CoachController {
 
   @Get('students')
   async getStudents(@CurrentUser() user: any, @Query('search') search?: string) {
-    return this.coachService.getStudents(user.id, search);
+    return this.coachService.getStudents(user.id, search, user.role);
+  }
+
+  /**
+   * Phase 1B: messaging-friendly client summary. Returns the assigned
+   * client's profile + EOD/net-worth/habit/account summaries that the coach
+   * needs visible while messaging them. OWNER bypass is handled by
+   * OwnsStudentGuard.
+   */
+  @Get('clients/:id/summary')
+  @UseGuards(OwnsStudentGuard)
+  async getClientSummary(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.coachService.getClientSummary(user.id, id, user.role);
   }
 
   @Get('students/:id')
   @UseGuards(OwnsStudentGuard)
   async getStudentDetail(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.coachService.getStudentDetail(user.id, id);
+    return this.coachService.getStudentDetail(user.id, id, user.role);
   }
 
   @Get('students/:id/detail')
@@ -34,7 +46,7 @@ export class CoachController {
     @Query('days', new DefaultValuePipe(90), ParseIntPipe) days: number,
     @CurrentUser() user: any,
   ) {
-    return this.coachService.getStudentDetailWithHistory(user.id, id, days);
+    return this.coachService.getStudentDetailWithHistory(user.id, id, days, user.role);
   }
 
   @Get('alerts')

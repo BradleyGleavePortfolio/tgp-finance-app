@@ -22,6 +22,11 @@ export class RoleGuard implements CanActivate {
       throw new ForbiddenException({ error: 'Authentication required', code: 'UNAUTHORIZED' });
     }
 
+    // OWNER bypass: an owner is the platform-wide admin and can access any
+    // role-gated endpoint. We never want to add `owner` to every @Roles(...)
+    // call site, so the guard short-circuits for them here.
+    if (user.role === 'owner') return true;
+
     const hasRole = requiredRoles.includes(user.role);
 
     if (!hasRole) {

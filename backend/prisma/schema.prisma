@@ -17,6 +17,7 @@ datasource db {
 enum Role {
   coach
   student
+  owner
 }
 
 enum AccountType {
@@ -98,8 +99,32 @@ model User {
   program_templates    ProgramTemplate[]
   community_wins       CommunityWin[]
   preferences          UserPreferences?
+  coach_profile        CoachProfile?
 
   @@map("users")
+}
+
+// CoachProfile: per-coach tenant metadata. Created when a user is promoted to
+// `coach` (or `owner`) and is the source of truth for the coach's invite_code,
+// which is the share-link token clients use to sign up under that coach.
+//
+// Why a separate table:
+//  - keeps invite_code/display_name out of User (which all users share)
+//  - lets us add coach-only fields (capacity, billing hooks) without bloating User
+//  - admin/owner promotion can ensure-create this row idempotently
+model CoachProfile {
+  id           String   @id @default(uuid())
+  user_id      String   @unique
+  user         User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  invite_code  String   @unique
+  display_name String?
+  bio          String?
+  is_active    Boolean  @default(true)
+  capacity     Int?
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  @@map("coach_profiles")
 }
 
 model FinancialProfile {
