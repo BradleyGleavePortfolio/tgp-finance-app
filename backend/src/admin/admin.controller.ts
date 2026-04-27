@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { z } from 'zod';
@@ -54,5 +55,52 @@ export class AdminController {
   @Get('coaches/:id')
   async coachDetail(@Param('id') id: string) {
     return this.adminService.getCoachDetail(id);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Admin console bridge — endpoints below back the Healthie/EHR-style admin
+  // console hosted in the fitness app. OWNER-only via class-level guard.
+  // See AdminService comment block for the email-as-join-key contract.
+  // ---------------------------------------------------------------------------
+
+  /**
+   * GET /api/admin/search?q=<term>&limit=<n>
+   * Free-text search across all users (coach OR client) by email or name.
+   */
+  @Get('search')
+  async searchUsers(
+    @Query('q') q: string | undefined,
+    @Query('limit') limit: string | undefined,
+  ) {
+    const parsedLimit = limit ? Number(limit) : 25;
+    if (Number.isNaN(parsedLimit)) {
+      throw new BadRequestException({
+        error: 'limit must be a number',
+        code: 'VALIDATION_ERROR',
+      });
+    }
+    return this.adminService.searchUsers(q ?? '', parsedLimit);
+  }
+
+  /** GET /api/admin/clients/:id/finance-summary */
+  @Get('clients/:id/finance-summary')
+  async clientFinanceSummary(@Param('id') id: string) {
+    return this.adminService.getClientFinanceSummary(id);
+  }
+
+  /**
+   * GET /api/admin/clients/by-email?email=<e>
+   * Convenience join via email — see AdminService for the identity contract.
+   * Returns 404 IDENTITY_NOT_LINKED when no finance account is on file.
+   */
+  @Get('clients/by-email')
+  async clientFinanceSummaryByEmail(@Query('email') email: string | undefined) {
+    return this.adminService.getClientFinanceSummaryByEmail(email ?? '');
+  }
+
+  /** GET /api/admin/coaches/:id/finance-summary */
+  @Get('coaches/:id/finance-summary')
+  async coachFinanceSummary(@Param('id') id: string) {
+    return this.adminService.getCoachFinanceSummary(id);
   }
 }

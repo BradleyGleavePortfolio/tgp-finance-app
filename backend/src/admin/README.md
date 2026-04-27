@@ -24,6 +24,48 @@ flow.
 | POST | `/api/admin/promote` | `{ user_id, role: 'coach' | 'owner' }` | `{ user, coach_profile: { id, invite_code, is_active } }` |
 | GET | `/api/admin/coaches` | — | Array of coach summaries with `student_count` and `template_count`. |
 | GET | `/api/admin/coaches/:id` | — | One coach plus 7-day activity stats. |
+| GET | `/api/admin/search` | `?q=<term>&limit=<n>` | `{ query, count, results: [{ id, email, name, role, coach_id, has_finance_profile }] }` |
+| GET | `/api/admin/clients/:id/finance-summary` | — | Identity, profile, account totals, activity, billing (null). |
+| GET | `/api/admin/clients/by-email` | `?email=<e>` | Same payload as the `:id` form. 404 `IDENTITY_NOT_LINKED` on miss. |
+| GET | `/api/admin/coaches/:id/finance-summary` | — | Coach identity + invite, client roll-ups, account-health flags, billing (null). |
+
+## Admin console bridge (Healthie/EHR-style)
+
+The admin console is hosted in the fitness app and is the operator-facing
+account-management layer for both products. The four endpoints above —
+`search`, `clients/:id/finance-summary`, `clients/by-email`, and
+`coaches/:id/finance-summary` — are the finance-side surface that the
+console reads from. They are OWNER-only at the route level (the entire
+controller is gated by `RoleGuard` with `@Roles('owner')`).
+
+### Identity contract: email as the join key (temporary)
+
+There is no shared identity table between the finance and fitness
+backends today. The only field that exists with a `UNIQUE` constraint
+on both sides is `email`, so the bridge endpoints use email as the
+join key.
+
+Limitations operators must be aware of:
+
+- Email change on either side desynchronises the join until both
+  records are re-aligned. The console must surface
+  `IDENTITY_NOT_LINKED` (the 404 code from `clients/by-email`) as a
+  distinct empty state rather than a generic error.
+- A user who exists in fitness but never registered in finance
+  legitimately returns `IDENTITY_NOT_LINKED`. This is not a bug.
+- A long-term replacement is a `shared_identities` table keyed on a
+  stable third-party id (Supabase or otherwise). Until that lands,
+  treat the email join as a contract that the console MUST handle the
+  null-match case for explicitly.
+
+### Billing/subscription is not tracked here
+
+Both `client.finance-summary` and `coach.finance-summary` return a
+`billing` block with all fields set to `null` and a `note` explaining
+that billing is not the finance backend's source of truth. The console
+must not display these as "Active" / "$0" — the contract is "render
+'Not tracked'". When a payments service is integrated, this block is
+the place to plumb the real values through.
 
 ## Data flow
 
