@@ -11,6 +11,41 @@ baseline-recovery fallback). The script is bash-only (`set -euo pipefail`),
 so `fly.toml` invokes it with `bash` explicitly — invoking via plain `sh`
 fails on Fly's release VM where `/bin/sh` is dash (`set: Illegal option -`).
 
+### Windows contributors / line endings
+
+The release script must reach the Fly VM with **LF** line endings. If a
+Windows client commits `scripts/release.sh` with CRLF, bash reads
+`set -euo pipefail\r` and aborts with `set: invalid option name…pipefail`,
+killing the deploy before any migration runs.
+
+The repo enforces this in `.gitattributes` at the root (`*.sh text eol=lf`,
+plus `Dockerfile`, `*.toml`, `*.yml`/`*.yaml`, `.dockerignore`, and the
+`docker-entrypoint*` family — anything interpreted on a Linux runner). New
+clones honor it automatically; pre-existing Windows checkouts may already
+hold CRLF copies. To recover a checkout:
+
+```sh
+# From the repo root, on the deploying Windows machine:
+git config core.autocrlf false   # do not let git rewrite endings on checkout
+git rm --cached -r .             # drop the index
+git reset --hard                 # rewrite the working tree from the LF blobs
+```
+
+Or, surgically, just for the release script:
+
+```sh
+git checkout-index --force -- backend/scripts/release.sh
+file backend/scripts/release.sh   # should NOT report "CRLF line terminators"
+```
+
+If you edit `scripts/release.sh` on Windows, make sure your editor is set to
+LF (VS Code: bottom-right status bar; JetBrains: File → File Properties →
+Line Separators). The CI deploy job runs on Linux, so PRs that introduce
+CRLF will be caught before they reach Fly only if you locally diff against
+`origin/main` — `.gitattributes` prevents new CRLF from being committed but
+cannot retroactively fix a working tree that was checked out before this
+file landed.
+
 ### 1. GitHub Actions (preferred)
 
 The workflow at `.github/workflows/deploy-backend.yml` runs:

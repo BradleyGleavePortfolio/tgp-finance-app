@@ -1,0 +1,59 @@
+# Enforce LF line endings for files that must run on Linux containers,
+# regardless of which OS a contributor commits from. This stops Windows
+# clients from silently introducing CRLF endings that break shebang
+# interpreters inside the Fly release VM (e.g. bash reading "pipefail\r"
+# and aborting with `set: invalid option name`).
+#
+# `text=auto` lets git decide what is text vs binary; the explicit overrides
+# below pin the line-ending policy for files that travel into production.
+
+* text=auto eol=lf
+
+# --- Shell / deploy scripts (must be LF; CRLF breaks bash on Linux) -----------
+*.sh        text eol=lf
+*.bash      text eol=lf
+*.zsh       text eol=lf
+
+# --- Container / CI plumbing (interpreted on Linux runners) -------------------
+Dockerfile         text eol=lf
+Dockerfile.*       text eol=lf
+.dockerignore      text eol=lf
+docker-entrypoint* text eol=lf
+*.toml             text eol=lf
+*.yml              text eol=lf
+*.yaml             text eol=lf
+
+# --- App source / config (LF for cross-platform diffs) ------------------------
+*.ts        text eol=lf
+*.tsx       text eol=lf
+*.js        text eol=lf
+*.jsx       text eol=lf
+*.cjs       text eol=lf
+*.mjs       text eol=lf
+*.json      text eol=lf
+*.md        text eol=lf
+*.css       text eol=lf
+*.html      text eol=lf
+*.svg       text eol=lf
+*.prisma    text eol=lf
+*.sql       text eol=lf
+*.env       text eol=lf
+.env.*      text eol=lf
+
+# --- Binary assets (never normalize) ------------------------------------------
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.webp      binary
+*.ico       binary
+*.pdf       binary
+*.zip       binary
+*.gz        binary
+*.tgz       binary
+*.woff      binary
+*.woff2     binary
+*.ttf       binary
+*.eot       binary
+*.mp4       binary
+*.mov       binary
