@@ -192,6 +192,16 @@ If you bump `prisma` in `devDependencies`, update the pinned line in
 `backend/Dockerfile` to match — the comment block at the top of the file
 calls this out.
 
+**Windows deploy note.** `fly.toml` invokes `bash ./scripts/release.sh`
+inside the Fly release VM. The script uses `set -euo pipefail` and several
+other bashisms, and it must arrive with **LF** line endings. The repo's
+root `.gitattributes` pins `*.sh` (and `Dockerfile`, `*.toml`,
+`*.yml`/`*.yaml`, `docker-entrypoint*`, `.dockerignore`) to `text eol=lf`,
+so a fresh clone is always safe. If you are deploying from a pre-existing
+Windows checkout and the deploy fails with
+`set: invalid option name…pipefail`, your `release.sh` was committed with
+CRLF — `backend/docs/DEPLOY.md` has the recovery steps.
+
 ## Failure modes worth knowing
 
 - **Boot without `JWT_SECRET`** — `main.ts` throws and the process exits.
