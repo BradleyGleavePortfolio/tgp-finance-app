@@ -69,6 +69,16 @@ the `_prisma_migrations` recovery flow are identical to the CI path.
 - [ ] If introducing a new required env var: add it to `src/main.ts:assertRequiredEnv`,
       the env gate in `deploy-backend.yml`, and the env table in `backend/README.md`
       **before** the deploy that needs it.
+- [ ] If the deploy enables the federation surface for the unified admin
+      console: `FEDERATION_SERVICE_TOKEN` is set on **both** this backend
+      and the fitness backend, and is identical on both. Without the env
+      var, every `/api/admin/federation/*` request returns
+      `503 FEDERATION_DISABLED` — the fail-closed default.
+- [ ] If the deploy ships sale-readiness changes: confirm
+      `SUPPORT_CONTACT_EMAIL` is set to a routed alias and that
+      `dataExportSupported` / `accountDeletionSupported` on
+      `/system/trust-meta` are still `false` (they remain concierge
+      until the export pipeline is built).
 
 ## Post-deploy checks
 
@@ -83,6 +93,21 @@ curl -fsS https://tgp-finance-api.fly.dev/system/release-info | jq  # PR #86, op
 
 If `/health/deep` returns `status: degraded`, the DB ping failed but the VM
 is still serving — investigate Supabase before rolling forward.
+
+If the federation surface is enabled, also smoke-check it once after
+the deploy:
+
+```sh
+# Without the bearer → 401 FEDERATION_UNAUTHENTICATED
+curl -fsS https://tgp-finance-api.fly.dev/api/admin/federation/health
+
+# With the bearer → 200 + identityMapping: 'email'
+curl -fsS -H "Authorization: Bearer $FEDERATION_SERVICE_TOKEN" \
+  https://tgp-finance-api.fly.dev/api/admin/federation/health | jq
+```
+
+A 503 with the bearer set means the env var is missing on the Fly app
+(check `flyctl secrets list -a tgp-finance-api`).
 
 ## Rollback
 

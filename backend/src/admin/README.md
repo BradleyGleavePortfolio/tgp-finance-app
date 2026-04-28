@@ -65,9 +65,44 @@ OWNER-only — the entire controller is gated by `RoleGuard` with the
 explicit `@Roles('owner')`. Outside the OWNER bypass there is no public
 or coach-level path into this module.
 
+## Cross-app federation (`/api/admin/federation/*`)
+
+The TGP admin console is hosted in the fitness backend. It calls into this
+backend with a shared service token to render real cross-app finance data
+for an admin (clients, coaches, product usage). The console itself is
+OWNER-gated on the fitness side; the federation surface here is gated by
+the shared secret.
+
+| Method | Path | Returns |
+|--------|------|---------|
+| GET | `/api/admin/federation/health` | `{ ok, service, identityMapping, surface }` |
+| GET | `/api/admin/federation/users/search?q=&limit=` | Search by name or email (case-insensitive). Returns role + `has_coach`. |
+| GET | `/api/admin/federation/clients/by-email/:email` | Client summary: net worth, debt/asset/cash totals, streak, last EOD, activity counts, coach pointer. |
+| GET | `/api/admin/federation/coaches/by-email/:email` | Coach summary: invite code, student/active counts, EOD/notes/templates totals. Returns the same shape for `owner`. |
+| GET | `/api/admin/federation/usage/product` | Total users, role split, onboarding completion, DAU/WAU/MAU off EOD + habit logs, EOD/what-if/coach-note/milestone counts. |
+
+Auth: every route requires
+`Authorization: Bearer <FEDERATION_SERVICE_TOKEN>`. The check is
+constant-time. If the env var is unset on the deployment, every request
+returns `503 FEDERATION_DISABLED` so an unconfigured deploy cannot
+silently expose the surface.
+
+Identity mapping is **email-only** today (case-insensitive). Limitations:
+
+- A user signed up with two different emails appears as two identities.
+- An email change on either side breaks the link until both are updated.
+- The federation never exposes individual EOD text, account balances per
+  account, or AI insight text — only aggregate / summary fields.
+
+When a shared identity provider lands we will add a stable
+`shared_identity_id` and route lookups through it; the email path will
+remain as a fallback.
+
 ## Environment variables
 
-None unique to this module. Inherits everything from `auth/`.
+- `FEDERATION_SERVICE_TOKEN` — required to enable the federation surface.
+  Must be at least 32 characters. Unset means the surface is disabled and
+  every request returns 503. Inherits everything else from `auth/`.
 
 ## Failure modes
 
