@@ -70,7 +70,7 @@ function CoachDashboard() {
         name: newTemplateName.trim(),
         description: newTemplateDesc.trim() || undefined,
         // Default single phase so the schema is satisfied
-        phases: [{ phase_name: 'Phase 1', priority_index: 0, duration_weeks: 4 }],
+        phases: [{ phase_name: 'Phase 1', priority_index: 0, duration_weeks: 4, notes: '' }],
       });
       setShowCreateModal(false);
       setNewTemplateName('');

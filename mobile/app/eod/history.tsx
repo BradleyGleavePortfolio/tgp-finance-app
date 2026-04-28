@@ -207,7 +207,7 @@ export default function EODHistoryScreen() {
             const editable = isEditable(entry.submission_date);
             const moodEmoji = entry.mood ? MOOD_EMOJIS[entry.mood - 1] : null;
             return (
-              <Card key={entry.id} style={[styles.entryCard, !editable && styles.entryCardOld]}>
+              <Card key={entry.id} style={editable ? styles.entryCard : [styles.entryCard, styles.entryCardOld]}>
                 <View style={styles.entryRow}>
                   <View style={styles.entryLeft}>
                     <Text style={styles.entryDate}>{formatDate(entry.submission_date)}</Text>
