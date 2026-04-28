@@ -178,7 +178,7 @@ describe('PushSchedulerService timezone windows', () => {
       expect(pushSender.send).toHaveBeenCalledWith(
         'u1',
         'streak_at_risk',
-        expect.objectContaining({ title: expect.stringContaining('streak at risk') }),
+        expect.objectContaining({ title: expect.stringContaining('streak ends today') }),
       );
     }
   });

@@ -47,6 +47,68 @@ export class UsersService {
   }
 
   /**
+   * Read-only access posture surfaced on the Profile screen as the
+   * membership card. We pull the caller's role + coach_id and resolve a
+   * minimal coach display block (no PII beyond the public name). The
+   * contract is shaped so the mobile renderer can treat the response as
+   * the source of truth without doing a second join.
+   */
+  async getAccessStatus(userId: string): Promise<{
+    role: 'student' | 'coach' | 'owner';
+    accessSource: 'self' | 'coach_managed' | 'owner';
+    coach: { id: string; displayName: string } | null;
+    supportContactEmail: string;
+  }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true, coach_id: true },
+    });
+
+    const supportContactEmail =
+      process.env.SUPPORT_CONTACT_EMAIL || 'support@thegrowthproject.courses';
+
+    if (!user) {
+      return {
+        role: 'student',
+        accessSource: 'self',
+        coach: null,
+        supportContactEmail,
+      };
+    }
+
+    const role = (user.role as 'student' | 'coach' | 'owner') ?? 'student';
+
+    let coach: { id: string; displayName: string } | null = null;
+    if (user.coach_id) {
+      const coachRow = await this.prisma.user.findUnique({
+        where: { id: user.coach_id },
+        select: {
+          id: true,
+          name: true,
+          coach_profile: { select: { display_name: true } },
+        },
+      });
+      if (coachRow) {
+        coach = {
+          id: coachRow.id,
+          displayName: coachRow.coach_profile?.display_name || coachRow.name,
+        };
+      }
+    }
+
+    let accessSource: 'self' | 'coach_managed' | 'owner';
+    if (role === 'owner') {
+      accessSource = 'owner';
+    } else if (role === 'student' && coach) {
+      accessSource = 'coach_managed';
+    } else {
+      accessSource = 'self';
+    }
+
+    return { role, accessSource, coach, supportContactEmail };
+  }
+
+  /**
    * Returns community activity stats for the "inner circle" widget.
    *
    * activeThisWeekCount: distinct users who had any of the following in the

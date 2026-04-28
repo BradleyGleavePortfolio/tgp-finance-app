@@ -21,6 +21,11 @@ helper grows side effects beyond storage IO, move it to
   Keep in sync with `backend/src/milestones/milestones.service.ts`.
 - `identityTitle.ts` — derives the "you are X" title from priority
   index + streak. Pure function; unit-tested in isolation.
+- `authErrors.ts` — maps raw Supabase, OAuth, network, and 5xx
+  noise to a single short user-safe sentence. Login, register,
+  Google sign-in, password reset, and role-select all route through
+  it so the user never sees a raw upstream message. Covered by
+  `authErrors.spec.ts`.
 
 ## Security
 
@@ -32,6 +37,10 @@ helper grows side effects beyond storage IO, move it to
   after migration.
 
 ## Tests
+
+- `authErrors.spec.ts` — maps the known Supabase / OAuth / network /
+  5xx cases to the short user-safe sentence. Add a case here before
+  surfacing a new auth-error path in the UI.
 
 `secureStorage.ts` and `identityTitle.ts` are good candidates for
 direct specs (both are pure or storage-only). Currently exercised

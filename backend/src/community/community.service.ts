@@ -213,33 +213,42 @@ export class CommunityService {
 
     const isFoundingMember = await this._isFoundingMember(userId);
 
+    // Badge icons are intentionally empty strings — the mobile app renders
+    // a neutral glyph based on `earned` rather than a coloured emoji glyph,
+    // per `mobile/DESIGN.md` §2 (no emoji in product surfaces).
     const BADGE_DEFS = [
       {
         key: 'first_goal',
-        title: 'First Goal',
-        description: 'Created your first financial account or goal',
-        icon: '🎯',
+        title: 'First goal',
+        description: 'You opened your first financial account or goal.',
+        icon: '',
         check: () => accounts.length > 0,
       },
       {
         key: 'encourager',
         title: 'Encourager',
-        description: 'Reacted to 10 community wins',
-        icon: '👏',
+        description: 'You acknowledged ten community wins.',
+        icon: '',
         check: () => reactionCount >= 10,
       },
       {
         key: 'goal_slayer',
-        title: 'Goal Slayer',
-        description: 'Completed your first financial goal',
-        icon: '⚔️',
-        check: () => milestoneUnlocks.some((m) => m.milestone_key === 'first_debt_paid' || m.milestone_key === 'nw_positive' || m.milestone_key === 'cash_1k'),
+        title: 'First milestone',
+        description: 'You reached your first net-worth or debt milestone.',
+        icon: '',
+        check: () =>
+          milestoneUnlocks.some(
+            (m) =>
+              m.milestone_key === 'first_debt_paid' ||
+              m.milestone_key === 'nw_positive' ||
+              m.milestone_key === 'cash_1k',
+          ),
       },
       {
         key: 'founding_saver',
-        title: 'Founding Saver',
-        description: 'Founding member with at least one goal',
-        icon: '🏛️',
+        title: 'Founding member',
+        description: 'A founding member with at least one open goal.',
+        icon: '',
         check: () => isFoundingMember && accounts.length > 0,
       },
     ];

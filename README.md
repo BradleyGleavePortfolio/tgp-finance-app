@@ -206,8 +206,11 @@ are placeholders.
 - **Financial vital signs.** Four live metrics: net worth, cash
   flow, debt-to-income, savings rate.
 - **Wealth Velocity Score.** 0–100, with seven named levels.
-- **Interest Bleed.** A second-by-second figure for total daily
-  interest paid across debt accounts.
+- **Interest Bleed.** A quiet "daily interest cost" detail page,
+  showing the daily interest paid across debt accounts. The legacy
+  pulsing red live ticker on the home screen was removed in the
+  sale-readiness pass — the figure now lives on a dedicated detail
+  screen with no anxiety framing.
 - **End-of-day check-in.** Streak tracking and an AI insight per
   submission.
 - **Priority Waterfall.** Seven levels, auto-advancing as the
@@ -220,8 +223,10 @@ are placeholders.
 - **Net-worth projections.** Interactive sliders on top of the live
   vital signs.
 - **Debt strategies.** Avalanche and snowball, side by side.
-- **AI coach (FP).** Backed by Perplexity sonar-pro with fifteen
-  few-shot examples.
+- **AI coach.** Backed by Perplexity sonar-pro. The system prompt is
+  declarative and editorial — voice rules mirror `mobile/DESIGN.md`
+  §5 (no emoji, no hype, no audience framing, numbers over
+  adjectives). Pinned by `backend/test/ai-prompt-doctrine.spec.ts`.
 - **Milestones.** Fifteen unlock criteria across cash, debt, net
   worth, streak, and income — surfaced quietly, never with confetti.
 - **Payday deploy** flow.

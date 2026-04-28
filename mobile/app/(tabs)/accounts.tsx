@@ -9,7 +9,6 @@ import { AccountGroup } from '../../src/components/accounts/AccountGroup';
 import { DebtRace } from '../../src/components/accounts/DebtRace';
 import { EmptyState } from '../../src/components/ui/EmptyState';
 import { Button } from '../../src/components/ui/Button';
-import { InterestBleedTicker } from '../../src/components/home/InterestBleedTicker';
 import { Colors, Typography, Spacing, BorderRadius } from '../../src/theme/finance';
 import { useAccountsStore } from '../../src/stores/accountsStore';
 import { formatCurrency } from '../../src/utils/formatters';
@@ -136,7 +135,19 @@ export default function AccountsScreen() {
                   <EmptyState eyebrow="DEBTS" title="No debts tracked" description="If you have debt, add it to see your payoff timeline." actionText="Add debt account" onAction={() => router.push('/accounts/add')} />
                 ) : (
                   <>
-                    <InterestBleedTicker dailyInterest={dailyInterest} onPress={() => router.push('/interest-bleed')} />
+                    {dailyInterest > 0 && (
+                      <TouchableOpacity
+                        onPress={() => router.push('/interest-bleed')}
+                        accessibilityRole="button"
+                        accessibilityLabel="Open daily interest detail"
+                        style={styles.interestRow}
+                      >
+                        <Text style={styles.interestLabel}>Daily interest cost</Text>
+                        <Text style={styles.interestValue}>
+                          {formatCurrency(dailyInterest, { decimals: 2 })}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                     <View style={{ height: Spacing.md }} />
                     <AccountGroup type="debts" accounts={debtAccounts} onPressAccount={handleAccountPress} />
                     <DebtRace debts={debtAccounts} />
@@ -189,4 +200,23 @@ const styles = StyleSheet.create({
   netWorthRow: { paddingTop: Spacing.sm, borderTopWidth: 1, borderTopColor: Colors.graphiteBorder, marginTop: Spacing.sm },
   netWorthLabel: { fontFamily: 'Inter_700Bold', fontSize: Typography.titleSmall, color: Colors.frostWhite },
   netWorthValue: { fontFamily: 'JetBrainsMono_700Bold', fontSize: Typography.titleSmall },
+  interestRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.graphiteBorder,
+  },
+  interestLabel: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: Typography.bodySmall,
+    color: Colors.slateGray,
+  },
+  interestValue: {
+    fontFamily: 'JetBrainsMono_700Bold',
+    fontSize: Typography.bodySmall,
+    color: Colors.frostWhite,
+  },
 });

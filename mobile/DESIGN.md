@@ -8,6 +8,14 @@ It is the next step after the Wave 1–4 luxury rewrites
 `luxury/wave3-hero-rewrite`, `luxury/wave4-copy-pass`). Wave 5 is the
 cleanup pass that turns those rewrites into a permanent rule set.
 
+The sale-readiness pass (`chore/sale-readiness-truthfulness`) extends
+the doctrine to backend-rendered copy and to the AI coach: the chat,
+EOD-insight, and Spending DNA system prompts now follow §5 voice rules
+verbatim, the Trust Center stops asserting capabilities the backend
+does not implement, and `InterestBleedTicker` was deleted because a
+pulsing red live counter labelled "BLEEDING RIGHT NOW" violated the
+no-anxiety / no-gamification rules.
+
 For colour, type, spacing, motion, and shadow tokens, see
 `src/theme/tokens.ts`. This document covers the *rules* for using them.
 
@@ -209,4 +217,32 @@ short sentence, declarative, ending in a period. Never include emoji.
 - The legacy colour aliases in `tokens.ts` exist only so historic
   screens compile. New references are not allowed; existing ones are
   paid down screen-by-screen.
+- The AI coach voice is pinned by
+  `backend/test/ai-prompt-doctrine.spec.ts` — no emoji, no audience
+  framing, no "FP" persona, no 15-example sales-funnel block, voice-rule
+  keywords present. Edits to `buildFinanceCoachSystemPrompt`,
+  `buildEodInsightSystemPrompt`, and `buildSpendingDnaSystemPrompt`
+  must keep that spec green.
+- The Trust Center capability flags (`dataExportSupported`,
+  `accountDeletionSupported`, `readOnlyAccountAccess`) are *truthful* —
+  the backend asserts only what it actually implements end-to-end.
+  Flipping a flag without shipping the feature is a sale-readiness
+  regression, pinned by `backend/test/system-trust-meta.spec.ts`.
+- Auth errors are routed through `mobile/src/lib/authErrors.ts` so the
+  user never sees a raw Supabase / OAuth / network message. New auth
+  paths must use the same mapper.
 - When in doubt, subtract.
+
+## Membership and access posture
+
+The Profile screen renders a `MembershipCard` against
+`GET /api/users/me/access-status`. The card is honest about who
+manages the user's access:
+
+- `accessSource: 'self'` — self-managed; no coach.
+- `accessSource: 'coach_managed'` — managed by a coach; the coach's
+  display name is shown.
+- `accessSource: 'owner'` — the owner role.
+
+The card also surfaces the configured support email so concierge data
+controls have a single source of truth on the screen.

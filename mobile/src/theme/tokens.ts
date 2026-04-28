@@ -8,7 +8,8 @@
  * No dark navy, no neon, no four-accent system.
  *
  * Wave history:
- *   Wave 1 — deleted gradients, glows, shimmer, four-accent decoration, InterestBleedTicker
+ *   Wave 1 — deleted gradients, glows, shimmer, four-accent decoration
+ *   Wave 5 — deleted InterestBleedTicker (anxiety theatre)
  *   Wave 2 — new token system: bone/oxblood, Cormorant + Inter, motion/radius/shadow
  *   Wave 3 — hero screen rewrites (index.tsx → navy bg)
  */
