@@ -16,7 +16,8 @@ src/
   main.ts                Bootstrap (CORS, JWT_SECRET assertion, port binding)
   prisma/                PrismaService (singleton, $connect on init)
   auth/                  Supabase-backed login + JWT strategy + guards
-  admin/                 OWNER-only promotion + coach roster
+  admin/                 OWNER-only promotion + coach roster + cross-app
+                         federation surface for the unified admin console
   invites/               Coach invite codes + client attach flow (Phase 1C)
   users/                 Identity / founding-member / data export
   profile/               FinancialProfile read/write + total recompute
@@ -136,6 +137,8 @@ Optional, feature-affecting:
 | `NUMBEO_API_KEY` | Cost-of-living scenarios fall back to bundled JSON. |
 | `SENTRY_DSN` | Errors are not forwarded to Sentry. |
 | `POSTHOG_KEY` | `analytics.capture` is a no-op. |
+| `FEDERATION_SERVICE_TOKEN` | Required to enable `/api/admin/federation/*`. ≥ 32 chars. Unset → every federation request returns `503 FEDERATION_DISABLED`. The fitness backend must present the same secret as `Authorization: Bearer …`. See `src/admin/README.md` and `docs/TENANCY.md`. |
+| `SUPPORT_CONTACT_EMAIL` | Override for the concierge support address surfaced on `/system/trust-meta` and `/users/me/access-status`. Defaults to `support@thegrowthproject.courses`. |
 
 The root project `.env` file is loaded by `ConfigModule.forRoot` with an
 explicit `envFilePath` two directories up — do **not** put a `.env` inside
