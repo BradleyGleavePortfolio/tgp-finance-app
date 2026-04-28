@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 # Fly release_command — runs once per deploy in a one-off VM with full env.
 #
 # Behavior:
@@ -10,7 +10,10 @@
 #     schema with `prisma db push --accept-data-loss --skip-generate`.
 #     Safe right now: prod DB has only test data.
 #  3. Any other failure aborts the deploy.
-set -e
+#
+# Invoked as `bash ./scripts/release.sh` from fly.toml — bash ships with the
+# node:20-slim base image, so no extra packages are required.
+set -euo pipefail
 
 echo "[release] attempting prisma migrate deploy..."
 

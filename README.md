@@ -319,13 +319,17 @@ start:
 
 ```toml
 [deploy]
-  release_command = 'npx prisma migrate deploy'
+  release_command = 'bash ./scripts/release.sh'
 ```
 
 Fly runs this in a temporary VM with the app's secrets (`DATABASE_URL`, etc.)
-injected. If the migration fails, the release is aborted and no traffic is
-shifted. The `prisma` CLI is bundled into the production image for this purpose
-(see `backend/Dockerfile`).
+injected. The script wraps `prisma migrate deploy` with a baseline-recovery
+fallback (P3005/P3009/P3018) — see `backend/docs/DEPLOY.md` and
+`backend/scripts/release.sh`. It is invoked via `bash` (not `sh`) because
+Fly's release-VM `/bin/sh` is dash, which rejects the script's `set -euo
+pipefail`. If the migration fails for a non-baseline reason, the release is
+aborted and no traffic is shifted. The `prisma` CLI is bundled into the
+production image for this purpose (see `backend/Dockerfile`).
 
 To author a new migration locally:
 

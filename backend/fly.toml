@@ -15,7 +15,11 @@ primary_region = 'sjc'
   # Smart script: tries migrate deploy, falls back to db push --accept-data-loss
   # on baseline conflicts (P3005/P3018 "already exists"). Safe right now
   # because prod DB only has test data.
-  release_command = 'sh ./scripts/release.sh'
+  #
+  # Invoke with bash explicitly: the script uses `set -euo pipefail` and other
+  # bashisms, and Fly's release-VM `sh` is dash, which rejects them with
+  # "Illegal option -" (this killed the previous deploy after PR #95).
+  release_command = 'bash ./scripts/release.sh'
 
 [env]
   NODE_ENV = 'production'
