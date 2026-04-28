@@ -1,59 +1,68 @@
+# syntax=docker/dockerfile:1.6
+#
+# Multi-stage build for the TGP Finance backend.
+#
+# Prisma + npm note: package.json declares `postinstall: prisma generate`. In
+# the production stage we install with `--omit=dev`, which would skip the
+# `prisma` CLI (it lives in devDependencies) and break `postinstall` with
+# `sh: 1: prisma: not found`. Both stages therefore use `--ignore-scripts` and
+# we run `prisma generate` explicitly after the CLI is guaranteed to be on
+# disk. This is the upstream-recommended pattern for Prisma in Docker.
+
 # Stage 1: Build
 FROM node:20-slim AS builder
 
 WORKDIR /app
 
-# Install OpenSSL for Prisma
+# OpenSSL is required by the Prisma engines on Debian slim.
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
-# Copy package files
+# Copy manifests + Prisma schema first so the layer caches across source edits.
 COPY package.json package-lock.json ./
 COPY prisma ./prisma/
 
-# Install ALL dependencies (including devDependencies for building)
-RUN npm ci
+# Install ALL deps (including devDependencies) without running lifecycle
+# scripts; we drive `prisma generate` explicitly below.
+RUN npm ci --ignore-scripts
 
-# Generate Prisma client
-RUN npx prisma generate
+# Generate the Prisma client against the schema we just copied.
+RUN npx --no-install prisma generate
 
-# Copy source code
+# Bring in the rest of the source tree and build the Nest dist/.
 COPY . .
-
-# Build NestJS
 RUN npm run build
 
-# Stage 2: Production
+# Stage 2: Production runtime
 FROM node:20-slim AS production
 
 WORKDIR /app
 
+ENV NODE_ENV=production
+
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
-# Copy package files and install production dependencies only
+# Copy manifests + Prisma schema. The schema is needed at install time so
+# `prisma generate` has something to read.
 COPY package.json package-lock.json ./
 COPY prisma ./prisma/
-RUN npm ci --omit=dev
 
-# Install the prisma CLI in the production image so `prisma migrate deploy`
-# is available as part of the release step (see fly.toml `release_command`).
-# Pinned to match devDependencies; keep these in sync.
-RUN npm install --no-save prisma@5.22.0
+# Install production deps only, skipping the postinstall hook (which would
+# call the `prisma` CLI before it exists in this layer). We then add the
+# Prisma CLI as a pinned, no-save dep so `prisma generate` and the
+# release-time `prisma migrate deploy` (see fly.toml release_command +
+# scripts/release.sh) are both available without bloating dependencies.
+RUN npm ci --omit=dev --ignore-scripts \
+ && npm install --no-save --ignore-scripts prisma@5.22.0 \
+ && npx --no-install prisma generate \
+ && npm cache clean --force
 
-# Generate Prisma client in production image
-RUN npx prisma generate
-
-# Copy built app from builder
+# Copy compiled app, runtime data files, and the release script.
 COPY --from=builder /app/dist ./dist
-
-# Copy data files for cost of living service
 COPY --from=builder /app/data ./data
-
-# Copy release script for smart Prisma migrate / db-push fallback
 COPY --from=builder /app/scripts ./scripts
 
-# Expose port
 EXPOSE 3000
 
-# Start the server. tsconfig has rootDir=./ so build emits dist/src/main.js
-# (not dist/main.js). Pin the path explicitly.
+# tsconfig has rootDir=./, so the entrypoint is dist/src/main.js (not
+# dist/main.js). Pin the path explicitly.
 CMD ["node", "dist/src/main"]
