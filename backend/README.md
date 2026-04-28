@@ -161,6 +161,37 @@ npx prisma migrate resolve --applied 20260423000000_baseline
 
 See `prisma/migrations/README.md` for the full baseline / deploy story.
 
+## Deploying to Fly.io
+
+Production runs on Fly (`tgp-finance-api`, `sjc`). The `.github/workflows/
+deploy-backend.yml` workflow runs typecheck, tests, and an env gate before
+calling `flyctl deploy --remote-only`. The same image can be built locally:
+
+```
+flyctl deploy --app tgp-finance-api          # from backend/, picks up fly.toml
+docker build -t tgp-finance-api .            # local-only, same Dockerfile
+```
+
+**Dockerfile + Prisma quirk worth knowing.** `package.json` has
+`postinstall: prisma generate`, and the `prisma` CLI lives in
+`devDependencies`. The production stage installs with `--omit=dev`, so a
+plain `npm ci --omit=dev` would invoke `postinstall` *before* the CLI
+exists in that layer and fail with `sh: 1: prisma: not found`. The
+Dockerfile therefore:
+
+1. Runs both stages with `npm ci ... --ignore-scripts` so npm never
+   triggers `postinstall` against an incomplete tree.
+2. In the production stage, installs the Prisma CLI as a pinned
+   no-save dep (`prisma@5.22.0`, mirrored from `devDependencies`) so
+   the runtime image still has `prisma migrate deploy` available for
+   `fly.toml` `release_command` (`scripts/release.sh`).
+3. Drives `prisma generate` explicitly with `npx --no-install prisma
+   generate` once the CLI is on disk.
+
+If you bump `prisma` in `devDependencies`, update the pinned line in
+`backend/Dockerfile` to match — the comment block at the top of the file
+calls this out.
+
 ## Failure modes worth knowing
 
 - **Boot without `JWT_SECRET`** — `main.ts` throws and the process exits.
