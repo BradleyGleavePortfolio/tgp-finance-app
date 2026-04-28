@@ -6,8 +6,10 @@ primary region `sjc`).
 ## Two paths
 
 There are two supported ways to deploy. They run the same `release_command`
-on the Fly side (`backend/scripts/release.sh` → `prisma migrate deploy` with
-baseline-recovery fallback).
+on the Fly side (`bash ./scripts/release.sh` → `prisma migrate deploy` with
+baseline-recovery fallback). The script is bash-only (`set -euo pipefail`),
+so `fly.toml` invokes it with `bash` explicitly — invoking via plain `sh`
+fails on Fly's release VM where `/bin/sh` is dash (`set: Illegal option -`).
 
 ### 1. GitHub Actions (preferred)
 
