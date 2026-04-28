@@ -176,10 +176,40 @@ Each of the four phases above is a manual migration:
 
 ## Status today
 
-- HTTP layer: ✅ JwtAuthGuard + TenantGuard + OwnsStudentGuard + ClientCoachLinkedGuard.
-- Service layer: ✅ `assertOwnsRecord` / `assertCoachOwnsRecord` / `scopeToSelf` / `scopeToCoach`.
-- DB layer (RLS): 🚧 Not enabled. Migration plan and operator actions documented above.
+- HTTP layer: JwtAuthGuard + TenantGuard + OwnsStudentGuard + ClientCoachLinkedGuard.
+- Service layer: `assertOwnsRecord` / `assertCoachOwnsRecord` / `scopeToSelf` / `scopeToCoach`.
+- DB layer (RLS): not enabled. Migration plan and operator actions documented above.
 
 The combination of HTTP + service layer is what protects production today.
 RLS is an additional layer planned for after the policies and the
 SET-LOCAL middleware have soaked behind a feature flag.
+
+## Cross-app federation surface (`/api/admin/federation/*`)
+
+The unified TGP admin console is hosted in the **fitness** backend; this
+finance backend exposes a read-only federation surface that the console
+fans into. The trust boundary for that surface is **not** the per-user
+JWT — the fitness backend never has a finance-side user JWT to forward.
+Instead:
+
+- A new `ServiceTokenGuard` checks
+  `Authorization: Bearer <FEDERATION_SERVICE_TOKEN>` with a
+  constant-time comparison and a 32-char minimum on the env value.
+- Routes are `@Public()` so the global `JwtAuthGuard` does not also
+  attempt to verify a Supabase JWT.
+- If `FEDERATION_SERVICE_TOKEN` is unset on the deployment, every
+  federation request returns `503 FEDERATION_DISABLED`. An
+  unconfigured deploy fails closed.
+- The federation surface is read-only summaries (no per-account
+  balances, no individual EOD text, no AI insight text). Any mutation
+  goes through the user-JWT path on `/api/admin/*` (OWNER-gated).
+
+Identity mapping between finance and fitness is **email-only**
+(case-insensitive) today. Limitations and the planned migration to a
+shared `shared_identity_id` are documented in
+`backend/src/admin/README.md`.
+
+Fitness-side admin routes still require an OWNER user JWT on the
+fitness backend. The federation surface here is just the data
+provider; access control on the console UI is enforced by the fitness
+side.

@@ -19,9 +19,40 @@ Part of The Growth Project coaching ecosystem
 - Backend: Node.js + NestJS (TypeScript)
 - Database: PostgreSQL + Prisma ORM (v5.22)
 - Auth: Supabase Auth (email/password + Google OAuth)
-- AI Coach: Perplexity sonar-pro (backend-proxied, 20 req/user/hr)
+- AI Coach: Perplexity sonar-pro (backend-proxied, 20 req/user/hr,
+  DB-backed sliding-window rate limit, voice doctrine pinned by test)
 - Charts: react-native-gifted-charts
 - Validation: Zod (shared frontend + backend)
+
+## Where this app sits in the TGP product
+
+The Growth Project ships two backend products that share a single
+admin console. The console is hosted in the **fitness** backend; the
+**finance** backend (this repo) exposes a read-only federation surface
+the console fans into so an admin can see real cross-app data instead
+of an unconfigured empty state.
+
+- The unified admin console lives in the fitness backend. Its routes
+  are OWNER-gated by user JWT.
+- This finance backend exposes two admin layers:
+  - `/api/admin/*` — OWNER-only (user JWT + `RoleGuard`). Promote
+    users into `coach` / `owner`, list the coach roster, run the
+    finance bridge endpoints the console needs to render coach +
+    client summaries.
+  - `/api/admin/federation/*` — service-token gated. The fitness
+    backend presents `Authorization: Bearer
+    <FEDERATION_SERVICE_TOKEN>`. If the env var is unset on a
+    deployment, every federation request returns
+    `503 FEDERATION_DISABLED` so an unconfigured deploy cannot
+    silently expose the surface.
+- Identity mapping between the two backends is **email-only**
+  (case-insensitive) today. Every federation response surfaces
+  `identityMapping: 'email'` so the console can warn on one-sided
+  matches. A shared `shared_identity_id` is the long-term plan; the
+  email path will remain as a fallback.
+
+Full module-level doc lives at
+[`backend/src/admin/README.md`](backend/src/admin/README.md).
 
 ## Prerequisites
 - Node.js 20+ (required)
@@ -99,6 +130,13 @@ Fill these in your root `.env` file. **Required** keys must be set or the backen
 | `PERPLEXITY_API_KEY` | ✅ | perplexity.ai → Settings → API → Generate Key |
 | `GOOGLE_CLIENT_ID_*` | optional | console.cloud.google.com → Credentials → OAuth 2.0 (off by default in the mobile app) |
 | `NUMBEO_API_KEY` | optional | numbeo.com/api (fallback data is bundled in `data/cost_of_living_2026.json`) |
+| `FEDERATION_SERVICE_TOKEN` | optional | Shared bearer that gates `/api/admin/federation/*`. Generate with `openssl rand -hex 32`; must be ≥ 32 chars. Unset means the federation surface is disabled and every request returns `503 FEDERATION_DISABLED`. The same secret must also be set on the fitness backend so it can present the bearer. |
+| `SUPPORT_CONTACT_EMAIL` | optional | Override for the concierge support address surfaced on the Trust Center and the access-status endpoint. Defaults to `support@thegrowthproject.courses`. |
+| `ENABLE_SWAGGER` | optional | In non-production, Swagger UI mounts at `/api/docs` unconditionally. In production, mount it only when this is `true` (JSON spec at `/api/docs-json`). |
+| `RELEASE_SHA`, `RELEASE_NAME` | optional | Surfaced by `/system/release-info`. Falls back to Fly runtime envs and `package.json#version`. |
+| `EXPO_ACCESS_TOKEN` | optional | Push sender uses default Expo rate limits when unset. |
+| `SENTRY_DSN` | optional | Errors are not forwarded to Sentry when unset. |
+| `POSTHOG_KEY` | optional | `analytics.capture` is a no-op when unset. |
 
 The **mobile** app also requires two public (`EXPO_PUBLIC_*`) env vars. Put them in `mobile/.env` or your Expo config:
 
@@ -217,7 +255,56 @@ cd backend && npm test
 cd mobile  && npm test
 ```
 
-Dependabot (`.github/dependabot.yml`) opens weekly grouped minor/patch update PRs for `backend/`, `mobile/`, and the workflows themselves.
+The backend suite includes the doctrine pins:
+
+- `test/ai-prompt-doctrine.spec.ts` — the AI system-prompt voice
+  rules (no emoji, no audience framing, no "FP" persona, no
+  15-example block, voice-rule keywords present).
+- `test/system-trust-meta.spec.ts` — Trust Center capability flags
+  must match what the backend actually implements end-to-end, plus
+  the `SUPPORT_CONTACT_EMAIL` fallback.
+- `test/users-controller.spec.ts`, `test/users-access-status.spec.ts`
+  — concierge-handoff payload and the membership-card surface.
+- `test/admin-federation.guard.spec.ts`,
+  `test/admin-federation.service.spec.ts`,
+  `test/admin-federation.controller.spec.ts` — federation surface
+  auth + shaping + URL-decoding (PR #93).
+- `test/admin-finance-bridge.spec.ts` — finance bridge endpoints
+  the unified admin console reads (PR #92).
+
+Dependabot (`.github/workflows`) opens weekly grouped minor/patch update PRs for `backend/`, `mobile/`, and the workflows themselves.
+
+## Operator actions
+
+These are the operator steps required when the corresponding feature
+ships — not on every deploy.
+
+- **Federation surface** (`/api/admin/federation/*`):
+  1. Generate a 32-character token: `openssl rand -hex 32`.
+  2. `flyctl secrets set FEDERATION_SERVICE_TOKEN=<value> -a tgp-finance-api`.
+  3. Set the same value on the fitness backend so it can present the
+     bearer.
+  4. Smoke-check:
+     `curl -H "Authorization: Bearer $FEDERATION_SERVICE_TOKEN"
+     https://tgp-finance-api.fly.dev/api/admin/federation/health`
+     returns `{ ok: true, identityMapping: 'email', ... }`.
+  5. Without the bearer, the same request must return
+     `401 FEDERATION_UNAUTHENTICATED`. With the env var unset, every
+     request must return `503 FEDERATION_DISABLED`.
+- **Promoting the first owner**: there is no bootstrap endpoint by
+  design. Promote in the database directly (`UPDATE users SET role =
+  'owner' WHERE email = '...';`) once. After that, `POST /api/admin/promote`
+  handles all subsequent promotions.
+- **Disabling a coach**: set `coach_profiles.is_active = false`
+  directly. `register` and `attach` fail closed against an inactive
+  code. There is no demote endpoint yet; client-roster reassignment
+  is a manual DB operation.
+- **Concierge data-controls inbox**: set `SUPPORT_CONTACT_EMAIL` to a
+  routed alias before the Trust Center is shipped to a real
+  audience. The mobile UI surfaces the address verbatim. There is
+  intentionally no automated export / deletion pipeline; that lands
+  with its own controller and migration when the schema work is
+  approved.
 
 ## Production Deploy (Fly.io)
 
@@ -253,6 +340,41 @@ and oxblood; Cormorant Garamond for display, Inter for body; no
 emoji, no gamification, no placeholder copy in shipped UI. New code
 that adds a colour, a fake value, a `TODO` marker, or a confetti
 animation is expected to fail review on doctrine grounds.
+
+The doctrine extends to backend-rendered copy and to the AI coach.
+The chat, EOD-insight, and Spending DNA system prompts share the §5
+voice rules and are pinned by
+`backend/test/ai-prompt-doctrine.spec.ts` (no emoji, no audience
+framing, no "FP" persona, no 15-example sales-funnel block,
+voice-rule keywords present). Trust Center capability flags are
+pinned by `backend/test/system-trust-meta.spec.ts` and must reflect
+what the backend actually implements end-to-end — flipping a flag
+without shipping the feature is a sale-readiness regression.
+
+## Documentation rule — every PR updates a README
+
+Every PR that touches a backend module or a mobile feature must
+update the matching `README.md` (or `mobile/DESIGN.md`, the theme
+README, or the appropriate `backend/docs/*.md` for cross-cutting
+ops / tenancy / federation work). README staleness has bitten this
+codebase before, so the rule is enforced as a review-gate rather than
+a soft convention:
+
+- A new endpoint → its module README's endpoint table updates in the
+  same PR.
+- A new env var → both `.env.example` and the env tables in this
+  README, the backend README, and the affected module README update
+  in the same PR.
+- A capability change (e.g. flipping a Trust Center flag, swapping
+  the AI provider) → the README *and* the pinning test update in the
+  same PR.
+- Removed code → README references to it removed in the same PR.
+  Tombstones (`// removed`, "deprecated", "coming soon") are not a
+  substitute.
+
+Module-level READMEs all share the same shape: purpose, key files,
+endpoints, data flow, security/tenancy, env vars, failure modes,
+tests, operations. Match the shape when adding a new one.
 
 ## Disclaimer
 
