@@ -172,25 +172,54 @@ cheap.
   `{ error: 'No EOD data found for this month', month }` with HTTP
   200; the mobile UI renders an empty-state.
 
+## Prompt doctrine (sale-readiness pass)
+
+The chat, EOD-insight, and Spending DNA system prompts share the same
+voice rules as `mobile/DESIGN.md` §5. The register is a private bank
+statement, not a coaching funnel.
+
+- Declarative; statements end in a period.
+- No emoji, no exclamation marks, no hype words ("amazing", "let's"),
+  no opening filler ("Great question").
+- No gendered or aspirational audience framing. The previous prompt
+  framed the user as "ambitious men in their 20s and 30s" and used an
+  "FP" persona; both are gone.
+- No 15-example sales-funnel few-shot block. Two short examples remain
+  to anchor voice and length only.
+- Numbers, not adjectives. Show the formula and the result on one line
+  for any calculation.
+- Refer the user to a fee-only fiduciary for personalised guidance;
+  surface NFCC (nfcc.org) and 211.org once when distress is described.
+
+The doctrine is enforced by `test/ai-prompt-doctrine.spec.ts`, which
+asserts on the prompt string itself: no emoji, no audience framing, no
+"FP" persona, no 15-example block, and the voice-rule keywords are
+present. A regression in any of these flags the test red, so prompt
+edits must keep the rules satisfied.
+
 ## Tests
 
 The AI service is mostly an upstream proxy; covering the LLM call is
-not useful. The pieces that matter — context shape, rate-limit math,
-EOD insight scoping, Spending DNA upsert key — are exercised in
-adjacent service specs (the user context shape is asserted in
-`coach.service.spec.ts` indirectly via `clientSummary`, and the EOD
-write path is in `eod.service.spec.ts`). A direct AI-service spec is
-a near-term TODO; if you add one, mock the upstream client and assert
-on the system-prompt + message array sent to it.
+not useful. The pieces that matter:
+
+- `test/ai-prompt-doctrine.spec.ts` — voice rules on the chat, EOD,
+  and Spending DNA system prompts (no emoji, no hype, no audience
+  framing, declarative voice).
+- The user context shape is asserted in `coach.service.spec.ts`
+  indirectly via `clientSummary`, and the EOD write path is in
+  `eod.service.spec.ts`.
+
+A direct AI-service spec that mocks the upstream client and asserts on
+the message array is still useful; if you add one, the doctrine spec
+gives you the system-prompt rules to import.
 
 ## Operations
 
-- The system prompt (the `buildFinanceCoachSystemPrompt` function) is
-  the prompt we ship to the model — it includes 15 few-shot dialogues
-  and the safety rules. Edits to the prompt should be reviewed in code
-  review the same way a copy change would be; tone matters.
-- Rate limit reset is in-process — restarting the VM resets every
-  user's counter to zero. Acceptable today; revisit when scaling out.
+- Edits to the system prompt must keep `ai-prompt-doctrine.spec.ts`
+  green. Treat that file as the source of truth for what the prompt
+  is allowed to say.
+- Rate limit is database-backed in `ai_request_logs` and survives VM
+  restarts (see `ai-rate-limit.service.ts`).
 - `POST /api/ai/spending-dna` regenerates and overwrites. If you want
   to A/B prompt variants without trampling history, branch on a flag
   and write to a different `month` shape (e.g. `2026-01-experiment`).

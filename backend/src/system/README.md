@@ -16,7 +16,7 @@ actually running.
 
 | Method | Path | Auth | Notes |
 |--------|------|------|-------|
-| GET | `/system/trust-meta` | Public | Static-ish payload describing security posture: encryption-at-rest, third-party SDK list, retention policy, audit cadence. Read by the mobile Trust Center screen. |
+| GET | `/system/trust-meta` | Public | Static-ish payload describing security posture: encryption level, data residency, audit policy version, plus *truthful* capability flags: `dataExportSupported`, `accountDeletionSupported`, `readOnlyAccountAccess`. Also surfaces `dataControlsMode: 'concierge'` and `supportContactEmail` so the Trust Center can route the data-controls CTAs to the support inbox. Read by the mobile Trust Center screen. |
 | GET | `/system/release-info` | Public | Build/runtime metadata: app name, version, release SHA + name, Fly region + machine id, Node version, environment, process start time. Read by the mobile splash / coach console / on-call. Never includes secrets. |
 
 ## Security & tenancy
@@ -40,6 +40,30 @@ to surface — Fly publishes that information itself.
 | `RELEASE_SHA` | Release pipeline | Preferred git SHA for the running build. |
 | `RELEASE_NAME` | Release pipeline | Human-readable release name. |
 | `npm_package_version` | npm at boot | Falls back to the package.json version. |
+
+## Truthfulness rule for `trust-meta`
+
+The capability flags (`dataExportSupported`, `accountDeletionSupported`,
+`readOnlyAccountAccess`, `dataControlsMode`) must reflect what the
+backend actually implements end-to-end. Asserting a capability that
+isn't wired up — for example flipping `dataExportSupported` to `true`
+while the export pipeline is still concierge — is treated as a
+sale-readiness regression. The mobile Trust Center renders these flags
+verbatim into the UI, so a flip here is a flip in front of every user.
+
+The asserted flags are pinned by `test/system-trust-meta.spec.ts`
+(capability flags + the `SUPPORT_CONTACT_EMAIL` fallback). Update that
+spec in the same PR that flips a capability.
+
+## Environment variables
+
+`trust-meta` reads:
+
+| Key | Effect |
+|-----|--------|
+| `SUPPORT_CONTACT_EMAIL` | Override for the concierge support address surfaced to the Trust Center. Defaults to `support@thegrowthproject.courses`. |
+
+`release-info` reads the Fly.io and release vars listed above.
 
 ## Operations
 

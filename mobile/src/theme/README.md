@@ -47,4 +47,9 @@ The short version:
   replace with an `Ionicons` outline glyph in `colors.charcoal` /
   `colors.stone`, or with an eyebrow caption.
 - Raw hex literals in screens. The token file is exhaustive; anything
-  not there shouldn't be on the screen.
+  not there shouldn't be on the screen. The previous
+  `ScreenErrorBoundary` shipped hardcoded `#0D1117` and amber
+  `#F9C74F` literals; the canonical token set is now bone / ink /
+  oxblood and the boundary lives on those tokens. Any new component
+  that needs a status colour should reuse `colors.oxblood` rather
+  than reach for amber.
