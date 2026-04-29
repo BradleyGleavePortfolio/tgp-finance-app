@@ -1,7 +1,9 @@
 // Community service — UX Psychology Report #5: Contribution Loops
 // Feed = anonymized wins synthesized from existing goals/transactions + user-posted wins.
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { FinancialAccount, FinancialProfile, User } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { toN } from '../common/money';
 
 // Anonymise name: "Bradley Gleave" → "Bradley G."
 function anonymiseName(name: string): string {
@@ -14,16 +16,20 @@ function anonymiseName(name: string): string {
 }
 
 // Synthesize canned wins from a user's financial profile & accounts
-function synthesizeWin(user: any, profile: any, accounts: any[]): string | null {
-  const debtAccounts = accounts.filter((a) => a.is_debt && a.balance > 0);
+function synthesizeWin(
+  user: Pick<User, 'id'>,
+  profile: FinancialProfile | null,
+  accounts: FinancialAccount[],
+): string | null {
+  const debtAccounts = accounts.filter((a) => a.is_debt && toN(a.balance) > 0);
   const savingsAccounts = accounts.filter(
     (a) => !a.is_debt && ['checking', 'savings'].includes(a.account_type),
   );
-  const totalDebt = debtAccounts.reduce((s: number, a: any) => s + Number(a.balance), 0);
-  const totalCash = savingsAccounts.reduce((s: number, a: any) => s + Number(a.balance), 0);
+  const totalDebt = debtAccounts.reduce((s, a) => s + toN(a.balance), 0);
+  const totalCash = savingsAccounts.reduce((s, a) => s + toN(a.balance), 0);
 
   // Pick a deterministic message based on user id hash
-  const hash = user.id.split('').reduce((h: number, c: string) => h + c.charCodeAt(0), 0);
+  const hash = user.id.split('').reduce((h, c) => h + c.charCodeAt(0), 0);
   const options: string[] = [];
 
   if (totalDebt > 0) {

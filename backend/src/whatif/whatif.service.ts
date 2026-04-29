@@ -1,8 +1,71 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { FinancialAccount, FinancialProfile, Prisma, ScenarioType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { toN } from '../common/money';
 import * as path from 'path';
 import * as fs from 'fs';
+
+// Per-scenario parameter shapes. The controller forwards parsed JSON unchanged
+// from the request body, so every field is optional and we apply defaults inline.
+export interface ScenarioParams {
+  account_id?: string;
+  extra_monthly?: number;
+  raise_amount?: number;
+  raise_pct?: number;
+  city?: string;
+  country?: string;
+  to_state?: string;
+  expense_name?: string;
+  monthly_amount?: number;
+  amount?: number;
+  return_pct?: number;
+  sale_price?: number;
+  startup_cost?: number;
+  monthly_revenue_conservative?: number;
+  monthly_revenue_realistic?: number;
+  monthly_revenue_optimistic?: number;
+  months_to_profitability?: number;
+  target_date?: string;
+  target_annual?: number;
+  probability?: 1 | 2 | 3;
+  k401_contribution?: number;
+  ira_contribution?: number;
+  hsa_contribution?: number;
+  target_monthly_passive?: number;
+  investment_return_pct?: number;
+  current_savings_rate_pct?: number;
+  current_age?: number;
+}
+
+export interface ScenarioResult {
+  result_summary: Record<string, unknown>;
+  projection_1yr: number;
+  projection_3yr?: number;
+  projection_5yr?: number;
+  projection_10yr?: number;
+  error?: string;
+}
+
+interface CostOfLivingRow {
+  city?: string;
+  country?: string;
+  monthly_cost_usd?: number;
+  cost_index?: number;
+  rent_1br_city_center?: number;
+}
+
+export interface SaveScenarioData {
+  scenario_type: ScenarioType;
+  label: string;
+  parameters: Prisma.InputJsonValue;
+  result_summary: Prisma.InputJsonValue;
+  projection_1yr?: number;
+  projection_3yr?: number;
+  projection_5yr?: number;
+  projection_10yr?: number;
+}
+
+const balanceN = (a: FinancialAccount): number => toN(a.balance);
 
 // Financial math helpers
 function fv(pv: number, r: number, n: number): number {
@@ -33,7 +96,7 @@ function totalInterestPaid(balance: number, apr: number, monthlyPayment: number)
 export class WhatIfService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private loadCostOfLivingData(): any[] {
+  private loadCostOfLivingData(): CostOfLivingRow[] {
     // Try multiple possible paths (works from both ts-node dev and compiled dist)
     const candidates = [
       path.resolve(__dirname, '..', '..', '..', '..', 'data', 'cost_of_living_2026.json'), // from dist/src/whatif/
@@ -43,13 +106,17 @@ export class WhatIfService {
     ];
     for (const p of candidates) {
       if (fs.existsSync(p)) {
-        return JSON.parse(fs.readFileSync(p, 'utf-8'));
+        return JSON.parse(fs.readFileSync(p, 'utf-8')) as CostOfLivingRow[];
       }
     }
     return [];
   }
 
-  async runScenario(userId: string, scenarioType: string, parameters: any): Promise<any> {
+  async runScenario(
+    userId: string,
+    scenarioType: string,
+    parameters: ScenarioParams,
+  ): Promise<ScenarioResult> {
     const [profile, accounts] = await Promise.all([
       this.prisma.financialProfile.findUnique({ where: { user_id: userId } }),
       this.prisma.financialAccount.findMany({ where: { user_id: userId, is_active: true } }),
@@ -104,25 +171,30 @@ export class WhatIfService {
     }
   }
 
-  private scenarioExtraDebtPayment(accounts: any[], params: any, currentNetWorth: number) {
+  private scenarioExtraDebtPayment(
+    accounts: FinancialAccount[],
+    params: ScenarioParams,
+    currentNetWorth: number,
+  ): ScenarioResult {
     const accountId = params.account_id;
     const extraMonthly = params.extra_monthly || 200;
 
     const targetAccounts = accountId
       ? accounts.filter((a) => a.id === accountId && a.is_debt)
-      : accounts.filter((a) => a.is_debt && a.apr_percent && a.balance > 0)
-          .sort((a, b) => (b.apr_percent || 0) - (a.apr_percent || 0));
+      : accounts.filter((a) => a.is_debt && a.apr_percent && balanceN(a) > 0)
+          .sort((a, b) => (b.apr_percent ?? 0) - (a.apr_percent ?? 0));
 
     if (targetAccounts.length === 0) {
       return { error: 'No debt accounts found', result_summary: {}, projection_1yr: currentNetWorth };
     }
 
     const target = targetAccounts[0];
-    const minPay = target.minimum_payment || 100;
-    const normalMonths = debtPayoffMonths(target.balance, target.apr_percent || 20, minPay);
-    const fastMonths = debtPayoffMonths(target.balance, target.apr_percent || 20, minPay + extraMonthly);
-    const normalInterest = totalInterestPaid(target.balance, target.apr_percent || 20, minPay);
-    const fastInterest = totalInterestPaid(target.balance, target.apr_percent || 20, minPay + extraMonthly);
+    const targetBalance = balanceN(target);
+    const minPay = toN(target.minimum_payment) || 100;
+    const normalMonths = debtPayoffMonths(targetBalance, target.apr_percent ?? 20, minPay);
+    const fastMonths = debtPayoffMonths(targetBalance, target.apr_percent ?? 20, minPay + extraMonthly);
+    const normalInterest = totalInterestPaid(targetBalance, target.apr_percent ?? 20, minPay);
+    const fastInterest = totalInterestPaid(targetBalance, target.apr_percent ?? 20, minPay + extraMonthly);
 
     const interestSaved = normalInterest - fastInterest;
     const monthsSaved = normalMonths - fastMonths;
@@ -155,10 +227,15 @@ export class WhatIfService {
     };
   }
 
-  private scenarioIncomeIncrease(profile: any, accounts: any[], params: any, currentNetWorth: number) {
+  private scenarioIncomeIncrease(
+    profile: FinancialProfile | null,
+    _accounts: FinancialAccount[],
+    params: ScenarioParams,
+    currentNetWorth: number,
+  ): ScenarioResult {
     const raiseAmount = params.raise_amount || 0;
     const raisePct = params.raise_pct || 0;
-    const currentGross = profile?.monthly_income_gross || 0;
+    const currentGross = toN(profile?.monthly_income_gross);
     const newGross = raiseAmount
       ? currentGross + raiseAmount
       : currentGross * (1 + raisePct / 100);
@@ -195,7 +272,11 @@ export class WhatIfService {
     };
   }
 
-  private scenarioRelocateCountry(profile: any, params: any, currentNetWorth: number) {
+  private scenarioRelocateCountry(
+    _profile: FinancialProfile | null,
+    params: ScenarioParams,
+    currentNetWorth: number,
+  ): ScenarioResult {
     const city = params.city || params.country || 'Medellin';
     const colData = this.loadCostOfLivingData();
     const destination = colData.find(
@@ -234,12 +315,16 @@ export class WhatIfService {
     };
   }
 
-  private scenarioRelocateCity(profile: any, params: any, currentNetWorth: number) {
+  private scenarioRelocateCity(
+    profile: FinancialProfile | null,
+    params: ScenarioParams,
+    currentNetWorth: number,
+  ): ScenarioResult {
     const toState = params.to_state || 'Texas';
     const noIncomeTaxStates = ['Alaska', 'Florida', 'Nevada', 'New Hampshire', 'South Dakota', 'Tennessee', 'Texas', 'Washington', 'Wyoming'];
     const hasNoStateTax = noIncomeTaxStates.some((s) => toState.toLowerCase().includes(s.toLowerCase()));
 
-    const annualIncome = (profile?.annual_income_gross || 0);
+    const annualIncome = toN(profile?.annual_income_gross);
     const currentStateRate = 0.05; // ~5% avg state income tax
     const newStateRate = hasNoStateTax ? 0 : 0.03;
     const taxSavingsAnnual = annualIncome * (currentStateRate - newStateRate);
@@ -264,7 +349,7 @@ export class WhatIfService {
     };
   }
 
-  private scenarioCutExpense(params: any, currentNetWorth: number) {
+  private scenarioCutExpense(params: ScenarioParams, currentNetWorth: number): ScenarioResult {
     const expenseName = params.expense_name || 'subscription';
     const monthlyAmount = params.monthly_amount || 100;
     const annualSavings = monthlyAmount * 12;
@@ -287,7 +372,7 @@ export class WhatIfService {
     };
   }
 
-  private scenarioInvestLumpSum(params: any, currentNetWorth: number) {
+  private scenarioInvestLumpSum(params: ScenarioParams, currentNetWorth: number): ScenarioResult {
     const amount = params.amount || 10000;
     const returnPct = params.return_pct || 8;
     const r = returnPct / 100;
@@ -316,11 +401,15 @@ export class WhatIfService {
     };
   }
 
-  private scenarioSellAsset(accounts: any[], params: any, currentNetWorth: number) {
+  private scenarioSellAsset(
+    accounts: FinancialAccount[],
+    params: ScenarioParams,
+    currentNetWorth: number,
+  ): ScenarioResult {
     const accountId = params.account_id;
     const salePrice = params.sale_price || 0;
     const account = accountId ? accounts.find((a) => a.id === accountId) : null;
-    const assetValue = account?.balance || salePrice;
+    const assetValue = account ? balanceN(account) : salePrice;
 
     // Cleanup (round 5): removed unused monthly-rate `r`; growth formula uses
     // literal rates inline, so the alias was dead.
@@ -343,7 +432,11 @@ export class WhatIfService {
     };
   }
 
-  private scenarioStartBusiness(profile: any, params: any, currentNetWorth: number) {
+  private scenarioStartBusiness(
+    _profile: FinancialProfile | null,
+    params: ScenarioParams,
+    currentNetWorth: number,
+  ): ScenarioResult {
     const startupCost = params.startup_cost || 5000;
     const monthlyRevenueConservative = params.monthly_revenue_conservative || 500;
     const monthlyRevenueRealistic = params.monthly_revenue_realistic || 2000;
@@ -376,10 +469,14 @@ export class WhatIfService {
     };
   }
 
-  private scenarioPayOffDebtEarly(accounts: any[], params: any, currentNetWorth: number) {
-    const debtAccounts = accounts.filter((a) => a.is_debt && a.balance > 0);
-    const totalDebt = debtAccounts.reduce((s, a) => s + a.balance, 0);
-    const totalMinPayments = debtAccounts.reduce((s, a) => s + (a.minimum_payment || 0), 0);
+  private scenarioPayOffDebtEarly(
+    accounts: FinancialAccount[],
+    params: ScenarioParams,
+    currentNetWorth: number,
+  ): ScenarioResult {
+    const debtAccounts = accounts.filter((a) => a.is_debt && balanceN(a) > 0);
+    const totalDebt = debtAccounts.reduce((s, a) => s + balanceN(a), 0);
+    const totalMinPayments = debtAccounts.reduce((s, a) => s + toN(a.minimum_payment), 0);
     const targetDate = params.target_date ? new Date(params.target_date) : null;
     const monthsTarget = targetDate
       ? Math.ceil((targetDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30))
@@ -389,8 +486,10 @@ export class WhatIfService {
     const extraPerMonth = Math.max(0, requiredMonthlyPayment - totalMinPayments);
 
     const totalInterestSaved = debtAccounts.reduce((s, a) => {
-      const normal = totalInterestPaid(a.balance, a.apr_percent || 10, a.minimum_payment || 100);
-      const fast = totalInterestPaid(a.balance, a.apr_percent || 10, (a.minimum_payment || 100) + extraPerMonth / debtAccounts.length);
+      const bal = balanceN(a);
+      const minPay = toN(a.minimum_payment) || 100;
+      const normal = totalInterestPaid(bal, a.apr_percent ?? 10, minPay);
+      const fast = totalInterestPaid(bal, a.apr_percent ?? 10, minPay + extraPerMonth / debtAccounts.length);
       return s + Math.max(0, normal - fast);
     }, 0);
 
@@ -411,12 +510,16 @@ export class WhatIfService {
     };
   }
 
-  private scenarioSalaryNegotiation(profile: any, params: any, currentNetWorth: number) {
-    const currentAnnual = profile?.annual_income_gross || 60000;
+  private scenarioSalaryNegotiation(
+    profile: FinancialProfile | null,
+    params: ScenarioParams,
+    currentNetWorth: number,
+  ): ScenarioResult {
+    const currentAnnual = toN(profile?.annual_income_gross) || 60000;
     const targetAnnual = params.target_annual || currentAnnual * 1.2;
-    const probability = params.probability || 2; // 1=likely, 2=possible, 3=longshot
-    const probMap = { 1: 0.8, 2: 0.5, 3: 0.2 };
-    const successProb = probMap[probability] || 0.5;
+    const probability: 1 | 2 | 3 = params.probability ?? 2; // 1=likely, 2=possible, 3=longshot
+    const probMap: Record<1 | 2 | 3, number> = { 1: 0.8, 2: 0.5, 3: 0.2 };
+    const successProb = probMap[probability] ?? 0.5;
 
     const annualIncrease = targetAnnual - currentAnnual;
     const lifespan = 35; // Working years remaining (approximate)
@@ -443,8 +546,12 @@ export class WhatIfService {
     };
   }
 
-  private scenarioTaxOptimization(profile: any, params: any, currentNetWorth: number) {
-    const annualIncome = profile?.annual_income_gross || 60000;
+  private scenarioTaxOptimization(
+    profile: FinancialProfile | null,
+    params: ScenarioParams,
+    currentNetWorth: number,
+  ): ScenarioResult {
+    const annualIncome = toN(profile?.annual_income_gross) || 60000;
     // Cleanup (round 5): `filing_status` and `reducedIncome` were computed but
     // never consumed. Bracket selection below is driven purely by `annualIncome`,
     // and the post-deduction income is not surfaced in the response payload.
@@ -480,8 +587,12 @@ export class WhatIfService {
     };
   }
 
-  private scenarioRetireEarly(profile: any, params: any, currentNetWorth: number) {
-    const monthlyNeeded = params.target_monthly_passive || profile?.dream_lifestyle_cost_mo || 5000;
+  private scenarioRetireEarly(
+    profile: FinancialProfile | null,
+    params: ScenarioParams,
+    currentNetWorth: number,
+  ): ScenarioResult {
+    const monthlyNeeded = params.target_monthly_passive || toN(profile?.dream_lifestyle_cost_mo) || 5000;
     const returnPct = params.investment_return_pct || 8;
     const annualNeeded = monthlyNeeded * 12;
 
@@ -489,7 +600,7 @@ export class WhatIfService {
     const fiNumber = annualNeeded / 0.04;
 
     const currentSavingsRate = params.current_savings_rate_pct || 15;
-    const annualIncome = profile?.annual_income_gross || 60000;
+    const annualIncome = toN(profile?.annual_income_gross) || 60000;
     const annualSavings = annualIncome * (currentSavingsRate / 100);
     const monthlySavings = annualSavings / 12;
 
@@ -541,7 +652,7 @@ export class WhatIfService {
     });
   }
 
-  async saveScenario(userId: string, data: any) {
+  async saveScenario(userId: string, data: SaveScenarioData) {
     return this.prisma.whatIfScenario.create({
       data: {
         user_id: userId,

@@ -29,7 +29,7 @@ export class PaydayController {
    */
   @Post()
   @HttpCode(HttpStatus.OK)
-  async deployPaycheck(@Body() body: any, @CurrentUser() user: any) {
+  async deployPaycheck(@Body() body: unknown, @CurrentUser() user: CurrentUser) {
     const parsed = DeployPaycheckSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException({
@@ -49,7 +49,7 @@ export class PaydayController {
    * Return the user's saved allocation templates.
    */
   @Get('templates')
-  async getTemplates(@CurrentUser() user: any) {
+  async getTemplates(@CurrentUser() user: CurrentUser) {
     return this.paydayService.getTemplates(user.id);
   }
 
@@ -59,7 +59,7 @@ export class PaydayController {
    */
   @Post('templates')
   @HttpCode(HttpStatus.CREATED)
-  async saveTemplate(@Body() body: any, @CurrentUser() user: any) {
+  async saveTemplate(@Body() body: unknown, @CurrentUser() user: CurrentUser) {
     const parsed = SavePaydayTemplateSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException({

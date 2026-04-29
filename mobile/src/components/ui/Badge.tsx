@@ -1,4 +1,3 @@
-// Streak/level badges
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
 import { Colors, Typography, Spacing, BorderRadius } from '../../theme/finance';
@@ -19,25 +18,25 @@ export function Badge({ text, color = Colors.accentGold, style, size = 'md' }: B
   );
 }
 
-interface StreakBadgeProps {
+interface ProgressMarkerProps {
   streak: number;
   style?: ViewStyle;
 }
 
-export function StreakBadge({ streak, style }: StreakBadgeProps) {
+export function ProgressMarker({ streak, style }: ProgressMarkerProps) {
   const color = streak >= 30 ? Colors.accentGold : streak >= 7 ? Colors.profitGreen : Colors.slateGray;
   return (
     <Badge text={`${streak}d`} color={color} style={style} />
   );
 }
 
-interface VelocityBadgeProps {
+interface MomentumIndicatorProps {
   score: number;
   showScore?: boolean;
   style?: ViewStyle;
 }
 
-export function VelocityBadge({ score, showScore = true, style }: VelocityBadgeProps) {
+export function MomentumIndicator({ score, showScore = true, style }: MomentumIndicatorProps) {
   const { name, color } = getVelocityLevel(score);
   return (
     <Badge

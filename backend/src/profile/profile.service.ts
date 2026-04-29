@@ -1,6 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { toN } from '../common/money';
+
+// Profile updates accept the same fields as Prisma's update input plus the
+// monthly/annual income mirroring the service applies inline. user_id is
+// taken from the authenticated request and must not arrive on the body.
+export type ProfileUpdate = Omit<Prisma.FinancialProfileUncheckedUpdateInput, 'user_id'> & {
+  monthly_income_gross?: number;
+  annual_income_gross?: number;
+};
 
 @Injectable()
 export class ProfileService {
@@ -23,21 +32,24 @@ export class ProfileService {
     return profile;
   }
 
-  async updateProfile(userId: string, data: any) {
+  async updateProfile(userId: string, data: ProfileUpdate) {
     // Compute annual from monthly if only monthly provided
     if (data.monthly_income_gross && !data.annual_income_gross) {
-      data.annual_income_gross = data.monthly_income_gross * 12;
+      data.annual_income_gross = (data.monthly_income_gross as number) * 12;
     }
 
     // Compute monthly from annual if only annual provided
     if (data.annual_income_gross && !data.monthly_income_gross) {
-      data.monthly_income_gross = Math.round(data.annual_income_gross / 12);
+      data.monthly_income_gross = Math.round((data.annual_income_gross as number) / 12);
     }
 
     const profile = await this.prisma.financialProfile.upsert({
       where: { user_id: userId },
       update: { ...data, updated_at: new Date() },
-      create: { user_id: userId, ...data },
+      create: {
+        user_id: userId,
+        ...(data as Omit<Prisma.FinancialProfileUncheckedCreateInput, 'user_id'>),
+      },
     });
 
     return profile;

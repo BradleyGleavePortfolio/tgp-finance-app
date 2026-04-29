@@ -114,14 +114,14 @@ export class EODService {
               account_id: s.account_id,
               balance: s.balance.toFixed(2),
               ...(s.notes !== undefined ? { notes: s.notes } : {}),
-            })) as any,
+            })) as unknown as Prisma.InputJsonValue,
             net_worth_computed: netWorthDec,
             total_debt_computed: totalDebtDec,
             total_assets_computed: totalAssetsDec,
             total_cash_computed: totalCashDec,
             notes: dto.notes,
             mood: dto.mood,
-            habits_checked: dto.habits_checked as any,
+            habits_checked: dto.habits_checked as unknown as Prisma.InputJsonValue,
           },
         });
 
@@ -283,7 +283,7 @@ export class EODService {
           const profile = await this.prisma.financialProfile.findUnique({ where: { user_id: userId } });
           const accounts = await this.prisma.financialAccount.findMany({ where: { user_id: userId, is_active: true } });
           for (const priority of PRIORITY_WATERFALL) {
-            const r = priority.check(profile as any, accounts as any);
+            const r = priority.check(profile, accounts);
             if (!r.complete) {
               current_priority = { index: priority.index, title: priority.title };
               break;
@@ -476,14 +476,14 @@ export class EODService {
           account_id: s.account_id,
           balance: s.balance.toFixed(2),
           ...(s.notes !== undefined ? { notes: s.notes } : {}),
-        })) as any,
+        })) as unknown as Prisma.InputJsonValue,
         net_worth_computed: netWorthDec,
         total_debt_computed: totalDebtDec,
         total_assets_computed: totalAssetsDec,
         total_cash_computed: totalCashDec,
         notes: dto.notes,
         mood: dto.mood,
-        habits_checked: dto.habits_checked as any,
+        habits_checked: dto.habits_checked as unknown as Prisma.InputJsonValue,
       },
     });
 

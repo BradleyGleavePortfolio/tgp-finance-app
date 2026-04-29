@@ -27,7 +27,7 @@ export class AuthController {
   @Public()
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  async register(@Body() body: any) {
+  async register(@Body() body: unknown) {
     const parsed = RegisterSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException({
@@ -35,13 +35,13 @@ export class AuthController {
         code: 'VALIDATION_ERROR',
       });
     }
-    return this.authService.register(parsed.data as any);
+    return this.authService.register(parsed.data);
   }
 
   @Public()
   @Post('verify-email')
   @HttpCode(HttpStatus.OK)
-  async verifyEmail(@Body() body: any) {
+  async verifyEmail(@Body() body: unknown) {
     const parsed = VerifyEmailSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException({ error: 'Token required', code: 'VALIDATION_ERROR' });
@@ -52,7 +52,7 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(@Body() body: any) {
+  async login(@Body() body: unknown) {
     const parsed = LoginSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException({
@@ -66,7 +66,7 @@ export class AuthController {
   @Public()
   @Post('google')
   @HttpCode(HttpStatus.OK)
-  async googleAuth(@Body() body: any) {
+  async googleAuth(@Body() body: unknown) {
     const parsed = GoogleAuthSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException({ error: 'Access token required', code: 'VALIDATION_ERROR' });
@@ -77,7 +77,7 @@ export class AuthController {
   @Post('select-role')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  async selectRole(@Body() body: any, @CurrentUser() user: any) {
+  async selectRole(@Body() body: unknown, @CurrentUser() user: CurrentUser) {
     const parsed = SelectRoleSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException({
@@ -91,13 +91,13 @@ export class AuthController {
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  async logout(@CurrentUser() user: any) {
+  async logout(@CurrentUser() user: CurrentUser) {
     return this.authService.logout(user.id);
   }
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  async getMe(@CurrentUser() user: any) {
+  async getMe(@CurrentUser() user: CurrentUser) {
     return this.authService.getMe(user.id);
   }
 }

@@ -20,13 +20,13 @@ export class PreferencesController {
   constructor(private readonly preferencesService: PreferencesService) {}
 
   @Get()
-  get(@CurrentUser() user: any) {
+  get(@CurrentUser() user: CurrentUser) {
     return this.preferencesService.get(user.id);
   }
 
   @Patch()
   @HttpCode(200)
-  patch(@CurrentUser() user: any, @Body() dto: UpdatePreferencesDto) {
+  patch(@CurrentUser() user: CurrentUser, @Body() dto: UpdatePreferencesDto) {
     return this.preferencesService.patch(user.id, dto);
   }
 }

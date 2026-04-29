@@ -14,7 +14,7 @@ call is authenticated, rate-limited, and hydrated with on-server data.
 - `ai.module.ts`.
 
 The upstream client is the `openai` SDK pointed at the provider's
-OpenAI-compatible base URL with `model: 'sonar'`. The model and base
+OpenAI-compatible base URL with `model: 'sonar-pro'`. The model and base
 URL live as constants in `ai.service.ts` — change them in one place
 when swapping providers. Provider choice is informed by per-token
 cost and the size of the combined prompt + context payload, which has
@@ -223,6 +223,6 @@ gives you the system-prompt rules to import.
 - `POST /api/ai/spending-dna` regenerates and overwrites. If you want
   to A/B prompt variants without trampling history, branch on a flag
   and write to a different `month` shape (e.g. `2026-01-experiment`).
-- The upstream model is named `sonar` in the SDK config. Provider /
+- The upstream model is named `sonar-pro` in the SDK config. Provider /
   model swaps happen in `ai.service.ts` — the env var, base URL, and
   model string move together.

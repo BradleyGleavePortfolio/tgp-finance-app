@@ -19,7 +19,7 @@ export class CommunityController {
 
   /** GET /community/feed — recent 30 anonymized wins */
   @Get('feed')
-  async getFeed(@CurrentUser() user: any) {
+  async getFeed(@CurrentUser() user: CurrentUser) {
     return this.communityService.getFeed(user.id);
   }
 
@@ -28,7 +28,7 @@ export class CommunityController {
   async react(
     @Param('id') id: string,
     @Body('kind') kind: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: CurrentUser,
   ) {
     if (kind !== 'fire' && kind !== 'clap') {
       throw new BadRequestException('kind must be "fire" or "clap"');
@@ -41,7 +41,7 @@ export class CommunityController {
   async postWin(
     @Body('action') action: string,
     @Body('visibility') visibility: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: CurrentUser,
   ) {
     if (!action || typeof action !== 'string' || action.trim().length < 3) {
       throw new BadRequestException('action must be at least 3 characters');

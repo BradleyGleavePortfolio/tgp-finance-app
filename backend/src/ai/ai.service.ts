@@ -2,9 +2,22 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import OpenAI from 'openai';
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { PrismaService } from '../prisma/prisma.service';
 import { AIRateLimitService } from './ai-rate-limit.service';
 import { toN } from '../common/money';
+
+// Conversation history forwarded from the client. We pass it through to the
+// upstream chat completion as-is after slicing to the last 10 turns.
+export interface ConversationTurn {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
+
+interface CoachContext {
+  coach_id: string;
+  coach_display_name: string;
+}
 
 // Quiet-luxury system prompt for the in-app coach.
 //
@@ -12,7 +25,13 @@ import { toN } from '../common/money';
 // no emoji, no direct-response copy, no gendered or audience framing. The
 // register is a private bank statement, not a coaching funnel. Replies are
 // short, factual, and use the user's actual numbers.
-export function buildFinanceCoachSystemPrompt(context: any): string {
+// Context payload built by buildUserContext — passed verbatim to the prompt.
+// Kept loose because the LLM consumes the JSON-stringified form rather than
+// reading specific fields, but `unknown` would force every caller through
+// extra narrowing for no benefit.
+export type CoachPromptContext = Record<string, unknown>;
+
+export function buildFinanceCoachSystemPrompt(context: CoachPromptContext): string {
   const contextStr = JSON.stringify(context, null, 2);
 
   return `You are the in-app finance assistant for The Growth Project: Finance.
@@ -116,7 +135,7 @@ export class AIService {
     });
   }
 
-  async chat(userId: string, message: string, conversationHistory: any[]) {
+  async chat(userId: string, message: string, conversationHistory: ConversationTurn[]) {
     await this.rateLimit.consume(userId, 'chat');
 
     // Safety check: validate message isn't empty
@@ -127,26 +146,27 @@ export class AIService {
     // Build user context
     const userContext = await this.buildUserContext(userId);
 
-    const systemPrompt = buildFinanceCoachSystemPrompt(userContext);
+    const systemPrompt = buildFinanceCoachSystemPrompt(userContext as CoachPromptContext);
 
-    const messages = [
+    const messages: ChatCompletionMessageParam[] = [
       { role: 'system', content: systemPrompt },
-      ...conversationHistory.slice(-10).map((m: any) => ({ role: m.role, content: m.content })),
+      ...conversationHistory.slice(-10).map((m) => ({ role: m.role, content: m.content })),
       { role: 'user', content: message },
     ];
 
     try {
       const response = await this.perplexity.chat.completions.create({
-        model: 'sonar',
-        messages: messages as any,
+        model: 'sonar-pro',
+        messages,
         temperature: 0.6, // Slightly lower for financial precision
         max_tokens: 600,
       });
 
       const reply = response.choices[0]?.message?.content || 'Unable to generate response.';
-      return { reply, model: 'sonar' };
-    } catch (error: any) {
-      this.logger.error(`AI chat error: ${error.message}`);
+      return { reply, model: 'sonar-pro' };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.error(`AI chat error: ${msg}`);
       // Graceful degradation — return an error message rather than crashing
       throw new BadRequestException({
         error: 'AI service temporarily unavailable. Please try again.',
@@ -193,7 +213,7 @@ export class AIService {
 
     // Resolve the coach (if any) in a separate, scoped query — only the
     // public-safe fields. We don't want to relay PII the AI doesn't need.
-    let coachContext: any = null;
+    let coachContext: CoachContext | null = null;
     if (userRow?.coach_id) {
       const coach = await this.prisma.user.findUnique({
         where: { id: userRow.coach_id },
@@ -238,7 +258,7 @@ export class AIService {
 
     return {
       profile: {
-        name: (profile as any).user?.name || 'User',
+        name: profile.user?.name || 'User',
         monthly_income_gross: profile.monthly_income_gross,
         take_home_monthly: Math.round(takeHomeMonthly),
         primary_goal: profile.primary_goal,
@@ -342,7 +362,7 @@ Twenty words or fewer. Declarative. End in a period. No hype, no emoji, no excla
 
     try {
       const response = await this.perplexity.chat.completions.create({
-        model: 'sonar',
+        model: 'sonar-pro',
         messages: [
           { role: 'system', content: 'You are the in-app finance assistant. One declarative sentence, no hype, no emoji, end in a period.' },
           { role: 'user', content: prompt },
@@ -363,8 +383,9 @@ Twenty words or fewer. Declarative. End in a period. No hype, no emoji, no excla
       }
 
       return { insight };
-    } catch (error: any) {
-      this.logger.error(`EOD insight error: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.error(`EOD insight error: ${msg}`);
       return { insight: null };
     }
   }
@@ -417,7 +438,7 @@ User data for ${month}:
 
     try {
       const response = await this.perplexity.chat.completions.create({
-        model: 'sonar',
+        model: 'sonar-pro',
         messages: [
           { role: 'system', content: 'You are the in-app finance assistant. Write declarative, factual paragraphs. No hype, no emoji, no exclamation marks.' },
           { role: 'user', content: prompt },
@@ -446,8 +467,9 @@ User data for ${month}:
       });
 
       return saved;
-    } catch (error: any) {
-      this.logger.error(`Spending DNA error: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Spending DNA error: ${msg}`);
       throw new BadRequestException({ error: 'Could not generate spending DNA report', code: 'AI_ERROR' });
     }
   }

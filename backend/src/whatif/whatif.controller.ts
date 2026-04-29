@@ -12,7 +12,7 @@ export class WhatIfController {
   constructor(private readonly whatIfService: WhatIfService) {}
 
   @Post('run')
-  async runScenario(@Body() body: any, @CurrentUser() user: any) {
+  async runScenario(@Body() body: unknown, @CurrentUser() user: CurrentUser) {
     const parsed = RunWhatIfSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException({
@@ -24,12 +24,12 @@ export class WhatIfController {
   }
 
   @Get('saved')
-  async getSaved(@CurrentUser() user: any) {
+  async getSaved(@CurrentUser() user: CurrentUser) {
     return this.whatIfService.getSavedScenarios(user.id);
   }
 
   @Post('save')
-  async saveScenario(@Body() body: any, @CurrentUser() user: any) {
+  async saveScenario(@Body() body: unknown, @CurrentUser() user: CurrentUser) {
     const parsed = SaveWhatIfSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException({
@@ -41,7 +41,7 @@ export class WhatIfController {
   }
 
   @Delete(':id')
-  async deleteScenario(@Param('id') id: string, @CurrentUser() user: any) {
+  async deleteScenario(@Param('id') id: string, @CurrentUser() user: CurrentUser) {
     return this.whatIfService.deleteScenario(user.id, id);
   }
 }

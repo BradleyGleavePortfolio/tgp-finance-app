@@ -3,11 +3,23 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as https from 'https';
 
+interface CostLivingRow {
+  country: string;
+  city: string;
+  cost_index: number;
+  monthly_cost_usd: number;
+  rent_1br_city_center?: number;
+  groceries_monthly?: number;
+  transport_monthly?: number;
+  utilities_monthly?: number;
+  internet_monthly?: number;
+}
+
 @Injectable()
 export class CostLivingService {
-  private colData: any[] | null = null;
+  private colData: CostLivingRow[] | null = null;
 
-  private loadData(): any[] {
+  private loadData(): CostLivingRow[] {
     if (this.colData) return this.colData;
 
     // Try multiple paths to find the data file

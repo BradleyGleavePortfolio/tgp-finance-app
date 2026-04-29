@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -24,7 +25,12 @@ export class AccountsService {
     });
   }
 
-  async createAccount(userId: string, data: any) {
+  async createAccount(
+    userId: string,
+    data: Omit<Prisma.FinancialAccountUncheckedCreateInput, 'user_id' | 'is_debt'> & {
+      is_debt?: boolean;
+    },
+  ) {
     // Auto-set is_debt based on account_type if not explicitly provided
     const is_debt = data.is_debt !== undefined ? data.is_debt : this.isDebtType(data.account_type);
 
@@ -49,7 +55,11 @@ export class AccountsService {
     return account;
   }
 
-  async updateAccount(userId: string, accountId: string, data: any) {
+  async updateAccount(
+    userId: string,
+    accountId: string,
+    data: Prisma.FinancialAccountUncheckedUpdateInput,
+  ) {
     const account = await this.prisma.financialAccount.findUnique({
       where: { id: accountId },
     });

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Expo, ExpoPushMessage, ExpoPushTicket, ExpoPushReceiptId } from 'expo-server-sdk';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   PushType,
@@ -54,7 +55,7 @@ export class PushSenderService {
       }
 
       const prefField = PREF_FIELD_BY_TYPE[type];
-      if (prefField && (prefs as any)[prefField] === false) {
+      if (prefField && (prefs as unknown as Record<string, unknown>)[prefField] === false) {
         return { sent: false, reason: 'preference_off' };
       }
 
@@ -186,7 +187,7 @@ export class PushSenderService {
           user_id: userId,
           type,
           error: null,
-          data: { path: [eventKey], equals: data[eventKey] as any },
+          data: { path: [eventKey], equals: data[eventKey] as Prisma.InputJsonValue },
         },
       });
       return Boolean(existing);
@@ -207,7 +208,7 @@ export class PushSenderService {
         type,
         title: payload.title,
         body: payload.body,
-        data: (payload.data as any) ?? undefined,
+        data: (payload.data as Prisma.InputJsonValue | undefined) ?? Prisma.DbNull,
         error: error ?? null,
       },
     });

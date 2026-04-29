@@ -10,12 +10,12 @@ export class ProfileController {
   constructor(private readonly profileService: ProfileService) {}
 
   @Get()
-  async getProfile(@CurrentUser() user: any) {
+  async getProfile(@CurrentUser() user: CurrentUser) {
     return this.profileService.getProfile(user.id);
   }
 
   @Put()
-  async updateProfile(@Body() body: any, @CurrentUser() user: any) {
+  async updateProfile(@Body() body: unknown, @CurrentUser() user: CurrentUser) {
     const parsed = UpdateProfileSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException({

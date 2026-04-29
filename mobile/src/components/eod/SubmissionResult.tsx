@@ -2,7 +2,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { Button } from '../ui/Button';
-import { StreakBadge } from '../ui/Badge';
+import { ProgressMarker } from '../ui/Badge';
 import { Colors, Typography, Spacing } from '../../theme/finance';
 import { formatCurrency } from '../../utils/formatters';
 
@@ -49,7 +49,7 @@ export function SubmissionResult({
 
       {/* Streak */}
       <View style={styles.streakRow}>
-        <StreakBadge streak={streak} />
+        <ProgressMarker streak={streak} />
         <Text style={styles.streakText}>
           {streak >= 7 ? 'The streak holds.' : 'Check in tomorrow to continue.'}
         </Text>

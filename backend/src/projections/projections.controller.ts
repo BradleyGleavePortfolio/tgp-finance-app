@@ -10,7 +10,7 @@ export class ProjectionsController {
   constructor(private readonly projectionsService: ProjectionsService) {}
 
   @Post('run')
-  async runProjection(@Body() body: any, @CurrentUser() user: any) {
+  async runProjection(@Body() body: unknown, @CurrentUser() user: CurrentUser) {
     const parsed = RunProjectionSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException({

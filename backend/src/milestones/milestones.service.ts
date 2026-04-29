@@ -1,41 +1,63 @@
 import { Injectable } from '@nestjs/common';
+import { FinancialAccount, FinancialProfile } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { toN } from '../common/money';
 
+// Profile fields the milestone checks read. We don't need every column on
+// FinancialProfile, just the numeric/Decimal ones referenced below.
+type MilestoneProfile = Pick<
+  FinancialProfile,
+  'total_cash' | 'total_debt' | 'net_worth_snapshot' | 'annual_income_gross' | 'streak_days'
+> | null;
+
+type MilestoneCheck = (
+  profile: MilestoneProfile,
+  accounts: FinancialAccount[],
+  onboardingDebt: number,
+) => boolean;
+
+interface MilestoneDef {
+  key: string;
+  title: string;
+  description: string;
+  category: 'cash' | 'debt' | 'networth' | 'streak' | 'income';
+  check: MilestoneCheck;
+}
+
 // All 15 milestone definitions with unlock conditions
-export const MILESTONES = [
+export const MILESTONES: MilestoneDef[] = [
   // CASH milestones
-  { key: 'cash_1k', title: 'Starter Pack Achieved', description: 'First $1,000 in cash', category: 'cash', check: (p: any) => (p.total_cash || 0) >= 1000 },
-  { key: 'cash_5k', title: 'Buffer Mode Unlocked', description: '$5,000 in cash', category: 'cash', check: (p: any) => (p.total_cash || 0) >= 5000 },
-  { key: 'cash_10k', title: 'Cash Stack Building', description: '$10,000 in cash', category: 'cash', check: (p: any) => (p.total_cash || 0) >= 10000 },
-  { key: 'cash_20k', title: 'Emergency Fund: Complete', description: '$20,000 in cash', category: 'cash', check: (p: any) => (p.total_cash || 0) >= 20000 },
+  { key: 'cash_1k', title: 'Starter Pack Achieved', description: 'First $1,000 in cash', category: 'cash', check: (p) => toN(p?.total_cash) >= 1000 },
+  { key: 'cash_5k', title: 'Buffer Mode Unlocked', description: '$5,000 in cash', category: 'cash', check: (p) => toN(p?.total_cash) >= 5000 },
+  { key: 'cash_10k', title: 'Cash Stack Building', description: '$10,000 in cash', category: 'cash', check: (p) => toN(p?.total_cash) >= 10000 },
+  { key: 'cash_20k', title: 'Emergency Fund: Complete', description: '$20,000 in cash', category: 'cash', check: (p) => toN(p?.total_cash) >= 20000 },
 
   // DEBT milestones
-  { key: 'first_debt_paid', title: 'First Blood: Debt Slayer', description: 'First debt account reaches $0', category: 'debt', check: (p: any, accounts: any[], onboardDebt: number) => accounts.some((a) => a.is_debt && a.balance === 0) },
-  { key: 'debt_half', title: 'Halfway There', description: 'Total debt cut in half vs onboarding', category: 'debt', check: (p: any, accounts: any[], onboardDebt: number) => onboardDebt > 0 && (p.total_debt || 0) <= onboardDebt / 2 },
-  { key: 'debt_zero', title: 'DEBT FREE — Wealth Mode Unlocked', description: 'All debt = $0', category: 'debt', check: (p: any) => (p.total_debt || 0) === 0 },
+  { key: 'first_debt_paid', title: 'First Blood: Debt Slayer', description: 'First debt account reaches $0', category: 'debt', check: (_p, accounts) => accounts.some((a) => a.is_debt && toN(a.balance) === 0) },
+  { key: 'debt_half', title: 'Halfway There', description: 'Total debt cut in half vs onboarding', category: 'debt', check: (p, _accounts, onboardDebt) => onboardDebt > 0 && toN(p?.total_debt) <= onboardDebt / 2 },
+  { key: 'debt_zero', title: 'DEBT FREE — Wealth Mode Unlocked', description: 'All debt = $0', category: 'debt', check: (p) => toN(p?.total_debt) === 0 },
 
   // NET WORTH milestones
-  { key: 'nw_positive', title: 'Into the Black', description: 'Net worth turns positive', category: 'networth', check: (p: any) => (p.net_worth_snapshot || 0) > 0 },
-  { key: 'nw_1k', title: 'First Rung', description: '$1K net worth', category: 'networth', check: (p: any) => (p.net_worth_snapshot || 0) >= 1000 },
-  { key: 'nw_5k', title: 'Climbing', description: '$5K net worth', category: 'networth', check: (p: any) => (p.net_worth_snapshot || 0) >= 5000 },
-  { key: 'nw_10k', title: 'Five Figures', description: '$10K net worth', category: 'networth', check: (p: any) => (p.net_worth_snapshot || 0) >= 10000 },
-  { key: 'nw_25k', title: 'Quarter to Fifty', description: '$25K net worth', category: 'networth', check: (p: any) => (p.net_worth_snapshot || 0) >= 25000 },
-  { key: 'nw_50k', title: 'Wealth Builder', description: '$50K net worth', category: 'networth', check: (p: any) => (p.net_worth_snapshot || 0) >= 50000 },
-  { key: 'nw_100k', title: 'Six Figures', description: '$100K net worth', category: 'networth', check: (p: any) => (p.net_worth_snapshot || 0) >= 100000 },
-  { key: 'nw_250k', title: 'Quarter Millionaire', description: '$250K net worth', category: 'networth', check: (p: any) => (p.net_worth_snapshot || 0) >= 250000 },
-  { key: 'nw_500k', title: 'Half Millionaire', description: '$500K net worth', category: 'networth', check: (p: any) => (p.net_worth_snapshot || 0) >= 500000 },
-  { key: 'nw_1m', title: 'The Million Dollar Moment', description: '$1M net worth', category: 'networth', check: (p: any) => (p.net_worth_snapshot || 0) >= 1000000 },
+  { key: 'nw_positive', title: 'Into the Black', description: 'Net worth turns positive', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) > 0 },
+  { key: 'nw_1k', title: 'First Rung', description: '$1K net worth', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) >= 1000 },
+  { key: 'nw_5k', title: 'Climbing', description: '$5K net worth', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) >= 5000 },
+  { key: 'nw_10k', title: 'Five Figures', description: '$10K net worth', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) >= 10000 },
+  { key: 'nw_25k', title: 'Quarter to Fifty', description: '$25K net worth', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) >= 25000 },
+  { key: 'nw_50k', title: 'Wealth Builder', description: '$50K net worth', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) >= 50000 },
+  { key: 'nw_100k', title: 'Six Figures', description: '$100K net worth', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) >= 100000 },
+  { key: 'nw_250k', title: 'Quarter Millionaire', description: '$250K net worth', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) >= 250000 },
+  { key: 'nw_500k', title: 'Half Millionaire', description: '$500K net worth', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) >= 500000 },
+  { key: 'nw_1m', title: 'The Million Dollar Moment', description: '$1M net worth', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) >= 1000000 },
 
   // STREAK milestones
-  { key: 'streak_7', title: 'Week Warrior', description: '7-day EOD streak', category: 'streak', check: (p: any) => (p.streak_days || 0) >= 7 },
-  { key: 'streak_30', title: 'Month Master', description: '30-day streak', category: 'streak', check: (p: any) => (p.streak_days || 0) >= 30 },
-  { key: 'streak_90', title: '90-Day Operator', description: '90-day streak', category: 'streak', check: (p: any) => (p.streak_days || 0) >= 90 },
-  { key: 'streak_365', title: 'Financial Discipline: Elite', description: '365-day streak', category: 'streak', check: (p: any) => (p.streak_days || 0) >= 365 },
+  { key: 'streak_7', title: 'Week Warrior', description: '7-day EOD streak', category: 'streak', check: (p) => (p?.streak_days ?? 0) >= 7 },
+  { key: 'streak_30', title: 'Month Master', description: '30-day streak', category: 'streak', check: (p) => (p?.streak_days ?? 0) >= 30 },
+  { key: 'streak_90', title: '90-Day Operator', description: '90-day streak', category: 'streak', check: (p) => (p?.streak_days ?? 0) >= 90 },
+  { key: 'streak_365', title: 'Financial Discipline: Elite', description: '365-day streak', category: 'streak', check: (p) => (p?.streak_days ?? 0) >= 365 },
 
   // INCOME milestones
-  { key: 'income_100k', title: 'Six-Figure Earner', description: 'Annual income hits $100K', category: 'income', check: (p: any) => (p.annual_income_gross || 0) >= 100000 },
-  { key: 'income_200k', title: 'Top 5% Earner', description: 'Annual income hits $200K', category: 'income', check: (p: any) => (p.annual_income_gross || 0) >= 200000 },
+  { key: 'income_100k', title: 'Six-Figure Earner', description: 'Annual income hits $100K', category: 'income', check: (p) => toN(p?.annual_income_gross) >= 100000 },
+  { key: 'income_200k', title: 'Top 5% Earner', description: 'Annual income hits $200K', category: 'income', check: (p) => toN(p?.annual_income_gross) >= 200000 },
 ];
 
 @Injectable()
@@ -92,7 +114,10 @@ export class MilestonesService {
     return newlyUnlocked;
   }
 
-  private async getOnboardingDebt(userId: string, accounts: any[]): Promise<number> {
+  private async getOnboardingDebt(
+    userId: string,
+    accounts: FinancialAccount[],
+  ): Promise<number> {
     // Use earliest account balance logs to approximate onboarding debt
     const earliest = await this.prisma.accountBalanceLog.findFirst({
       where: { account: { user_id: userId }, source: 'onboarding' },

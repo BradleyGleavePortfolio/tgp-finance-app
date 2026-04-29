@@ -31,12 +31,12 @@ export class NotificationsController {
   ) {}
 
   @Get('preferences')
-  async getPreferences(@CurrentUser() user: any) {
+  async getPreferences(@CurrentUser() user: CurrentUser) {
     return this.notificationsService.getPreferences(user.id);
   }
 
   @Put('preferences')
-  async updatePreferences(@Body() body: any, @CurrentUser() user: any) {
+  async updatePreferences(@Body() body: unknown, @CurrentUser() user: CurrentUser) {
     const parsed = UpdateNotificationPrefsSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException({
@@ -51,7 +51,7 @@ export class NotificationsController {
   // per user. Clients should call this on app start and any time the token
   // rotates.
   @Post('register-token')
-  async registerToken(@Body() body: any, @CurrentUser() user: any) {
+  async registerToken(@Body() body: unknown, @CurrentUser() user: CurrentUser) {
     const parsed = RegisterTokenSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException({
@@ -69,7 +69,7 @@ export class NotificationsController {
   // Respects the type's preference toggle but skips dedupe so it always
   // attempts delivery. Useful for Fly.io smoke tests post-deploy.
   @Post('test')
-  async testPush(@Body() body: any, @CurrentUser() user: any) {
+  async testPush(@Body() body: unknown, @CurrentUser() user: CurrentUser) {
     const parsed = TestPushSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException({

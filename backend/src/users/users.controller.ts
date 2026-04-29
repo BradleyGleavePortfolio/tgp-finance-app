@@ -25,7 +25,7 @@ export class UsersController {
    * total registered users, and whether they are a founding member (rank ≤ 1000).
    */
   @Get('founding-number')
-  async getFoundingNumber(@CurrentUser() user: any) {
+  async getFoundingNumber(@CurrentUser() user: CurrentUser) {
     return this.usersService.getFoundingNumber(user.id);
   }
 
@@ -37,7 +37,7 @@ export class UsersController {
    *   - totalMembers: total registered users.
    */
   @Get('circle-stats')
-  async getCircleStats(@CurrentUser() user: any) {
+  async getCircleStats(@CurrentUser() user: CurrentUser) {
     return this.usersService.getCircleStats(user.id);
   }
 
@@ -56,7 +56,7 @@ export class UsersController {
     summary:
       'Acknowledge that the user has been routed to the data-controls support contact.',
   })
-  async dataControlsContact(@CurrentUser() user: any) {
+  async dataControlsContact(@CurrentUser() user: CurrentUser) {
     const supportContactEmail =
       process.env.SUPPORT_CONTACT_EMAIL || 'support@thegrowthproject.courses';
     return {
@@ -72,7 +72,7 @@ export class UsersController {
    * Returns earned + locked badges for the current user.
    */
   @Get('badges')
-  async getBadges(@CurrentUser() user: any) {
+  async getBadges(@CurrentUser() user: CurrentUser) {
     return this.communityService.getBadges(user.id);
   }
 
@@ -97,7 +97,7 @@ export class UsersController {
     summary:
       'Read-only access posture for the Profile membership card.',
   })
-  async getAccessStatus(@CurrentUser() user: any) {
+  async getAccessStatus(@CurrentUser() user: CurrentUser) {
     return this.usersService.getAccessStatus(user.id);
   }
 }
