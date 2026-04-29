@@ -267,8 +267,15 @@ export async function refreshForegroundNotifications(prefs: {
  *   - last_eod_date cache bump
  * Every branch respects its preference toggle.
  */
+// Loose envelope for the EOD submit response. Server adds milestone unlocks
+// and a current_priority block opportunistically; both are optional.
+interface EODSubmitResponse {
+  newly_unlocked_milestones?: Array<{ key?: string; title?: string }>;
+  current_priority?: { index: number; title: string } | null;
+}
+
 export async function handleEodSubmissionNotifications(
-  response: any,
+  response: EODSubmitResponse | undefined | null,
   prefs: {
     milestone_alerts?: boolean;
     priority_levelup_alerts?: boolean;
@@ -281,9 +288,7 @@ export async function handleEodSubmissionNotifications(
 
   // Milestone notifications.
   if (prefs.milestone_alerts !== false) {
-    const milestones: Array<{ key: string; title: string }> = Array.isArray(
-      response?.newly_unlocked_milestones,
-    )
+    const milestones = Array.isArray(response?.newly_unlocked_milestones)
       ? response.newly_unlocked_milestones
       : [];
     for (const m of milestones) {

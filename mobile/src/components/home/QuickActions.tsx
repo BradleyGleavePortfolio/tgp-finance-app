@@ -7,7 +7,7 @@ import { HapticPressable } from '../HapticPressable';
 import { Colors, Typography, Spacing, BorderRadius } from '../../theme/finance';
 
 interface QuickAction {
-  icon: string;
+  icon: React.ComponentProps<typeof Ionicons>['name'];
   label: string;
   onPress: () => void;
   highlighted?: boolean;
@@ -42,7 +42,7 @@ export function QuickActions({ onEOD, onWhatIf, onAddAccount, onAICoach }: Quick
           pressOpacity={0.8}
         >
           <Ionicons
-            name={action.icon as any}
+            name={action.icon}
             size={24}
             color={action.highlighted ? Colors.backgroundDeepNavy : Colors.accentGold}
           />

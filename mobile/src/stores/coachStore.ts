@@ -1,25 +1,50 @@
 // Coach dashboard state management — BULLETPROOF
 import { create } from 'zustand';
 import { coachApi } from '../services/api';
-import type { CoachStudentSummary, CoachAlert, ProgramTemplate } from '../types';
+import type {
+  CoachStudentSummary,
+  CoachAlert,
+  CoachNote,
+  EODSubmission,
+  FinancialAccount,
+  FinancialProfile,
+  MilestoneUnlock,
+  NetWorthHistory,
+  ProgramTemplate,
+  User,
+} from '../types';
 
 /** Safely extract an array from any API response shape */
-function safeArray<T>(data: any, key: string): T[] {
-  if (!data) return [];
-  if (Array.isArray(data)) return data;
-  if (data[key] && Array.isArray(data[key])) return data[key];
+function safeArray<T>(data: unknown, key: string): T[] {
+  if (!data || typeof data !== 'object') return [];
+  if (Array.isArray(data)) return data as T[];
+  const inner = (data as Record<string, unknown>)[key];
+  if (Array.isArray(inner)) return inner as T[];
   return [];
 }
 
+// Server-computed weekly rollup envelope returned by /coach/students/:id/detail.
+// Kept structural rather than a Prisma-derived shape so it stays loose if the
+// backend adds fields — consumers only read net_worth/total_debt/etc. when
+// rendering charts.
+interface WeeklyRollup {
+  week_start: string;
+  net_worth?: number;
+  total_debt?: number;
+  total_assets?: number;
+  total_cash?: number;
+  [extra: string]: unknown;
+}
+
 interface StudentDetailData {
-  student: any;
-  profile: any;
-  accounts: any[];
-  eod_submissions: any[];
-  net_worth_history: any[];
-  weekly_rollups: any[];
-  milestones: any[];
-  coach_notes: any[];
+  student: User;
+  profile: FinancialProfile | null;
+  accounts: FinancialAccount[];
+  eod_submissions: EODSubmission[];
+  net_worth_history: NetWorthHistory[];
+  weekly_rollups: WeeklyRollup[];
+  milestones: MilestoneUnlock[];
+  coach_notes: CoachNote[];
   period_days: number;
 }
 
@@ -124,7 +149,15 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
 
   createTemplate: async (templateData) => {
     try {
-      const { data } = await coachApi.createTemplate(templateData as Record<string, unknown>);
+      // The store accepts Partial<ProgramTemplate>; the API requires a complete
+      // create body. Fall back to safe defaults when the caller didn't provide
+      // them — caller-side validation is upstream of this method.
+      const body = {
+        name: templateData.name ?? '',
+        description: templateData.description,
+        phases: templateData.phases ?? [],
+      };
+      const { data } = await coachApi.createTemplate(body);
       const template: ProgramTemplate = data?.template || data;
       if (template?.id) {
         set((state) => ({

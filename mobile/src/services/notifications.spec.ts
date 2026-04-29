@@ -172,7 +172,7 @@ describe('handleEodSubmissionNotifications', () => {
         ],
         current_priority: { index: 0, title: 'Build $1,000 Cash Buffer' },
       },
-      { milestone_alerts: true, priority_levelup_alerts: true, streak_alerts_enabled: true },
+      { milestone_alerts: true, priority_levelup_alerts: true },
     );
     // Two milestone notifications + priority seed does NOT fire (no prior cache).
     expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(2);
@@ -184,7 +184,7 @@ describe('handleEodSubmissionNotifications', () => {
         newly_unlocked_milestones: [{ key: 'cash_1k', title: 'Starter Pack Achieved' }],
         current_priority: null,
       },
-      { milestone_alerts: false, priority_levelup_alerts: false, streak_alerts_enabled: false },
+      { milestone_alerts: false, priority_levelup_alerts: false },
     );
     expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
   });

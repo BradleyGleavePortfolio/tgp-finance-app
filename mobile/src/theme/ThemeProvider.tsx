@@ -116,9 +116,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     // Fetch founding-member status once on mount (best-effort; falls back to freeTheme)
     usersApi
       .getFoundingNumber()
-      .then((res: any) => {
-        const data = res?.data?.data ?? res?.data ?? null;
-        const isFounder = Boolean(data?.isFoundingMember);
+      .then((res) => {
+        // The endpoint may return either a flat body or a `{ data: {...} }`
+        // envelope. Read defensively without trusting the wire shape.
+        const body = (res?.data ?? null) as
+          | { isFoundingMember?: unknown; data?: { isFoundingMember?: unknown } }
+          | null;
+        const inner = body && 'data' in body ? body.data ?? null : body;
+        const isFounder = Boolean(inner?.isFoundingMember);
         setTheme(isFounder ? founderTheme : freeTheme);
       })
       .catch(() => {

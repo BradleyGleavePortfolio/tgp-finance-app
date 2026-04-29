@@ -226,6 +226,7 @@ export interface NotificationPreferences {
   priority_levelup_alerts: boolean;
   spending_dna_alerts: boolean;
   timezone: string;
+  expo_push_token?: string | null;
 }
 
 // ─── Habit Logs ───────────────────────────────────────────────────────────────

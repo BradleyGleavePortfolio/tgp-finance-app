@@ -14,6 +14,7 @@ import { useCoachStore } from '../../src/stores/coachStore';
 import { coachApi } from '../../src/services/api';
 import { formatCurrency, formatRelativeTime } from '../../src/utils/formatters';
 import { ScreenErrorBoundary } from '../../src/components/ui/ScreenErrorBoundary';
+import { errorMessage } from '../../src/lib/errorMessage';
 
 export default function CoachScreen() {
   const { user } = useAuthStore();
@@ -75,8 +76,8 @@ function CoachDashboard() {
       setShowCreateModal(false);
       setNewTemplateName('');
       setNewTemplateDesc('');
-    } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Failed to create template.');
+    } catch (err) {
+      Alert.alert('Error', errorMessage(err, 'Failed to create template.'));
     } finally {
       setCreatingTemplate(false);
     }
@@ -94,8 +95,8 @@ function CoachDashboard() {
       await applyTemplate(pickerTemplateId, studentId);
       const student = safeStudents.find(s => s.user.id === studentId);
       Alert.alert('Template Applied', `Template applied to ${student?.user.name || 'student'} successfully.`);
-    } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Failed to apply template.');
+    } catch (err) {
+      Alert.alert('Error', errorMessage(err, 'Failed to apply template.'));
     } finally {
       setApplyingTemplate(null);
       setPickerTemplateId('');

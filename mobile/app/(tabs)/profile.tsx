@@ -9,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../../src/components/ui/Card';
 import { ProgressBar } from '../../src/components/ui/ProgressBar';
-import { ProgressMarker, MomentumIndicator } from '../../src/components/ui/Badge';
+import { MomentumIndicator } from '../../src/components/ui/Badge';
 import { Button } from '../../src/components/ui/Button';
 import { Colors, Typography, Spacing, BorderRadius } from '../../src/theme/finance';
 import { colors, typography, radius } from '../../src/theme/tokens';
@@ -145,10 +145,9 @@ export default function ProfileScreen() {
 
   const identityTitle = React.useMemo(() => resolveIdentityTitle({
     primaryGoal: profile?.primary_goal,
-    streak: profile?.streak_days ?? 0,
     weeksSinceJoin,
     isFoundingMember: foundingData?.isFoundingMember ?? false,
-  }), [profile?.primary_goal, profile?.streak_days, weeksSinceJoin, foundingData]);
+  }), [profile?.primary_goal, weeksSinceJoin, foundingData]);
 
   const safeAccounts = Array.isArray(accounts) ? accounts : [];
   const safeNetWorth = isFinite(netWorth) ? netWorth : 0;
@@ -205,11 +204,6 @@ export default function ProfileScreen() {
             <View style={styles.stat}>
               <Text style={styles.statValue}>{formatCurrency(netWorth, { compact: true })}</Text>
               <Text style={styles.statLabel}>Net Worth</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.stat}>
-              <ProgressMarker streak={profile?.streak_days || 0} />
-              <Text style={styles.statLabel}>Streak</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.stat}>

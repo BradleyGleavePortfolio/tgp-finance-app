@@ -5,10 +5,30 @@ import { safeAuthError } from '../lib/authErrors';
 import { getGoogleOAuthTokens } from '../services/supabase';
 import { secureStorage } from '../lib/secureStorage';
 
+// Backend `/me` returns the user with a nested profile. The store
+// intentionally keeps both shapes loose because new fields land regularly
+// on either side and consumers read narrow fields by name; treat
+// unknown keys as opaque values rather than `any`.
 interface UserProfile {
   monthly_income_gross?: number;
+  annual_income_gross?: number;
+  dream_lifestyle_cost_mo?: number;
+  dream_description?: string;
+  future_self_letter?: string;
+  primary_goal?: string;
+  goal_timeline_months?: number;
+  city?: string;
+  state?: string;
+  country?: string;
+  net_worth_snapshot?: number;
+  total_debt?: number;
+  total_assets?: number;
+  total_cash?: number;
+  current_priority_index?: number;
+  wealth_velocity_score?: number;
+  last_eod_date?: string;
   onboarding_complete?: boolean;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface User {
@@ -18,7 +38,12 @@ interface User {
   role?: string;
   onboarding_complete?: boolean;
   profile?: UserProfile | null;
-  [key: string]: any;
+  supabase_id?: string;
+  phone?: string;
+  referral_code?: string;
+  coach_id?: string;
+  created_at?: string;
+  [key: string]: unknown;
 }
 
 interface PendingVerification {
@@ -59,31 +84,51 @@ interface AuthState {
  * Backend returns the full user object with nested profile.
  * After the response interceptor unwraps the envelope, we get the user object directly.
  */
-function extractMe(raw: any): { user: User; profile: UserProfile | null; onboardingComplete: boolean } {
+// Loose shape for the `/me` payload — every field is read defensively in
+// case the wire form drifts. We narrow each field at access time.
+interface RawMePayload {
+  id?: unknown;
+  supabase_id?: unknown;
+  email?: unknown;
+  name?: unknown;
+  phone?: unknown;
+  referral_code?: unknown;
+  role?: unknown;
+  coach_id?: unknown;
+  created_at?: unknown;
+  onboarding_complete?: unknown;
+  profile?: { onboarding_complete?: unknown } & UserProfile | null;
+}
+
+function extractMe(
+  raw: RawMePayload | unknown,
+): { user: User; profile: UserProfile | null; onboardingComplete: boolean } {
   if (!raw || typeof raw !== 'object') {
     return { user: { id: '', email: '', name: '' }, profile: null, onboardingComplete: false };
   }
+  const r = raw as RawMePayload;
+  const str = (v: unknown): string => (typeof v === 'string' ? v : '');
+
+  const profile: UserProfile | null = r.profile ?? null;
+  const profileOnboardingComplete =
+    profile && typeof profile.onboarding_complete === 'boolean' ? profile.onboarding_complete : false;
+  const rootOnboardingComplete =
+    typeof r.onboarding_complete === 'boolean' ? r.onboarding_complete : false;
 
   const user: User = {
-    id: raw.id || '',
-    supabase_id: raw.supabase_id || '',
-    email: raw.email || '',
-    name: raw.name || '',
-    phone: raw.phone || undefined,
-    referral_code: raw.referral_code || undefined,
-    role: raw.role || undefined,
-    coach_id: raw.coach_id || undefined,
-    created_at: raw.created_at || '',
-    onboarding_complete: raw.onboarding_complete || raw.profile?.onboarding_complete || false,
+    id: str(r.id),
+    supabase_id: str(r.supabase_id),
+    email: str(r.email),
+    name: str(r.name),
+    phone: typeof r.phone === 'string' ? r.phone : undefined,
+    referral_code: typeof r.referral_code === 'string' ? r.referral_code : undefined,
+    role: typeof r.role === 'string' ? r.role : undefined,
+    coach_id: typeof r.coach_id === 'string' ? r.coach_id : undefined,
+    created_at: str(r.created_at),
+    onboarding_complete: rootOnboardingComplete || profileOnboardingComplete,
   };
 
-  const profile: UserProfile | null = raw.profile || null;
-
-  const onboardingComplete = !!(
-    raw.onboarding_complete ||
-    raw.profile?.onboarding_complete ||
-    user.onboarding_complete
-  );
+  const onboardingComplete = !!(rootOnboardingComplete || profileOnboardingComplete);
 
   return { user, profile, onboardingComplete };
 }
@@ -174,7 +219,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
       });
       return true;
-    } catch (error: any) {
+    } catch (error) {
       set({ error: safeAuthError(error), isLoading: false });
       throw error;
     }
@@ -209,7 +254,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isAuthenticated: true,
         isLoading: false,
       });
-    } catch (error: any) {
+    } catch (error) {
       set({
         error: safeAuthError(error),
         isLoading: false,
@@ -227,7 +272,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         pendingVerification: { email: dto.email, password: dto.password },
         isLoading: false,
       });
-    } catch (error: any) {
+    } catch (error) {
       set({
         error: safeAuthError(error),
         isLoading: false,
@@ -269,7 +314,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         hasCompletedOnboarding: onboardingComplete,
         isLoading: false,
       });
-    } catch (error: any) {
+    } catch (error) {
       set({
         error: safeAuthError(error),
         isLoading: false,
@@ -321,8 +366,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         pendingVerification: null,
       });
       return true;
-    } catch (error: any) {
-      const code = error.response?.data?.code;
+    } catch (error) {
+      const e = error as { response?: { data?: { code?: unknown } } };
+      const code = e?.response?.data?.code;
       // EMAIL_NOT_VERIFIED means user hasn't verified yet — expected during polling
       if (code === 'EMAIL_NOT_VERIFIED') return false;
       // INVALID_CREDENTIALS or other errors — also not verified or some other issue

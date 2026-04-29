@@ -80,15 +80,25 @@ export function safeAuthErrorMessage(rawMessage: unknown): string {
   return SAFE_COPY[classifyAuthError(rawMessage)];
 }
 
-export function extractAuthErrorRaw(error: any): string {
-  return (
-    error?.response?.data?.message ||
-    error?.response?.data?.error ||
-    error?.message ||
-    ''
-  );
+// The error parameter is `unknown` to satisfy strict catch-binding rules.
+// Auth callers throw a mix of axios errors, generic Error instances, and
+// plain strings; we walk the tree defensively and return '' when nothing
+// readable surfaces.
+export function extractAuthErrorRaw(error: unknown): string {
+  if (!error || typeof error !== 'object') {
+    return typeof error === 'string' ? error : '';
+  }
+  const e = error as {
+    response?: { data?: { message?: unknown; error?: unknown } };
+    message?: unknown;
+  };
+  const fromResponse = e.response?.data;
+  if (typeof fromResponse?.message === 'string') return fromResponse.message;
+  if (typeof fromResponse?.error === 'string') return fromResponse.error;
+  if (typeof e.message === 'string') return e.message;
+  return '';
 }
 
-export function safeAuthError(error: any): string {
+export function safeAuthError(error: unknown): string {
   return safeAuthErrorMessage(extractAuthErrorRaw(error));
 }

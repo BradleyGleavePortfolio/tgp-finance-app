@@ -83,7 +83,7 @@ export default function PaydayScreen() {
     try {
       const { data } = await paydayApi.deploy(paycheck, activeAllocations);
       setReceipt(data);
-    } catch (err: any) {
+    } catch (err) {
       Alert.alert('Deploy Failed', err?.message || 'Failed to deploy paycheck. Please try again.');
     } finally {
       setDeploying(false);

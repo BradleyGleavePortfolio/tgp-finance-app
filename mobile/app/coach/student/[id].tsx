@@ -12,6 +12,7 @@ import { ProgressMarker, MomentumIndicator } from '../../../src/components/ui/Ba
 import { Colors, Typography, Spacing, BorderRadius } from '../../../src/theme/finance';
 import { coachApi, priorityApi } from '../../../src/services/api';
 import { formatCurrency } from '../../../src/utils/formatters';
+import { errorMessage } from '../../../src/lib/errorMessage';
 
 export default function StudentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -38,8 +39,8 @@ export default function StudentDetailScreen() {
       ]);
       setStudent(studentRes.data);
       setDetail(detailRes.data);
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to load student data.');
+    } catch (err) {
+      Alert.alert('Error', errorMessage(err, 'Failed to load student data.'));
     } finally {
       setLoading(false);
     }
@@ -55,8 +56,8 @@ export default function StudentDetailScreen() {
       const detailRes = await coachApi.getStudentDetail(id!, 90);
       setDetail(detailRes.data);
       Alert.alert('Note Added', 'Your note has been saved.');
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to add note.');
+    } catch (err) {
+      Alert.alert('Error', errorMessage(err, 'Failed to add note.'));
     } finally {
       setSubmittingNote(false);
     }
@@ -79,8 +80,8 @@ export default function StudentDetailScreen() {
               Alert.alert('Priority Advanced', `${user.name || 'Student'} has been moved to the next priority level.`);
               // Refresh student data
               await loadStudent();
-            } catch (err: any) {
-              Alert.alert('Error', err.message || 'Failed to advance priority.');
+            } catch (err) {
+              Alert.alert('Error', errorMessage(err, 'Failed to advance priority.'));
             } finally {
               setAdvancingPriority(false);
             }

@@ -16,13 +16,23 @@ interface UsePreferencesResult {
 let _cache: UserPreferences | null = null;
 let _inflightPromise: Promise<UserPreferences> | null = null;
 
+// The preferences endpoint may return either a flat payload or a `{ data }`
+// envelope. Narrow to the flat shape before spreading into DEFAULT_PREFERENCES.
+function unwrapPrefsBody(
+  body: import('../services/api').PreferencesResponseBody,
+): Partial<UserPreferences> {
+  if (body && typeof body === 'object' && 'data' in body) {
+    return (body as { data: Partial<UserPreferences> }).data ?? {};
+  }
+  return body ?? {};
+}
+
 async function fetchFromServer(): Promise<UserPreferences> {
   if (_inflightPromise) return _inflightPromise;
   _inflightPromise = preferencesApi
     .get()
-    .then((r: { data: any }) => {
-      const data = r.data?.data ?? r.data;
-      const merged: UserPreferences = { ...DEFAULT_PREFERENCES, ...data };
+    .then((r) => {
+      const merged: UserPreferences = { ...DEFAULT_PREFERENCES, ...unwrapPrefsBody(r.data) };
       _cache = merged;
       return merged;
     })
@@ -49,9 +59,9 @@ export function usePreferences(): UsePreferencesResult {
     try {
       const data = await fetchFromServer();
       if (mounted.current) setPrefs(data);
-    } catch (e: any) {
+    } catch (e) {
       if (mounted.current) {
-        setError(e?.message ?? 'Failed to load preferences');
+        setError(e instanceof Error ? e.message : 'Failed to load preferences');
       }
     } finally {
       if (mounted.current) setIsLoading(false);
@@ -75,17 +85,16 @@ export function usePreferences(): UsePreferencesResult {
     setPrefs(next);
     _cache = next;
     try {
-      const r = await preferencesApi.patch(patch as any);
-      const updated = r.data?.data ?? r.data;
-      const merged = { ...DEFAULT_PREFERENCES, ...updated };
+      const r = await preferencesApi.patch(patch);
+      const merged: UserPreferences = { ...DEFAULT_PREFERENCES, ...unwrapPrefsBody(r.data) };
       _cache = merged;
       if (mounted.current) setPrefs(merged);
-    } catch (e: any) {
+    } catch (e) {
       // Rollback on failure
       _cache = prev;
       if (mounted.current) {
         setPrefs(prev);
-        setError(e?.message ?? 'Failed to save preference');
+        setError(e instanceof Error ? e.message : 'Failed to save preference');
       }
     }
   }, [prefs]);

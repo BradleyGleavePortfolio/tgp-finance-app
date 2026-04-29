@@ -72,7 +72,7 @@ export default function IncomeGapScreen() {
       } else {
         setColResult(data);
       }
-    } catch (err: any) {
+    } catch (err) {
       Alert.alert('Error', err?.message || 'Failed to compare locations.');
     } finally {
       setColLoading(false);
