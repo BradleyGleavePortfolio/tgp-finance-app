@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card } from '../../../src/components/ui/Card';
 import { Button } from '../../../src/components/ui/Button';
 import { EmptyState } from '../../../src/components/ui/EmptyState';
-import { ProgressMarker, MomentumIndicator } from '../../../src/components/ui/Badge';
+import { MomentumIndicator } from '../../../src/components/ui/Badge';
 import { Colors, Typography, Spacing, BorderRadius } from '../../../src/theme/finance';
 import { coachApi, priorityApi } from '../../../src/services/api';
 import { formatCurrency } from '../../../src/utils/formatters';
@@ -123,7 +123,6 @@ export default function StudentDetailScreen() {
           <Text style={styles.studentName}>{user.name || 'Unknown'}</Text>
           <Text style={styles.studentEmail}>{user.email || ''}</Text>
           <View style={styles.badgeRow}>
-            <ProgressMarker streak={profile.streak_days || 0} />
             <MomentumIndicator score={profile.wealth_velocity_score || 0} showScore />
           </View>
         </Card>
@@ -165,10 +164,6 @@ export default function StudentDetailScreen() {
             <Text style={[styles.metricValue, { color: Colors.debtCrimson }]}>
               {formatCurrency(profile.total_debt || 0)}
             </Text>
-          </View>
-          <View style={styles.metricRow}>
-            <Text style={styles.metricLabel}>Streak Days</Text>
-            <Text style={styles.metricValue}>{profile.streak_days || 0}</Text>
           </View>
           <View style={styles.metricRow}>
             <Text style={styles.metricLabel}>Velocity Score</Text>

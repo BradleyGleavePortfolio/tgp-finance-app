@@ -128,7 +128,7 @@ export class CoachService {
    *   - identity + profile basics
    *   - account roll-ups (debt/asset/cash totals)
    *   - last 14 EOD submissions (net worth trajectory)
-   *   - last 14 days of habit logs (streak signals)
+   *   - last 14 days of habit logs
    *   - any active milestones
    *
    * Owner bypass is honored via the role parameter (route-level guard already

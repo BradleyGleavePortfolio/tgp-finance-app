@@ -168,7 +168,7 @@ describe('handleEodSubmissionNotifications', () => {
       {
         newly_unlocked_milestones: [
           { key: 'cash_1k', title: 'Starter Pack Achieved' },
-          { key: 'streak_7', title: 'Week Warrior' },
+          { key: 'nw_1k', title: 'First Rung' },
         ],
         current_priority: { index: 0, title: 'Build $1,000 Cash Buffer' },
       },

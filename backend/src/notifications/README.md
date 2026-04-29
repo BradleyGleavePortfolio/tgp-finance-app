@@ -20,7 +20,6 @@ opt-out.
 |-------|---------|---------|
 | `eod_reminder_enabled` | `true` | `push.eod_reminder` cron |
 | `eod_reminder_time` | `'20:00'` | scheduler match |
-| `streak_alerts_enabled` | `true` | `push.streak_at_risk` |
 | `milestone_alerts` | `true` | `push.net_worth_milestone` |
 | `coach_messages` | `true` | (reserved for messaging push) |
 | `red_flag_alerts` | `true` | (reserved for behavioral push) |

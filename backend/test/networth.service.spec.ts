@@ -25,7 +25,7 @@ describe('NetWorthService.getCurrentNetWorth — savings rate', () => {
 
   it('computes a positive savings_rate when savings accounts grew vs 30 days ago', async () => {
     const prisma = buildPrismaMock({
-      profile: { monthly_income_gross: 5000, wealth_velocity_score: 0, streak_days: 0 },
+      profile: { monthly_income_gross: 5000, wealth_velocity_score: 0 },
       accounts: [
         { id: 'acc-sav', account_type: 'savings', is_debt: false, balance: 6000, is_active: true },
       ],
@@ -44,7 +44,7 @@ describe('NetWorthService.getCurrentNetWorth — savings rate', () => {
 
   it('returns savings_rate=0 when monthly income is zero (avoids divide-by-zero)', async () => {
     const prisma = buildPrismaMock({
-      profile: { monthly_income_gross: 0, wealth_velocity_score: 0, streak_days: 0 },
+      profile: { monthly_income_gross: 0, wealth_velocity_score: 0 },
       accounts: [
         { id: 'acc-sav', account_type: 'savings', is_debt: false, balance: 10000, is_active: true },
       ],

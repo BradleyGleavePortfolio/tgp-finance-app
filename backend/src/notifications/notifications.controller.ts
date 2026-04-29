@@ -14,7 +14,6 @@ const RegisterTokenSchema = z.object({
 const TestPushSchema = z.object({
   type: z.enum([
     'eod_reminder',
-    'streak_at_risk',
     'net_worth_milestone',
     'priority_levelup',
     'future_self_letter',

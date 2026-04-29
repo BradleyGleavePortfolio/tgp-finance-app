@@ -64,7 +64,7 @@ read endpoint for context-aware UI. Shape:
   "profile": {
     "name", "monthly_income_gross", "take_home_monthly",
     "primary_goal", "dream_lifestyle_cost_mo",
-    "wealth_velocity_score", "streak_days",
+    "wealth_velocity_score",
     "motivation_style", "city", "state", "country",
     "current_priority_index"
   },
