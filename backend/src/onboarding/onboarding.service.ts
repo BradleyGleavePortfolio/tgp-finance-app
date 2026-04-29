@@ -1,24 +1,49 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma, RiskTolerance } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { RiskTolerance } from '@prisma/client';
+
+// Shape produced by SubmitQuizSchema in common/validators/schemas.ts.
+// Money fields arrive as Prisma.Decimal (already coerced + validated by the
+// MoneyAmount Zod schema), so this service never touches raw user strings.
+type QuizAnswers = {
+  risk_tolerance: string;
+  investment_horizon: string;
+  financial_goal: string;
+  income_range: string;
+  monthly_take_home?: Prisma.Decimal | null;
+  monthly_dream_cost?: Prisma.Decimal | null;
+  future_self_letter?: string;
+  dream_description?: string;
+};
 
 @Injectable()
 export class OnboardingService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async submitQuiz(userId: string, answers: Record<string, string>) {
+  async submitQuiz(userId: string, answers: QuizAnswers) {
     const riskTolerance = this.mapRiskTolerance(answers.risk_tolerance);
     const goalTimelineMonths = this.mapInvestmentHorizon(answers.investment_horizon);
     const annualIncomeGross = this.mapIncomeRange(answers.income_range);
 
-    // Use exact income if provided, otherwise fall back to range estimate
-    const exactTakeHome = answers.monthly_take_home ? parseFloat(answers.monthly_take_home) : null;
-    const monthlyIncomeGross = exactTakeHome
-      ? Math.round(exactTakeHome / 0.75)
-      : Math.round(annualIncomeGross / 12);
-    const annualFinal = exactTakeHome
-      ? monthlyIncomeGross * 12
-      : annualIncomeGross;
+    // Derive monthly/annual income from take-home (Decimal) when present;
+    // otherwise fall back to the income-range bucket. All math runs on
+    // Decimal — no IEEE-754 drift on $1,234.56-style amounts.
+    let monthlyIncomeGross: Prisma.Decimal;
+    let annualFinal: Prisma.Decimal;
+    if (answers.monthly_take_home && !answers.monthly_take_home.isZero()) {
+      // Gross-up assumes ~25% effective tax rate (take-home / 0.75).
+      monthlyIncomeGross = answers.monthly_take_home
+        .dividedBy(new Prisma.Decimal('0.75'))
+        .toDecimalPlaces(2);
+      annualFinal = monthlyIncomeGross.times(12);
+    } else {
+      monthlyIncomeGross = new Prisma.Decimal(annualIncomeGross)
+        .dividedBy(12)
+        .toDecimalPlaces(2);
+      annualFinal = new Prisma.Decimal(annualIncomeGross);
+    }
+
+    const dreamCost = answers.monthly_dream_cost ?? undefined;
 
     await this.prisma.financialProfile.upsert({
       where: { user_id: userId },
@@ -28,7 +53,7 @@ export class OnboardingService {
         annual_income_gross: annualFinal,
         monthly_income_gross: monthlyIncomeGross,
         goal_timeline_months: goalTimelineMonths,
-        dream_lifestyle_cost_mo: answers.monthly_dream_cost ? parseFloat(answers.monthly_dream_cost) : undefined,
+        dream_lifestyle_cost_mo: dreamCost,
         dream_description: answers.dream_description || undefined,
         future_self_letter: answers.future_self_letter || undefined,
         onboarding_complete: true,
@@ -41,7 +66,7 @@ export class OnboardingService {
         annual_income_gross: annualFinal,
         monthly_income_gross: monthlyIncomeGross,
         goal_timeline_months: goalTimelineMonths,
-        dream_lifestyle_cost_mo: answers.monthly_dream_cost ? parseFloat(answers.monthly_dream_cost) : undefined,
+        dream_lifestyle_cost_mo: dreamCost,
         dream_description: answers.dream_description || undefined,
         future_self_letter: answers.future_self_letter || undefined,
         onboarding_complete: true,

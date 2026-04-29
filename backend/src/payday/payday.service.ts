@@ -4,7 +4,9 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { toN } from '../common/money';
 
 @Injectable()
 export class PaydayService {
@@ -20,20 +22,35 @@ export class PaydayService {
    */
   async deployPaycheck(
     userId: string,
-    paycheckAmount: number,
-    allocations: Array<{ account_id: string; amount: number; percentage?: number }>,
+    paycheckAmount: Prisma.Decimal | number,
+    allocations: Array<{ account_id: string; amount: Prisma.Decimal | number; percentage?: number }>,
   ) {
-    // Validate allocation totals
-    const totalAllocated = allocations.reduce((s, a) => s + a.amount, 0);
-    if (totalAllocated > paycheckAmount + 0.001) {
+    // The DTO layer (DeployPaycheckSchema) now hands us Prisma.Decimal — but
+    // the service still does sum/compare arithmetic, which is precision-safe
+    // on Decimal. Promote any stragglers to Decimal so the math stays exact.
+    const paycheckDec =
+      paycheckAmount instanceof Prisma.Decimal
+        ? paycheckAmount
+        : new Prisma.Decimal(paycheckAmount);
+    const allocDecs = allocations.map((a) => ({
+      ...a,
+      amount: a.amount instanceof Prisma.Decimal ? a.amount : new Prisma.Decimal(a.amount),
+    }));
+
+    // Validate allocation totals using Decimal math — no IEEE-754 fudge factor.
+    const totalAllocatedDec = allocDecs.reduce(
+      (s, a) => s.plus(a.amount),
+      new Prisma.Decimal(0),
+    );
+    if (totalAllocatedDec.greaterThan(paycheckDec)) {
       throw new BadRequestException({
-        error: `Total allocated (${totalAllocated.toFixed(2)}) exceeds paycheck amount (${paycheckAmount.toFixed(2)})`,
+        error: `Total allocated (${totalAllocatedDec.toFixed(2)}) exceeds paycheck amount (${paycheckDec.toFixed(2)})`,
         code: 'OVER_ALLOCATED',
       });
     }
 
     // Load all target accounts in one query
-    const accountIds = allocations.map((a) => a.account_id);
+    const accountIds = allocDecs.map((a) => a.account_id);
     const accounts = await this.prisma.financialAccount.findMany({
       where: { id: { in: accountIds }, is_active: true },
     });
@@ -47,7 +64,7 @@ export class PaydayService {
 
     // Verify all requested accounts exist
     const foundIds = new Set(accounts.map((a) => a.id));
-    for (const alloc of allocations) {
+    for (const alloc of allocDecs) {
       if (!foundIds.has(alloc.account_id)) {
         throw new NotFoundException({
           error: `Account ${alloc.account_id} not found`,
@@ -68,26 +85,33 @@ export class PaydayService {
     }> = [];
 
     await this.prisma.$transaction(async (tx) => {
-      for (const alloc of allocations) {
+      for (const alloc of allocDecs) {
         const account = accounts.find((a) => a.id === alloc.account_id)!;
-        const balanceBefore = Number(account.balance);
+        // account.balance is Prisma.Decimal coming back from the DB.
+        const balanceBeforeDec = new Prisma.Decimal(account.balance.toString());
 
-        // For debt accounts: a payday allocation reduces the balance (paying down debt)
-        // For asset accounts: a payday allocation increases the balance (depositing money)
-        const newBalance = account.is_debt
-          ? Math.max(0, balanceBefore - alloc.amount)
-          : balanceBefore + alloc.amount;
+        // For debt accounts: allocation reduces the balance (paying down debt),
+        // floored at 0. For asset accounts: allocation increases the balance.
+        const rawNewBalance = account.is_debt
+          ? balanceBeforeDec.minus(alloc.amount)
+          : balanceBeforeDec.plus(alloc.amount);
+        const newBalanceDec =
+          account.is_debt && rawNewBalance.isNegative()
+            ? new Prisma.Decimal(0)
+            : rawNewBalance;
 
         const updated = await tx.financialAccount.update({
           where: { id: account.id },
-          data: { balance: newBalance, updated_at: new Date() },
+          // Pass Decimal directly — Prisma persists it without going through
+          // a JS Number round-trip.
+          data: { balance: newBalanceDec, updated_at: new Date() },
         });
 
         // Log the balance change
         await tx.accountBalanceLog.create({
           data: {
             account_id: account.id,
-            balance: newBalance,
+            balance: newBalanceDec,
             date: new Date(),
           },
         });
@@ -96,20 +120,22 @@ export class PaydayService {
         receipt.push({
           account_id: account.id,
           account_name: account.name,
-          amount: alloc.amount,
+          // Receipt is consumed by the mobile client which expects numbers.
+          // toN goes through the standard money-down-conversion path.
+          amount: toN(alloc.amount),
           effect: account.is_debt ? 'debt_payment' : 'deposit',
-          balance_before: balanceBefore,
-          balance_after: newBalance,
+          balance_before: toN(balanceBeforeDec),
+          balance_after: toN(newBalanceDec),
         });
       }
     });
 
-    const unallocated = paycheckAmount - totalAllocated;
+    const unallocatedDec = paycheckDec.minus(totalAllocatedDec);
 
     return {
-      paycheck_amount: paycheckAmount,
-      total_allocated: totalAllocated,
-      unallocated_remainder: unallocated,
+      paycheck_amount: toN(paycheckDec),
+      total_allocated: toN(totalAllocatedDec),
+      unallocated_remainder: toN(unallocatedDec),
       deployed_at: new Date().toISOString(),
       receipt,
       accounts: updatedAccounts,

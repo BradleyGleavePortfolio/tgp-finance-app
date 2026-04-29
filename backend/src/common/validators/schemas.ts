@@ -1,4 +1,20 @@
 import { z } from 'zod';
+import {
+  MoneyAmount,
+  MoneyAmountAny,
+  MoneyAmountNonNegative,
+  MoneyAmountPositive,
+} from '../zod/money';
+
+// Re-export so consumers can pull MoneyAmount* from the same place as the
+// other API schemas. The canonical definition lives in common/zod/money.ts.
+export {
+  MoneyAmount,
+  MoneyAmountAny,
+  MoneyAmountNonNegative,
+  MoneyAmountPositive,
+} from '../zod/money';
+export type { MoneyAmount as MoneyAmountType } from '../zod/money';
 
 // ============================================================
 // AUTH SCHEMAS
@@ -46,7 +62,7 @@ export const VerifyEmailSchema = z.object({
 
 const IncomeSourceSchema = z.object({
   source: z.string(),
-  amount: z.number().positive(),
+  amount: MoneyAmountPositive(),
   frequency: z.enum(['monthly', 'weekly', 'annual', 'one_time']),
 });
 
@@ -54,12 +70,12 @@ export const UpdateProfileSchema = z.object({
   state: z.string().optional(),
   city: z.string().optional(),
   country: z.string().optional(),
-  monthly_income_gross: z.number().positive().optional(),
-  annual_income_gross: z.number().positive().optional(),
+  monthly_income_gross: MoneyAmountPositive().optional(),
+  annual_income_gross: MoneyAmountPositive().optional(),
   income_sources: z.array(IncomeSourceSchema).optional(),
   primary_goal: z.string().optional(),
   goal_timeline_months: z.number().int().positive().optional(),
-  dream_lifestyle_cost_mo: z.number().positive().optional(),
+  dream_lifestyle_cost_mo: MoneyAmountPositive().optional(),
   dream_description: z.string().optional(),
   future_self_letter: z.string().optional(),
   risk_tolerance: z.enum(['conservative', 'moderate', 'aggressive']).optional(),
@@ -82,11 +98,12 @@ export const CreateAccountSchema = z.object({
     'mortgage', 'medical_debt', 'other_debt',
   ]),
   institution: z.string().optional(),
-  balance: z.number(),
+  // Balances may be 0 (new account) or even negative (overdrawn checking).
+  balance: MoneyAmountAny(),
   is_debt: z.boolean().optional(),
   apr_percent: z.number().min(0).max(100).optional(),
   is_secured: z.boolean().optional(),
-  minimum_payment: z.number().min(0).optional(),
+  minimum_payment: MoneyAmountNonNegative().optional(),
   currency: z.string().default('USD'),
   notes: z.string().optional(),
 });
@@ -99,7 +116,8 @@ export const UpdateAccountSchema = CreateAccountSchema.partial();
 
 const AccountSnapshotSchema = z.object({
   account_id: z.string().uuid(),
-  balance: z.number(),
+  // Asset balances can swing negative (overdraft) so we accept any sign.
+  balance: MoneyAmountAny(),
   notes: z.string().optional(),
 });
 
@@ -209,11 +227,47 @@ export const SubmitQuizSchema = z.object({
     investment_horizon: z.string().min(1, 'Investment horizon is required'),
     financial_goal: z.string().min(1, 'Financial goal is required'),
     income_range: z.string().min(1, 'Income range is required'),
-    monthly_take_home: z.string().optional(),
+    // Money fields arrive as strings from the mobile quiz form. They are
+    // optional, but when present they must be valid money — funnel through
+    // MoneyAmount so we never silently accept "abc" or "1.234".
+    monthly_take_home: MoneyAmountPositive().optional(),
+    monthly_dream_cost: MoneyAmountPositive().optional(),
     future_self_letter: z.string().optional(),
     dream_description: z.string().optional(),
-    monthly_dream_cost: z.string().optional(),
   }),
+});
+
+// ============================================================
+// PAYDAY SCHEMAS
+// ============================================================
+//
+// Lives here (rather than payday/payday.controller.ts) so every money
+// surface is auditable from a single file. The controller imports from
+// here.
+
+const PaydayAllocationSchema = z.object({
+  account_id: z.string().uuid('account_id must be a valid UUID'),
+  amount: MoneyAmountPositive(),
+  percentage: z.number().min(0).max(100).optional(),
+});
+
+export const DeployPaycheckSchema = z.object({
+  paycheck_amount: MoneyAmountPositive(),
+  allocations: z
+    .array(PaydayAllocationSchema)
+    .min(1, 'At least one allocation is required'),
+});
+
+export const SavePaydayTemplateSchema = z.object({
+  name: z.string().min(1).max(100),
+  allocations: z
+    .array(
+      z.object({
+        account_id: z.string().uuid(),
+        percentage: z.number().min(0).max(100),
+      }),
+    )
+    .min(1),
 });
 
 // ============================================================

@@ -22,16 +22,28 @@ export class EODService {
 
   async submitEOD(userId: string, dto: {
     submission_date: string;
-    account_snapshots: Array<{ account_id: string; balance: number; notes?: string }>;
+    account_snapshots: Array<{ account_id: string; balance: Prisma.Decimal | number; notes?: string }>;
     notes?: string;
     mood?: number;
     habits_checked?: string[];
   }) {
     const dateObj = new Date(dto.submission_date);
 
+    // Promote every snapshot balance to Decimal up front so balances + totals
+    // never round-trip through Number. The Zod DTO already produces Decimal,
+    // but tests sometimes pass plain numbers and we accept that for backward
+    // compatibility.
+    const snapshots = dto.account_snapshots.map((s) => ({
+      ...s,
+      balance:
+        s.balance instanceof Prisma.Decimal
+          ? s.balance
+          : new Prisma.Decimal(s.balance),
+    }));
+
     // Validate accounts belong to user BEFORE opening the transaction — no
     // point holding a db connection if the DTO is bad.
-    const accountIds = dto.account_snapshots.map((s) => s.account_id);
+    const accountIds = snapshots.map((s) => s.account_id);
     const accounts = await this.prisma.financialAccount.findMany({
       where: { id: { in: accountIds }, user_id: userId, is_active: true },
     });
@@ -43,26 +55,34 @@ export class EODService {
       });
     }
 
-    // Compute totals from snapshots.
-    let total_assets = 0;
-    let total_debt = 0;
-    let total_cash = 0;
+    // Compute totals from snapshots — Decimal math, not Number, so the
+    // persisted net-worth column never drifts.
+    let totalAssetsDec = new Prisma.Decimal(0);
+    let totalDebtDec = new Prisma.Decimal(0);
+    let totalCashDec = new Prisma.Decimal(0);
 
-    for (const snapshot of dto.account_snapshots) {
+    for (const snapshot of snapshots) {
       const account = accounts.find((a) => a.id === snapshot.account_id);
       if (!account) continue;
 
       if (account.is_debt) {
-        total_debt += snapshot.balance;
+        totalDebtDec = totalDebtDec.plus(snapshot.balance);
       } else {
-        total_assets += snapshot.balance;
+        totalAssetsDec = totalAssetsDec.plus(snapshot.balance);
         if (['checking', 'savings'].includes(account.account_type)) {
-          total_cash += snapshot.balance;
+          totalCashDec = totalCashDec.plus(snapshot.balance);
         }
       }
     }
 
-    const net_worth_computed = total_assets - total_debt;
+    const netWorthDec = totalAssetsDec.minus(totalDebtDec);
+    // Numbers retained for downstream consumers (push messages, velocity
+    // score, response envelope). The persisted columns receive the Decimal
+    // versions so DB precision is preserved.
+    const total_assets = toN(totalAssetsDec);
+    const total_debt = toN(totalDebtDec);
+    const total_cash = toN(totalCashDec);
+    const net_worth_computed = toN(netWorthDec);
 
     // Wrap all writes in a single interactive transaction so a failure halfway
     // through (duplicate unique key, broken account ref, etc.) rolls back the
@@ -88,11 +108,17 @@ export class EODService {
           data: {
             user_id: userId,
             submission_date: dateObj,
-            account_snapshots: dto.account_snapshots as any,
-            net_worth_computed,
-            total_debt_computed: total_debt,
-            total_assets_computed: total_assets,
-            total_cash_computed: total_cash,
+            // Persist snapshots with their Decimal balances stringified so
+            // the JSON column round-trips losslessly (no IEEE-754 drift).
+            account_snapshots: snapshots.map((s) => ({
+              account_id: s.account_id,
+              balance: s.balance.toFixed(2),
+              ...(s.notes !== undefined ? { notes: s.notes } : {}),
+            })) as any,
+            net_worth_computed: netWorthDec,
+            total_debt_computed: totalDebtDec,
+            total_assets_computed: totalAssetsDec,
+            total_cash_computed: totalCashDec,
             notes: dto.notes,
             mood: dto.mood,
             habits_checked: dto.habits_checked as any,
@@ -100,7 +126,7 @@ export class EODService {
         });
 
         // Update account balances + write balance logs.
-        for (const snapshot of dto.account_snapshots) {
+        for (const snapshot of snapshots) {
           await tx.financialAccount.update({
             where: { id: snapshot.account_id },
             data: { balance: snapshot.balance, updated_at: new Date() },
@@ -136,20 +162,20 @@ export class EODService {
         await tx.financialProfile.upsert({
           where: { user_id: userId },
           update: {
-            net_worth_snapshot: net_worth_computed,
-            total_debt,
-            total_assets,
-            total_cash,
+            net_worth_snapshot: netWorthDec,
+            total_debt: totalDebtDec,
+            total_assets: totalAssetsDec,
+            total_cash: totalCashDec,
             last_eod_date: dateObj,
             streak_days,
             updated_at: new Date(),
           },
           create: {
             user_id: userId,
-            net_worth_snapshot: net_worth_computed,
-            total_debt,
-            total_assets,
-            total_cash,
+            net_worth_snapshot: netWorthDec,
+            total_debt: totalDebtDec,
+            total_assets: totalAssetsDec,
+            total_cash: totalCashDec,
             last_eod_date: dateObj,
             streak_days: 1,
           },
@@ -382,7 +408,7 @@ export class EODService {
     userId: string,
     dto: {
       submission_date: string;
-      account_snapshots: Array<{ account_id: string; balance: number; notes?: string }>;
+      account_snapshots: Array<{ account_id: string; balance: Prisma.Decimal | number; notes?: string }>;
       notes?: string;
       mood?: number;
       habits_checked?: string[];
@@ -404,8 +430,17 @@ export class EODService {
       });
     }
 
+    // Coerce snapshots to Decimal up front so the recompute uses precise math.
+    const snapshots = dto.account_snapshots.map((s) => ({
+      ...s,
+      balance:
+        s.balance instanceof Prisma.Decimal
+          ? s.balance
+          : new Prisma.Decimal(s.balance),
+    }));
+
     // Recompute totals from new snapshots.
-    const accountIds = dto.account_snapshots.map((s) => s.account_id);
+    const accountIds = snapshots.map((s) => s.account_id);
     const accounts = await this.prisma.financialAccount.findMany({
       where: { id: { in: accountIds }, user_id: userId, is_active: true },
     });
@@ -417,38 +452,48 @@ export class EODService {
       });
     }
 
-    let total_assets = 0;
-    let total_debt = 0;
-    let total_cash = 0;
-    for (const snapshot of dto.account_snapshots) {
+    let totalAssetsDec = new Prisma.Decimal(0);
+    let totalDebtDec = new Prisma.Decimal(0);
+    let totalCashDec = new Prisma.Decimal(0);
+    for (const snapshot of snapshots) {
       const account = accounts.find((a) => a.id === snapshot.account_id);
       if (!account) continue;
       if (account.is_debt) {
-        total_debt += snapshot.balance;
+        totalDebtDec = totalDebtDec.plus(snapshot.balance);
       } else {
-        total_assets += snapshot.balance;
+        totalAssetsDec = totalAssetsDec.plus(snapshot.balance);
         if (['checking', 'savings'].includes(account.account_type)) {
-          total_cash += snapshot.balance;
+          totalCashDec = totalCashDec.plus(snapshot.balance);
         }
       }
     }
-    const net_worth_computed = total_assets - total_debt;
+    const netWorthDec = totalAssetsDec.minus(totalDebtDec);
 
     const updated = await this.prisma.eODSubmission.update({
       where: { id },
       data: {
-        account_snapshots: dto.account_snapshots as any,
-        net_worth_computed,
-        total_debt_computed: total_debt,
-        total_assets_computed: total_assets,
-        total_cash_computed: total_cash,
+        account_snapshots: snapshots.map((s) => ({
+          account_id: s.account_id,
+          balance: s.balance.toFixed(2),
+          ...(s.notes !== undefined ? { notes: s.notes } : {}),
+        })) as any,
+        net_worth_computed: netWorthDec,
+        total_debt_computed: totalDebtDec,
+        total_assets_computed: totalAssetsDec,
+        total_cash_computed: totalCashDec,
         notes: dto.notes,
         mood: dto.mood,
         habits_checked: dto.habits_checked as any,
       },
     });
 
-    return { submission: updated, net_worth_computed, total_assets, total_debt, total_cash };
+    return {
+      submission: updated,
+      net_worth_computed: toN(netWorthDec),
+      total_assets: toN(totalAssetsDec),
+      total_debt: toN(totalDebtDec),
+      total_cash: toN(totalCashDec),
+    };
   }
 
   async getTodayEOD(userId: string) {
