@@ -177,7 +177,6 @@ export const RunProjectionSchema = z.object({
 export const UpdateNotificationPrefsSchema = z.object({
   eod_reminder_enabled: z.boolean().optional(),
   eod_reminder_time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
-  streak_alerts_enabled: z.boolean().optional(),
   milestone_alerts: z.boolean().optional(),
   coach_messages: z.boolean().optional(),
   red_flag_alerts: z.boolean().optional(),

@@ -23,12 +23,11 @@ single field on `User`; pairing writes to both rows symmetrically.
 ## Privacy contract
 
 The partner read **deliberately omits** every money field. The Prisma
-`select` only pulls `streak_days`, `wealth_velocity_score`,
-`current_priority_index`, and `last_eod_date`. Net worth, debt, assets,
-and cash are never relayed. The privacy boundary lives in the `select`
-clause itself — no scrubbing post-query — so a future schema change
-that adds a money-bearing field to `FinancialProfile` does not
-accidentally leak it.
+`select` only pulls `wealth_velocity_score`, `current_priority_index`,
+and `last_eod_date`. Net worth, debt, assets, and cash are never
+relayed. The privacy boundary lives in the `select` clause itself —
+no scrubbing post-query — so a future schema change that adds a
+money-bearing field to `FinancialProfile` does not accidentally leak it.
 
 ## Cross-tenant pairing fix
 
@@ -108,7 +107,5 @@ None unique to this module.
 - Unpairing today is a direct DB update (set
   `accountability_pair = null` on both rows). A coach unpair endpoint
   is a near-term TODO — when added, mirror the role + roster check.
-- Notification copy that references "your partner" is gated by the
-  `NotificationPreferences.streak_alerts_enabled` flag; partner
-  status is *not* relayed in any cross-channel comm beyond the
-  authenticated GET endpoint.
+- Partner status is *not* relayed in any cross-channel comm beyond
+  the authenticated GET endpoint.

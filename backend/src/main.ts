@@ -86,10 +86,10 @@ async function bootstrap() {
   const port = process.env.PORT || 3000;
   await app.listen(port, '0.0.0.0');
 
-  Logger.log(`🚀 TGP Finance API running on port ${port}`, 'Bootstrap');
-  Logger.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`, 'Bootstrap');
-  Logger.log(`🔐 Multi-tenant guard: ENABLED`, 'Bootstrap');
-  Logger.log(`🤖 AI Coach: FP (sonar-pro) — Rate limit: 20 req/user/hour`, 'Bootstrap');
+  Logger.log(`TGP Finance API running on port ${port}`, 'Bootstrap');
+  Logger.log(`Environment: ${process.env.NODE_ENV || 'development'}`, 'Bootstrap');
+  Logger.log(`Multi-tenant guard: ENABLED`, 'Bootstrap');
+  Logger.log(`AI Coach: FP (sonar-pro) — rate limit 20 req/user/hour`, 'Bootstrap');
 }
 
 bootstrap().catch((err) => {

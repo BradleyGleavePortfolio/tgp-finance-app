@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { Button } from '../../src/components/ui/Button';
 import { Colors, Typography, Spacing, BorderRadius } from '../../src/theme/finance';
 import { useAuthStore } from '../../src/stores/authStore';
+import { errorMessage } from '../../src/lib/errorMessage';
 export default function RoleSelectScreen() {
   const router = useRouter();
   const { selectRole, isLoading } = useAuthStore();
@@ -31,9 +32,8 @@ export default function RoleSelectScreen() {
     try {
       await selectRole('coach', accessCode);
       router.replace('/(onboarding)/quiz');
-    } catch (err: any) {
-      const message = err.response?.data?.error || err.message || 'Invalid access code';
-      setCodeError(message);
+    } catch (err) {
+      setCodeError(errorMessage(err, 'Invalid access code'));
       setShowCodeModal(true);
     }
   };

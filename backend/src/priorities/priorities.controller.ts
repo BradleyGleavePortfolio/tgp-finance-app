@@ -11,19 +11,22 @@ export class PrioritiesController {
   constructor(private readonly prioritiesService: PrioritiesService) {}
 
   @Get('current')
-  async getCurrent(@CurrentUser() user: any) {
+  async getCurrent(@CurrentUser() user: CurrentUser) {
     return this.prioritiesService.getCurrentPriority(user.id);
   }
 
   @Get('all')
-  async getAll(@CurrentUser() user: any) {
+  async getAll(@CurrentUser() user: CurrentUser) {
     return this.prioritiesService.getAllPriorities(user.id);
   }
 
   @Post('advance')
   @UseGuards(RoleGuard)
   @Roles('coach')
-  async advance(@Body() body: any, @CurrentUser() user: any) {
+  async advance(
+    @Body() body: { student_id?: string } | undefined,
+    @CurrentUser() user: CurrentUser,
+  ) {
     // Coach can advance a specific student's priority by providing student_id in the body.
     // Falls back to advancing the coach's own priority if no student_id is given.
     const targetId = body?.student_id || user.id;

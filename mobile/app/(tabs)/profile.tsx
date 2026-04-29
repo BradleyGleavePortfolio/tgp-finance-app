@@ -9,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../../src/components/ui/Card';
 import { ProgressBar } from '../../src/components/ui/ProgressBar';
-import { StreakBadge, VelocityBadge } from '../../src/components/ui/Badge';
+import { MomentumIndicator } from '../../src/components/ui/Badge';
 import { Button } from '../../src/components/ui/Button';
 import { Colors, Typography, Spacing, BorderRadius } from '../../src/theme/finance';
 import { colors, typography, radius } from '../../src/theme/tokens';
@@ -145,10 +145,9 @@ export default function ProfileScreen() {
 
   const identityTitle = React.useMemo(() => resolveIdentityTitle({
     primaryGoal: profile?.primary_goal,
-    streak: profile?.streak_days ?? 0,
     weeksSinceJoin,
     isFoundingMember: foundingData?.isFoundingMember ?? false,
-  }), [profile?.primary_goal, profile?.streak_days, weeksSinceJoin, foundingData]);
+  }), [profile?.primary_goal, weeksSinceJoin, foundingData]);
 
   const safeAccounts = Array.isArray(accounts) ? accounts : [];
   const safeNetWorth = isFinite(netWorth) ? netWorth : 0;
@@ -208,11 +207,6 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.statDivider} />
             <View style={styles.stat}>
-              <StreakBadge streak={profile?.streak_days || 0} />
-              <Text style={styles.statLabel}>Streak</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.stat}>
               <Text style={styles.statValue}>{totalAccounts}</Text>
               <Text style={styles.statLabel}>Accounts</Text>
             </View>
@@ -220,7 +214,7 @@ export default function ProfileScreen() {
 
           {profile?.wealth_velocity_score !== undefined && (
             <View style={styles.velocitySection}>
-              <VelocityBadge score={profile.wealth_velocity_score} />
+              <MomentumIndicator score={profile.wealth_velocity_score} />
               <ProgressBar
                 progress={profile.wealth_velocity_score}
                 height={4}

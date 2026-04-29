@@ -47,8 +47,7 @@ transaction. Specifically:
    - `eODSubmission.create` with the four computed totals.
    - For each snapshot: `financialAccount.update(balance)` +
      `accountBalanceLog.create`.
-   - Upsert `financialProfile` with new aggregates,
-     `last_eod_date`, and the new `streak_days`.
+   - Upsert `financialProfile` with new aggregates and `last_eod_date`.
    - Compute `wealth_velocity_score` using `tx` (so the velocity reads
      see the just-written totals) and write it.
 4. **Commit.**

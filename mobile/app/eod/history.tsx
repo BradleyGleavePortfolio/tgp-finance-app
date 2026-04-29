@@ -13,6 +13,7 @@ import { Colors, Typography, Spacing, BorderRadius } from '../../src/theme/finan
 import { eodApi } from '../../src/services/api';
 import { DAILY_HABITS, MOOD_EMOJIS } from '../../src/utils/constants';
 import { formatCurrency } from '../../src/utils/formatters';
+import { errorMessage } from '../../src/lib/errorMessage';
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -61,9 +62,8 @@ function EditForm({ entry, onSave, onCancel }: {
       });
       Alert.alert('Saved', 'Your check-in has been updated.');
       onSave(data?.submission ?? { ...entry, mood, notes, habits_checked: Object.keys(habits).filter(k => habits[k]) });
-    } catch (err: any) {
-      const msg = err?.response?.data?.error || err?.message || 'Failed to save changes.';
-      Alert.alert('Error', msg);
+    } catch (err) {
+      Alert.alert('Error', errorMessage(err, 'Failed to save changes.'));
     } finally {
       setSaving(false);
     }

@@ -5,11 +5,21 @@ import type { MilestoneUnlock } from '../types';
 import { MILESTONE_DEFINITIONS } from '../utils/constants';
 
 /** Safely extract an array from any API response shape */
-function safeArray<T>(data: any, key: string): T[] {
-  if (!data) return [];
-  if (Array.isArray(data)) return data;
-  if (data[key] && Array.isArray(data[key])) return data[key];
+function safeArray<T>(data: unknown, key: string): T[] {
+  if (!data || typeof data !== 'object') return [];
+  if (Array.isArray(data)) return data as T[];
+  const inner = (data as Record<string, unknown>)[key];
+  if (Array.isArray(inner)) return inner as T[];
   return [];
+}
+
+// Loose shape of a single milestone row coming back from the server. We
+// only read three fields and tolerate extras / missing fields.
+interface RawMilestoneRow {
+  key?: unknown;
+  unlocked?: unknown;
+  unlocked_at?: unknown;
+  celebrated?: unknown;
 }
 
 interface MilestonesStore {
@@ -39,16 +49,16 @@ export const useMilestonesStore = create<MilestonesStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const { data } = await milestonesApi.getAll();
-      const all = safeArray(data, 'milestones');
+      const all = safeArray<RawMilestoneRow>(data, 'milestones');
       // Filter to only actually-unlocked, and map field names
       const unlocked: MilestoneUnlock[] = all
-        .filter((m: any) => m.unlocked === true)
-        .map((m: any) => ({
-          id: m.key || '',
+        .filter((m) => m.unlocked === true)
+        .map((m) => ({
+          id: typeof m.key === 'string' ? m.key : '',
           user_id: '',
-          milestone_key: m.key || '',
-          unlocked_at: m.unlocked_at || '',
-          celebrated: m.celebrated || false,
+          milestone_key: typeof m.key === 'string' ? m.key : '',
+          unlocked_at: typeof m.unlocked_at === 'string' ? m.unlocked_at : '',
+          celebrated: m.celebrated === true,
         }));
       set({ unlocked, isLoading: false });
     } catch {
@@ -60,10 +70,10 @@ export const useMilestonesStore = create<MilestonesStore>((set, get) => ({
     try {
       const { data } = await milestonesApi.check();
       // Backend returns string[] of newly unlocked keys
-      const rawKeys = Array.isArray(data) ? data : safeArray(data, 'new_unlocks');
-      const newUnlocks: MilestoneUnlock[] = rawKeys
-        .filter((k: any): k is string => typeof k === 'string')
-        .map((k: string) => ({
+      const rawKeys = Array.isArray(data) ? data : safeArray<unknown>(data, 'new_unlocks');
+      const newUnlocks: MilestoneUnlock[] = (rawKeys as unknown[])
+        .filter((k): k is string => typeof k === 'string')
+        .map((k) => ({
           id: k,
           user_id: '',
           milestone_key: k,

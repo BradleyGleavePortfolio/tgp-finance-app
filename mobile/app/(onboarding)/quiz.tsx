@@ -18,6 +18,7 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { scheduleFutureSelfDelivery } from '../../src/services/notifications';
 import { notificationsApi } from '../../src/services/api';
 import { Colors, Typography, Spacing } from '../../src/theme/finance';
+import { errorMessage } from '../../src/lib/errorMessage';
 import { FirstWinCelebration } from '../../src/components/onboarding/FirstWinCelebration';
 import { track } from '../../src/lib/analytics';
 
@@ -168,10 +169,8 @@ export default function QuizScreen() {
       } catch { /* ignore */ }
 
       setShowCelebration(true);
-    } catch (err: any) {
-      const message =
-        err.response?.data?.error || err.message || 'Something went wrong. Please try again.';
-      setError(message);
+    } catch (err) {
+      setError(errorMessage(err, 'Something went wrong. Please try again.'));
     } finally {
       setIsSubmitting(false);
     }

@@ -231,27 +231,26 @@ export function yearsToFI(
 // ─── Wealth Velocity Score ────────────────────────────────────────────────────
 
 export function computeWealthVelocityScore(params: {
-  streakDays: number;
   debtPayoffPct90Days: number; // % of high-APR debt paid in 90 days
   netWorthGrowthPct30Days: number; // net worth growth % vs 30 days ago
   currentSavingsRate: number; // %
   targetSavingsRate: number; // % (default 20)
 }): number {
-  const { streakDays, debtPayoffPct90Days, netWorthGrowthPct30Days, currentSavingsRate, targetSavingsRate } = params;
+  const { debtPayoffPct90Days, netWorthGrowthPct30Days, currentSavingsRate, targetSavingsRate } = params;
 
-  // Streak (30%): consecutive EOD days / 30 × 30
-  const streakScore = Math.min(30, (Math.min(streakDays, 30) / 30) * 30);
+  // Doctrine: streak factor removed. Score sums to 100 across debt
+  // payoff (35%), net-worth momentum (35%), and savings rate (30%).
 
-  // Debt payoff rate (25%): normalized
-  const debtScore = Math.min(25, (Math.min(debtPayoffPct90Days, 10) / 10) * 25);
+  // Debt payoff rate (35%): normalized
+  const debtScore = Math.min(35, (Math.min(debtPayoffPct90Days, 10) / 10) * 35);
 
-  // Net worth momentum (25%): positive growth normalized
-  const nwScore = Math.min(25, Math.max(0, (netWorthGrowthPct30Days / 5) * 25));
+  // Net worth momentum (35%): positive growth normalized
+  const nwScore = Math.min(35, Math.max(0, (netWorthGrowthPct30Days / 5) * 35));
 
-  // Savings rate (20%): ratio vs target
-  const savingsScore = Math.min(20, (Math.min(currentSavingsRate / targetSavingsRate, 1)) * 20);
+  // Savings rate (30%): ratio vs target
+  const savingsScore = Math.min(30, (Math.min(currentSavingsRate / targetSavingsRate, 1)) * 30);
 
-  return Math.round(streakScore + debtScore + nwScore + savingsScore);
+  return Math.round(debtScore + nwScore + savingsScore);
 }
 
 export function getVelocityLevel(score: number): { name: string; color: string } {

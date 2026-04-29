@@ -16,7 +16,8 @@ interface VitalMetric {
 
 function MetricCard({ label, value, trend, onPress }: VitalMetric) {
   const trendColor = trend === 'up' ? Colors.profitGreen : trend === 'down' ? Colors.debtCrimson : Colors.accentGold;
-  const trendIcon = trend === 'up' ? 'trending-up' : trend === 'down' ? 'trending-down' : 'remove';
+  const trendIcon: React.ComponentProps<typeof Ionicons>['name'] =
+    trend === 'up' ? 'trending-up' : trend === 'down' ? 'trending-down' : 'remove';
 
   return (
     <TouchableOpacity
@@ -32,7 +33,7 @@ function MetricCard({ label, value, trend, onPress }: VitalMetric) {
           {value}
         </MonoText>
         <View style={styles.trendRow}>
-          <Ionicons name={trendIcon as any} size={12} color={trendColor} />
+          <Ionicons name={trendIcon} size={12} color={trendColor} />
           <Text style={[styles.trendText, { color: trendColor }]}>
             {trend === 'up' ? 'Improving' : trend === 'down' ? 'Declining' : 'Stable'}
           </Text>

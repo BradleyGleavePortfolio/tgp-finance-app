@@ -12,13 +12,15 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing, BorderRadius } from '../../theme/finance';
 
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
+
 interface InputProps extends Omit<TextInputProps, 'style'> {
   label?: string;
   error?: string;
   hint?: string;
   secureToggle?: boolean;
-  leftIcon?: string;
-  rightIcon?: string;
+  leftIcon?: IoniconsName;
+  rightIcon?: IoniconsName;
   onRightIconPress?: () => void;
   containerStyle?: ViewStyle;
 }
@@ -50,7 +52,7 @@ export function Input({
       >
         {leftIcon && (
           <Ionicons
-            name={leftIcon as any}
+            name={leftIcon}
             size={18}
             color={Colors.slateGray}
             style={styles.leftIcon}
@@ -98,7 +100,7 @@ export function Input({
             accessibilityRole="button"
             accessibilityLabel={`${label || 'Input'} action`}
           >
-            <Ionicons name={rightIcon as any} size={18} color={Colors.slateGray} />
+            <Ionicons name={rightIcon} size={18} color={Colors.slateGray} />
           </TouchableOpacity>
         )}
       </View>

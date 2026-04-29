@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 'auto' as any,
+    marginTop: 'auto',
   },
   subtitle: {
     fontFamily: typography.families.medium,

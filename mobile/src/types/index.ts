@@ -77,7 +77,6 @@ export interface FinancialProfile {
   total_cash?: number;
   current_priority_index: number;
   wealth_velocity_score?: number;
-  streak_days: number;
   last_eod_date?: string;
   future_self_letter?: string;
   updated_at: string;
@@ -209,7 +208,7 @@ export interface MilestoneDefinition {
   key: string;
   title: string;
   description: string;
-  category: 'cash' | 'debt' | 'net_worth' | 'streak' | 'income';
+  category: 'cash' | 'debt' | 'net_worth' | 'income';
   icon: string;
 }
 
@@ -220,7 +219,6 @@ export interface NotificationPreferences {
   user_id: string;
   eod_reminder_enabled: boolean;
   eod_reminder_time: string;
-  streak_alerts_enabled: boolean;
   milestone_alerts: boolean;
   coach_messages: boolean;
   red_flag_alerts: boolean;
@@ -228,6 +226,7 @@ export interface NotificationPreferences {
   priority_levelup_alerts: boolean;
   spending_dna_alerts: boolean;
   timezone: string;
+  expo_push_token?: string | null;
 }
 
 // ─── Habit Logs ───────────────────────────────────────────────────────────────
@@ -277,7 +276,7 @@ export interface CoachStudentSummary {
 }
 
 export interface RedFlag {
-  type: 'streak_broken' | 'net_worth_declining' | 'credit_spike';
+  type: 'net_worth_declining' | 'credit_spike';
   message: string;
   severity: 'low' | 'medium' | 'high';
   created_at: string;

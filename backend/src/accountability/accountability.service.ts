@@ -25,10 +25,9 @@ export class AccountabilityService {
       select: {
         id: true,
         name: true,
-        // Privacy: only show scores/streaks, not actual balances
+        // Privacy: only show scores, not actual balances
         profile: {
           select: {
-            streak_days: true,
             wealth_velocity_score: true,
             current_priority_index: true,
             last_eod_date: true,
@@ -56,7 +55,6 @@ export class AccountabilityService {
       partner: {
         id: partner.id,
         name: partner.name,
-        streak_days: partner.profile?.streak_days || 0,
         wealth_velocity_score: partner.profile?.wealth_velocity_score || 0,
         current_priority_index: partner.profile?.current_priority_index || 0,
         submitted_today: !!partnerSubmittedToday,

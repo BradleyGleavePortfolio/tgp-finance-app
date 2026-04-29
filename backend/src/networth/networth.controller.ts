@@ -11,13 +11,13 @@ export class NetWorthController {
   @Get('history')
   async getHistory(
     @Query('days', new DefaultValuePipe(90), ParseIntPipe) days: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: CurrentUser,
   ) {
     return this.netWorthService.getNetWorthHistory(user.id, days);
   }
 
   @Get('current')
-  async getCurrent(@CurrentUser() user: any) {
+  async getCurrent(@CurrentUser() user: CurrentUser) {
     return this.netWorthService.getCurrentNetWorth(user.id);
   }
 }

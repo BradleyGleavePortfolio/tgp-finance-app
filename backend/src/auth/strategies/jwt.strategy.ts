@@ -27,7 +27,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: any) {
+  async validate(payload: { sub?: string }) {
     // payload.sub is the Supabase user ID (UUID)
     const supabaseId = payload.sub;
 

@@ -13,12 +13,12 @@ export class AccountsController {
   constructor(private readonly accountsService: AccountsService) {}
 
   @Get()
-  async getAccounts(@CurrentUser() user: any) {
+  async getAccounts(@CurrentUser() user: CurrentUser) {
     return this.accountsService.getAccounts(user.id);
   }
 
   @Post()
-  async createAccount(@Body() body: any, @CurrentUser() user: any) {
+  async createAccount(@Body() body: unknown, @CurrentUser() user: CurrentUser) {
     const parsed = CreateAccountSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException({
@@ -30,7 +30,7 @@ export class AccountsController {
   }
 
   @Put(':id')
-  async updateAccount(@Param('id') id: string, @Body() body: any, @CurrentUser() user: any) {
+  async updateAccount(@Param('id') id: string, @Body() body: unknown, @CurrentUser() user: CurrentUser) {
     const parsed = UpdateAccountSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException({
@@ -42,7 +42,7 @@ export class AccountsController {
   }
 
   @Delete(':id')
-  async deleteAccount(@Param('id') id: string, @CurrentUser() user: any) {
+  async deleteAccount(@Param('id') id: string, @CurrentUser() user: CurrentUser) {
     return this.accountsService.deleteAccount(user.id, id);
   }
 
@@ -50,7 +50,7 @@ export class AccountsController {
   async getAccountHistory(
     @Param('id') id: string,
     @Query('days', new DefaultValuePipe(30), ParseIntPipe) days: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: CurrentUser,
   ) {
     return this.accountsService.getAccountHistory(user.id, id, days);
   }

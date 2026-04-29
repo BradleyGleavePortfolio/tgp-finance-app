@@ -10,6 +10,7 @@
  */
 
 import PostHog from 'posthog-react-native';
+import type { PostHogEventProperties } from '@posthog/core';
 
 // ---------------------------------------------------------------------------
 // PII allow-list — drop any property whose key matches these patterns
@@ -71,7 +72,11 @@ export function track(
   props?: Record<string, unknown>,
 ): void {
   try {
-    getClient()?.capture(event, stripPII(props) as any);
+    // PostHog's PostHogEventProperties = { [key: string]: JsonType }. The
+    // stripPII output is JSON-serialisable (string/number/bool/null/object)
+    // by construction, but TypeScript can't prove the recursive constraint —
+    // assert at the boundary.
+    getClient()?.capture(event, stripPII(props) as PostHogEventProperties | undefined);
   } catch {
     // Never let analytics crash the app
   }
@@ -87,7 +92,7 @@ export function identify(
   props?: Record<string, unknown>,
 ): void {
   try {
-    getClient()?.identify(userId, stripPII(props) as any);
+    getClient()?.identify(userId, stripPII(props) as PostHogEventProperties | undefined);
   } catch {
     // Never let analytics crash the app
   }

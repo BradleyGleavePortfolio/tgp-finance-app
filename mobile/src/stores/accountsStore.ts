@@ -5,10 +5,11 @@ import type { FinancialAccount, AccountBalanceLog } from '../types';
 import { computeNetWorth, computeDailyInterest } from '../utils/financial';
 
 /** Safely extract an array from any API response shape */
-function safeArray<T>(data: any, key: string): T[] {
-  if (!data) return [];
-  if (Array.isArray(data)) return data;
-  if (data[key] && Array.isArray(data[key])) return data[key];
+function safeArray<T>(data: unknown, key: string): T[] {
+  if (!data || typeof data !== 'object') return [];
+  if (Array.isArray(data)) return data as T[];
+  const inner = (data as Record<string, unknown>)[key];
+  if (Array.isArray(inner)) return inner as T[];
   return [];
 }
 

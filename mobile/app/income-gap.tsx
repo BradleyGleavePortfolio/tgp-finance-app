@@ -12,6 +12,7 @@ import { ProgressBar } from '../src/components/ui/ProgressBar';
 import { Colors, Typography, Spacing, BorderRadius } from '../src/theme/finance';
 import { useAuthStore } from '../src/stores/authStore';
 import { formatCurrency, formatMonths } from '../src/utils/formatters';
+import { errorMessage } from '../src/lib/errorMessage';
 import api from '../src/services/api';
 
 // Available cities from backend data
@@ -72,8 +73,8 @@ export default function IncomeGapScreen() {
       } else {
         setColResult(data);
       }
-    } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Failed to compare locations.');
+    } catch (err) {
+      Alert.alert('Error', errorMessage(err, 'Failed to compare locations.'));
     } finally {
       setColLoading(false);
     }

@@ -44,11 +44,13 @@ export const useEODStore = create<EodState>((set) => ({
     try {
       const { data } = await eodApi.getToday();
       set({ todaySubmission: data.submission !== undefined ? data.submission : data });
-    } catch (error: any) {
-      if (error.response?.status !== 404) {
-        set({
-          error: error.response?.data?.message || 'Failed to fetch today\'s check-in',
-        });
+    } catch (error) {
+      const e = error as { response?: { status?: number; data?: { message?: unknown } } };
+      if (e.response?.status !== 404) {
+        const msg = typeof e.response?.data?.message === 'string'
+          ? e.response.data.message
+          : "Failed to fetch today's check-in";
+        set({ error: msg });
       }
     } finally {
       set({ isLoading: false });
@@ -62,11 +64,12 @@ export const useEODStore = create<EodState>((set) => ({
       const result = data.submission || data;
       set({ todaySubmission: result, isLoading: false });
       return result;
-    } catch (error: any) {
-      set({
-        error: error.response?.data?.message || 'Failed to submit check-in',
-        isLoading: false,
-      });
+    } catch (error) {
+      const e = error as { response?: { data?: { message?: unknown } } };
+      const msg = typeof e.response?.data?.message === 'string'
+        ? e.response.data.message
+        : 'Failed to submit check-in';
+      set({ error: msg, isLoading: false });
       throw error;
     }
   },
@@ -76,11 +79,12 @@ export const useEODStore = create<EodState>((set) => ({
     try {
       const { data } = await eodApi.getHistory(limit);
       set({ history: data.submissions || data, isLoading: false });
-    } catch (error: any) {
-      set({
-        error: error.response?.data?.message || 'Failed to fetch check-in history',
-        isLoading: false,
-      });
+    } catch (error) {
+      const e = error as { response?: { data?: { message?: unknown } } };
+      const msg = typeof e.response?.data?.message === 'string'
+        ? e.response.data.message
+        : 'Failed to fetch check-in history';
+      set({ error: msg, isLoading: false });
     }
   },
 

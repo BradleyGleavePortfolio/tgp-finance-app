@@ -110,7 +110,6 @@ export default function EODScreen() {
       <SubmissionResult
         newNetWorth={result?.net_worth_computed ?? currentNetWorth ?? 0}
         previousNetWorth={previousNetWorth || 0}
-        streak={result?.streak_days ?? profile?.streak_days ?? 0}
         aiInsight={result?.ai_insight}
         onDismiss={() => router.back()}
       />

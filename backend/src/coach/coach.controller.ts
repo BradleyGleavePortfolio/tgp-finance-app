@@ -17,7 +17,7 @@ export class CoachController {
   constructor(private readonly coachService: CoachService) {}
 
   @Get('students')
-  async getStudents(@CurrentUser() user: any, @Query('search') search?: string) {
+  async getStudents(@CurrentUser() user: CurrentUser, @Query('search') search?: string) {
     return this.coachService.getStudents(user.id, search, user.role);
   }
 
@@ -29,13 +29,13 @@ export class CoachController {
    */
   @Get('clients/:id/summary')
   @UseGuards(OwnsStudentGuard)
-  async getClientSummary(@Param('id') id: string, @CurrentUser() user: any) {
+  async getClientSummary(@Param('id') id: string, @CurrentUser() user: CurrentUser) {
     return this.coachService.getClientSummary(user.id, id, user.role);
   }
 
   @Get('students/:id')
   @UseGuards(OwnsStudentGuard)
-  async getStudentDetail(@Param('id') id: string, @CurrentUser() user: any) {
+  async getStudentDetail(@Param('id') id: string, @CurrentUser() user: CurrentUser) {
     return this.coachService.getStudentDetail(user.id, id, user.role);
   }
 
@@ -44,13 +44,13 @@ export class CoachController {
   async getStudentDetailWithHistory(
     @Param('id') id: string,
     @Query('days', new DefaultValuePipe(90), ParseIntPipe) days: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: CurrentUser,
   ) {
     return this.coachService.getStudentDetailWithHistory(user.id, id, days, user.role);
   }
 
   @Get('alerts')
-  async getAlerts(@CurrentUser() user: any) {
+  async getAlerts(@CurrentUser() user: CurrentUser) {
     return this.coachService.getAlerts(user.id);
   }
 
@@ -58,8 +58,8 @@ export class CoachController {
   @UseGuards(OwnsStudentGuard)
   async createNote(
     @Param('student_id') studentId: string,
-    @Body() body: any,
-    @CurrentUser() user: any,
+    @Body() body: unknown,
+    @CurrentUser() user: CurrentUser,
   ) {
     const parsed = CreateCoachNoteSchema.safeParse(body);
     if (!parsed.success) {
@@ -72,17 +72,17 @@ export class CoachController {
   }
 
   @Get('digest')
-  async getDigest(@CurrentUser() user: any) {
+  async getDigest(@CurrentUser() user: CurrentUser) {
     return this.coachService.getWeeklyDigest(user.id);
   }
 
   @Get('templates')
-  async getTemplates(@CurrentUser() user: any) {
+  async getTemplates(@CurrentUser() user: CurrentUser) {
     return this.coachService.getTemplates(user.id);
   }
 
   @Post('templates')
-  async createTemplate(@Body() body: any, @CurrentUser() user: any) {
+  async createTemplate(@Body() body: unknown, @CurrentUser() user: CurrentUser) {
     const parsed = CreateProgramTemplateSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException({
@@ -98,7 +98,7 @@ export class CoachController {
   async applyTemplate(
     @Param('id') templateId: string,
     @Param('student_id') studentId: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: CurrentUser,
   ) {
     return this.coachService.applyTemplate(user.id, templateId, studentId);
   }

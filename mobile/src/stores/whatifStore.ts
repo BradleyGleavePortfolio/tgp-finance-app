@@ -4,14 +4,15 @@ import { whatifApi } from '../services/api';
 import type { WhatIfScenario, ScenarioType, ScenarioResult } from '../types';
 
 /** Safely extract an array from any API response shape */
-function safeArray<T>(data: any, key: string): T[] {
-  if (!data) return [];
-  if (Array.isArray(data)) return data;
-  if (data[key] && Array.isArray(data[key])) return data[key];
+function safeArray<T>(data: unknown, key: string): T[] {
+  if (!data || typeof data !== 'object') return [];
+  if (Array.isArray(data)) return data as T[];
+  const inner = (data as Record<string, unknown>)[key];
+  if (Array.isArray(inner)) return inner as T[];
   return [];
 }
 
-function safeNumber(v: any): number | undefined {
+function safeNumber(v: unknown): number | undefined {
   const n = Number(v);
   return isFinite(n) ? n : undefined;
 }
@@ -23,55 +24,139 @@ function formatProjection(v: number): string {
   return `$${v.toLocaleString()}`;
 }
 
+// Loose envelope for what the backend returns from /run + /saved. Every
+// field is read defensively; unknown shapes flow through as `undefined`.
+interface RawScenarioEnvelope {
+  headline?: unknown;
+  narrative?: unknown;
+  keyMetrics?: unknown;
+  key_metrics?: unknown;
+  monthsToGoalChange?: unknown;
+  months_to_goal_change?: unknown;
+  annualSavings?: unknown;
+  annual_savings?: unknown;
+  netWorthImpact10yr?: unknown;
+  net_worth_impact_10yr?: unknown;
+  result?: RawScenarioEnvelope;
+  result_summary?: RawScenarioEnvelope;
+  projection_1yr?: unknown;
+  projection_3yr?: unknown;
+  projection_5yr?: unknown;
+  projection_10yr?: unknown;
+  // Backend summary fields used for keyMetrics — all optional, all loose.
+  annual_tax_savings?: unknown;
+  fi_number?: unknown;
+  years_to_fi_at_current_rate?: unknown;
+  purchasing_power_multiplier?: unknown;
+  lifetime_earnings_impact?: unknown;
+  interest_saved?: unknown;
+  months_saved?: unknown;
+  monthly_savings?: unknown;
+}
+
 /** Safely normalize a ScenarioResult from any backend or local format */
-function safeResult(data: any): ScenarioResult | null {
+function safeResult(data: unknown): ScenarioResult | null {
   if (!data || typeof data !== 'object') return null;
+  const d = data as RawScenarioEnvelope;
 
   // If data already has headline (local calc or already transformed), use as-is
-  if (data.headline || data.result?.headline) {
-    const r = data.result || data;
+  if (d.headline || d.result?.headline) {
+    const r: RawScenarioEnvelope = d.result ?? d;
     return {
       headline: typeof r.headline === 'string' ? r.headline : '',
       narrative: typeof r.narrative === 'string' ? r.narrative : '',
-      keyMetrics: Array.isArray(r.keyMetrics) ? r.keyMetrics : Array.isArray(r.key_metrics) ? r.key_metrics : [],
-      monthsToGoalChange: safeNumber(r.monthsToGoalChange || r.months_to_goal_change),
-      annualSavings: safeNumber(r.annualSavings || r.annual_savings),
-      netWorthImpact10yr: safeNumber(r.netWorthImpact10yr || r.net_worth_impact_10yr),
+      keyMetrics: Array.isArray(r.keyMetrics)
+        ? (r.keyMetrics as ScenarioResult['keyMetrics'])
+        : Array.isArray(r.key_metrics)
+          ? (r.key_metrics as ScenarioResult['keyMetrics'])
+          : [],
+      monthsToGoalChange: safeNumber(r.monthsToGoalChange ?? r.months_to_goal_change),
+      annualSavings: safeNumber(r.annualSavings ?? r.annual_savings),
+      netWorthImpact10yr: safeNumber(r.netWorthImpact10yr ?? r.net_worth_impact_10yr),
     };
   }
 
   // Transform backend API format (result_summary + projections)
-  const summary = data.result_summary || data;
+  const summary: RawScenarioEnvelope = d.result_summary ?? d;
   const narrative = typeof summary.narrative === 'string' ? summary.narrative : '';
 
   // Build headline from first sentence of narrative
   const headline = narrative.split('.')[0] || 'Scenario Result';
 
   // Build keyMetrics from known summary fields + projections
-  const keyMetrics: Array<{label: string; value: string; positive?: boolean}> = [];
+  const keyMetrics: Array<{ label: string; value: string; positive?: boolean }> = [];
 
-  if (summary.annual_tax_savings !== undefined) keyMetrics.push({ label: 'Tax Savings/yr', value: `$${Number(summary.annual_tax_savings).toLocaleString()}`, positive: true });
-  if (summary.fi_number !== undefined) keyMetrics.push({ label: 'FI Number', value: `$${Number(summary.fi_number).toLocaleString()}`, positive: true });
-  if (summary.years_to_fi_at_current_rate !== undefined) keyMetrics.push({ label: 'Years to FI', value: `~${summary.years_to_fi_at_current_rate} yrs`, positive: summary.years_to_fi_at_current_rate <= 20 });
-  if (summary.purchasing_power_multiplier !== undefined) keyMetrics.push({ label: 'Purchasing Power', value: `${summary.purchasing_power_multiplier}x`, positive: true });
-  if (summary.lifetime_earnings_impact !== undefined) keyMetrics.push({ label: 'Lifetime Impact', value: `$${Number(summary.lifetime_earnings_impact).toLocaleString()}`, positive: true });
-  if (summary.interest_saved !== undefined) keyMetrics.push({ label: 'Interest Saved', value: `$${Number(summary.interest_saved).toLocaleString()}`, positive: true });
-  if (summary.months_saved !== undefined) keyMetrics.push({ label: 'Months Saved', value: `${summary.months_saved} mo`, positive: true });
-  if (summary.monthly_savings !== undefined) keyMetrics.push({ label: 'Monthly Savings', value: `$${Number(summary.monthly_savings).toLocaleString()}`, positive: Number(summary.monthly_savings) > 0 });
-  if (summary.annual_savings !== undefined) keyMetrics.push({ label: 'Annual Savings', value: `$${Number(summary.annual_savings).toLocaleString()}`, positive: Number(summary.annual_savings) > 0 });
+  if (summary.annual_tax_savings !== undefined)
+    keyMetrics.push({
+      label: 'Tax Savings/yr',
+      value: `$${Number(summary.annual_tax_savings).toLocaleString()}`,
+      positive: true,
+    });
+  if (summary.fi_number !== undefined)
+    keyMetrics.push({
+      label: 'FI Number',
+      value: `$${Number(summary.fi_number).toLocaleString()}`,
+      positive: true,
+    });
+  if (summary.years_to_fi_at_current_rate !== undefined)
+    keyMetrics.push({
+      label: 'Years to FI',
+      value: `~${Number(summary.years_to_fi_at_current_rate)} yrs`,
+      positive: Number(summary.years_to_fi_at_current_rate) <= 20,
+    });
+  if (summary.purchasing_power_multiplier !== undefined)
+    keyMetrics.push({
+      label: 'Purchasing Power',
+      value: `${Number(summary.purchasing_power_multiplier)}x`,
+      positive: true,
+    });
+  if (summary.lifetime_earnings_impact !== undefined)
+    keyMetrics.push({
+      label: 'Lifetime Impact',
+      value: `$${Number(summary.lifetime_earnings_impact).toLocaleString()}`,
+      positive: true,
+    });
+  if (summary.interest_saved !== undefined)
+    keyMetrics.push({
+      label: 'Interest Saved',
+      value: `$${Number(summary.interest_saved).toLocaleString()}`,
+      positive: true,
+    });
+  if (summary.months_saved !== undefined)
+    keyMetrics.push({
+      label: 'Months Saved',
+      value: `${Number(summary.months_saved)} mo`,
+      positive: true,
+    });
+  if (summary.monthly_savings !== undefined)
+    keyMetrics.push({
+      label: 'Monthly Savings',
+      value: `$${Number(summary.monthly_savings).toLocaleString()}`,
+      positive: Number(summary.monthly_savings) > 0,
+    });
+  if (summary.annual_savings !== undefined)
+    keyMetrics.push({
+      label: 'Annual Savings',
+      value: `$${Number(summary.annual_savings).toLocaleString()}`,
+      positive: Number(summary.annual_savings) > 0,
+    });
 
   // Add projection metrics if available
-  if (data.projection_1yr !== undefined) keyMetrics.push({ label: '1 Year', value: formatProjection(data.projection_1yr), positive: true });
-  if (data.projection_3yr !== undefined) keyMetrics.push({ label: '3 Years', value: formatProjection(data.projection_3yr), positive: true });
-  if (data.projection_5yr !== undefined) keyMetrics.push({ label: '5 Years', value: formatProjection(data.projection_5yr), positive: true });
-  if (data.projection_10yr !== undefined) keyMetrics.push({ label: '10 Years', value: formatProjection(data.projection_10yr), positive: true });
+  if (d.projection_1yr !== undefined)
+    keyMetrics.push({ label: '1 Year', value: formatProjection(Number(d.projection_1yr)), positive: true });
+  if (d.projection_3yr !== undefined)
+    keyMetrics.push({ label: '3 Years', value: formatProjection(Number(d.projection_3yr)), positive: true });
+  if (d.projection_5yr !== undefined)
+    keyMetrics.push({ label: '5 Years', value: formatProjection(Number(d.projection_5yr)), positive: true });
+  if (d.projection_10yr !== undefined)
+    keyMetrics.push({ label: '10 Years', value: formatProjection(Number(d.projection_10yr)), positive: true });
 
   return {
     headline,
     narrative,
     keyMetrics: keyMetrics.slice(0, 6),
     annualSavings: safeNumber(summary.annual_savings),
-    netWorthImpact10yr: safeNumber(data.projection_10yr),
+    netWorthImpact10yr: safeNumber(d.projection_10yr),
   };
 }
 
@@ -119,7 +204,20 @@ export const useWhatIfStore = create<WhatIfStore>((set, get) => ({
 
   saveScenario: async (scenario) => {
     try {
-      const { data } = await whatifApi.save(scenario as Record<string, unknown>);
+      if (!scenario.scenario_type || !scenario.label || !scenario.parameters || !scenario.result_summary) {
+        throw new Error('Scenario is missing required fields');
+      }
+      const body = {
+        scenario_type: scenario.scenario_type,
+        label: scenario.label,
+        parameters: scenario.parameters,
+        result_summary: scenario.result_summary,
+        projection_1yr: scenario.projection_1yr,
+        projection_3yr: scenario.projection_3yr,
+        projection_5yr: scenario.projection_5yr,
+        projection_10yr: scenario.projection_10yr,
+      };
+      const { data } = await whatifApi.save(body);
       const saved: WhatIfScenario = data?.scenario || data;
       if (saved?.id) {
         set((state) => ({

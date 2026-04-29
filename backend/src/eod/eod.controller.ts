@@ -14,7 +14,7 @@ export class EODController {
   constructor(private readonly eodService: EODService) {}
 
   @Post()
-  async submitEOD(@Body() body: any, @CurrentUser() user: any) {
+  async submitEOD(@Body() body: unknown, @CurrentUser() user: CurrentUser) {
     const parsed = SubmitEODSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException({
@@ -22,13 +22,13 @@ export class EODController {
         code: 'VALIDATION_ERROR',
       });
     }
-    return this.eodService.submitEOD(user.id, parsed.data as any);
+    return this.eodService.submitEOD(user.id, parsed.data);
   }
 
   @Get('history')
   async getHistoryByLimit(
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: CurrentUser,
   ) {
     return this.eodService.getEODHistoryByLimit(user.id, limit);
   }
@@ -36,21 +36,21 @@ export class EODController {
   @Get()
   async getHistory(
     @Query('days', new DefaultValuePipe(30), ParseIntPipe) days: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: CurrentUser,
   ) {
     return this.eodService.getEODHistory(user.id, days);
   }
 
   @Get('today')
-  async getToday(@CurrentUser() user: any) {
+  async getToday(@CurrentUser() user: CurrentUser) {
     return this.eodService.getTodayEOD(user.id);
   }
 
   @Put(':id')
   async updateEOD(
     @Param('id') id: string,
-    @Body() body: any,
-    @CurrentUser() user: any,
+    @Body() body: unknown,
+    @CurrentUser() user: CurrentUser,
   ) {
     const parsed = SubmitEODSchema.safeParse(body);
     if (!parsed.success) {
@@ -59,6 +59,6 @@ export class EODController {
         code: 'VALIDATION_ERROR',
       });
     }
-    return this.eodService.updateEOD(id, user.id, parsed.data as any);
+    return this.eodService.updateEOD(id, user.id, parsed.data);
   }
 }

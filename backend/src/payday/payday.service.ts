@@ -4,9 +4,16 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { FinancialAccount, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { toN } from '../common/money';
+
+export interface PaydayTemplate {
+  id: string;
+  name: string;
+  allocations: Array<{ account_id: string; percentage: number }>;
+  created_at: string;
+}
 
 @Injectable()
 export class PaydayService {
@@ -74,7 +81,7 @@ export class PaydayService {
     }
 
     // Apply allocations in a transaction
-    const updatedAccounts: any[] = [];
+    const updatedAccounts: FinancialAccount[] = [];
     const receipt: Array<{
       account_id: string;
       account_name: string;
@@ -151,8 +158,8 @@ export class PaydayService {
     }).catch(() => null);
 
     // payday_templates is stored as JSON on the profile (if the column exists)
-    const templates = (profile as any)?.payday_templates;
-    if (Array.isArray(templates)) return { templates };
+    const templates = profile?.payday_templates;
+    if (Array.isArray(templates)) return { templates: templates as unknown as PaydayTemplate[] };
     return { templates: [] };
   }
 
@@ -166,22 +173,22 @@ export class PaydayService {
       select: { payday_templates: true },
     }).catch(() => null);
 
-    const existing: any[] = Array.isArray((profile as any)?.payday_templates)
-      ? (profile as any).payday_templates
+    const existing: PaydayTemplate[] = Array.isArray(profile?.payday_templates)
+      ? (profile!.payday_templates as unknown as PaydayTemplate[])
       : [];
 
-    const newTemplate = {
+    const newTemplate: PaydayTemplate = {
       id: `tmpl_${Date.now()}`,
       name: template.name,
       allocations: template.allocations,
       created_at: new Date().toISOString(),
     };
 
-    const updated = [newTemplate, ...existing];
+    const updated: PaydayTemplate[] = [newTemplate, ...existing];
 
     await this.prisma.financialProfile.update({
       where: { user_id: userId },
-      data: { payday_templates: updated as any },
+      data: { payday_templates: updated as unknown as Prisma.InputJsonValue },
     }).catch(() => {
       // payday_templates column may not exist yet — return the template anyway
     });

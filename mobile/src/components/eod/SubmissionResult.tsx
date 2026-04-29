@@ -1,15 +1,13 @@
-// Post-EOD submission celebration screen
+// Post-EOD submission result screen
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { Button } from '../ui/Button';
-import { StreakBadge } from '../ui/Badge';
 import { Colors, Typography, Spacing } from '../../theme/finance';
 import { formatCurrency } from '../../utils/formatters';
 
 interface SubmissionResultProps {
   newNetWorth: number;
   previousNetWorth: number;
-  streak: number;
   aiInsight?: string;
   onDismiss: () => void;
 }
@@ -17,7 +15,6 @@ interface SubmissionResultProps {
 export function SubmissionResult({
   newNetWorth,
   previousNetWorth,
-  streak,
   aiInsight,
   onDismiss,
 }: SubmissionResultProps) {
@@ -35,7 +32,6 @@ export function SubmissionResult({
 
   return (
     <Animated.View style={[styles.container, { opacity: opacityAnim, transform: [{ scale: scaleAnim }] }]}>
-      <Text style={styles.checkmark}>✓</Text>
       <Text style={styles.title}>Check-in Complete</Text>
 
       {/* Animated net worth */}
@@ -46,14 +42,6 @@ export function SubmissionResult({
       <Text style={[styles.change, { color: isPositive ? Colors.profitGreen : Colors.debtCrimson }]}>
         {isPositive ? '+' : ''}{formatCurrency(change)} today
       </Text>
-
-      {/* Streak */}
-      <View style={styles.streakRow}>
-        <StreakBadge streak={streak} />
-        <Text style={styles.streakText}>
-          {streak >= 7 ? 'The streak holds.' : 'Check in tomorrow to continue.'}
-        </Text>
-      </View>
 
       {/* AI Insight */}
       {aiInsight && (
@@ -75,11 +63,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: Spacing.xl,
     backgroundColor: Colors.backgroundDeepNavy,
-  },
-  checkmark: {
-    fontSize: 56,
-    color: Colors.profitGreen,
-    marginBottom: Spacing.base,
   },
   title: {
     fontFamily: 'Inter_700Bold',
@@ -105,18 +88,6 @@ const styles = StyleSheet.create({
     fontFamily: 'JetBrainsMono_700Bold',
     fontSize: Typography.titleSmall,
     marginBottom: Spacing.xl,
-  },
-  streakRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.xl,
-  },
-  streakText: {
-    fontFamily: 'Inter_400Regular',
-    fontSize: Typography.bodySmall,
-    color: Colors.slateGray,
-    flex: 1,
   },
   insightBox: {
     backgroundColor: Colors.cardSurfaceNavy,

@@ -113,7 +113,10 @@ export class AuthService {
       this.logger.warn(`Ghost user detected for ${dto.email} — cleaning up stale Supabase Auth entry`);
 
       const { data: listData } = await this.supabase.auth.admin.listUsers();
-      const ghostUser = (listData?.users as any[])?.find((u: any) => u.email === dto.email);
+      // Supabase types `users` as `User[] | []` depending on the success/error
+      // branch — narrow to a single User[] for the find().
+      const users: { id: string; email?: string }[] = listData?.users ?? [];
+      const ghostUser = users.find((u) => u.email === dto.email);
 
       if (ghostUser) {
         await this.supabase.auth.admin.deleteUser(ghostUser.id);
