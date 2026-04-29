@@ -1,7 +1,33 @@
 import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
 let initialized = false;
+
+/**
+ * Build the release identifier for the running app. Must match the release
+ * the EAS build tagged when uploading source-maps to Sentry, otherwise
+ * stack traces stay minified.
+ *
+ * Format: `${expo.version}+${platform-specific build number}`. iOS uses
+ * `expo.ios.buildNumber`, Android uses `expo.android.versionCode`. When the
+ * platform-specific build number is unset (e.g. running in Expo Go without
+ * a build profile applied), we fall back to the plain version so the SDK
+ * still tags events with something meaningful.
+ */
+export function resolveRelease(): string | undefined {
+  const cfg = Constants.expoConfig;
+  const version = cfg?.version;
+  if (!version) return undefined;
+  const buildNumber = Platform.select<string | number | undefined>({
+    ios: cfg?.ios?.buildNumber,
+    android: cfg?.android?.versionCode,
+    default: undefined,
+  });
+  return buildNumber != null && buildNumber !== ''
+    ? `${version}+${buildNumber}`
+    : version;
+}
 
 /**
  * Initialise Sentry once at app boot. Reads the DSN from
@@ -34,7 +60,7 @@ export function initSentry(): void {
       return event;
     },
     environment: process.env.EXPO_PUBLIC_ENVIRONMENT || 'production',
-    release: Constants.expoConfig?.version || undefined,
+    release: resolveRelease(),
   });
 
   initialized = true;

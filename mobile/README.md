@@ -48,9 +48,31 @@ tests, operations.
 | `EXPO_PUBLIC_SUPABASE_URL` | yes | Same Supabase project URL the backend uses. The app throws on startup if missing — there is no hardcoded fallback. |
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | yes | Anon key — safe to ship to clients but required explicitly. |
 | `expoConfig.extra.apiUrl` | yes | Set in `app.json`. Defaults to `https://tgp-finance-api.fly.dev`. |
+| `EXPO_PUBLIC_SENTRY_DSN` | optional | Server-side DSN. When unset, `initSentry()` is a no-op and the app ships without telemetry. |
+| `EXPO_PUBLIC_ENVIRONMENT` | optional | `development` / `preview` / `production`. Tags every Sentry event so dashboards can filter. |
+| `SENTRY_AUTH_TOKEN` | EAS Secret only | Needed by the EAS build to upload source-maps to Sentry. Never commit. Create it once with `eas secret:create --scope project --name SENTRY_AUTH_TOKEN --value $TOKEN`. Generate the token at sentry.io → User Settings → Auth Tokens with `project:releases` and `project:write` scopes. When unset, the build skips the upload step rather than failing — production stack traces will be minified until the secret is added. |
+| `SENTRY_ORG` | optional EAS Secret | Override for the org slug declared in `app.json` `plugins.@sentry/react-native/expo.organization`. Set only if the EAS build needs to target a different org than the one pinned in source. |
+| `SENTRY_PROJECT` | optional EAS Secret | Same shape as `SENTRY_ORG` but for the project slug. |
 
 Put public env in `mobile/.env` or directly in the Expo config. Never
 ship the service-role key here.
+
+## Sentry source-maps
+
+Production stack traces stay readable because `metro.config.js` wraps
+Expo's default Metro config with `getSentryExpoConfig` from
+`@sentry/react-native/metro`, and `app.json` registers the
+`@sentry/react-native/expo` config plugin with the org and project
+slugs. EAS picks up `SENTRY_AUTH_TOKEN` from project secrets and
+runs the bundled `sentry-expo-upload-sourcemaps` step on every build.
+The release identifier the running app sends is
+`${expo.version}+${expo.ios.buildNumber || expo.android.versionCode}`
+(see `src/services/sentry.ts`), which is the same identifier the
+upload tags so dashboards can match traces to symbolicated frames.
+
+When `SENTRY_AUTH_TOKEN` is unset, the upload silently skips. The
+build still succeeds; Sentry just keeps showing minified frames
+until the secret is added.
 
 ## API client
 
