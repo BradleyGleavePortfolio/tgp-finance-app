@@ -92,6 +92,9 @@ and is **never** enabled in production; the supported promotion path is
 
 ## Money handling
 
+**Doctrine: every money field is `Decimal(14, 2)` server-side. No `number`
+for money on the wire. No `parseFloat` on user input.**
+
 - Stored as `DECIMAL(14, 2)` in Postgres (Prisma migration
   `20260423000001_money_fields_to_decimal`).
 - Returned to clients as `number` via `DecimalToNumberInterceptor`.
@@ -100,6 +103,70 @@ and is **never** enabled in production; the supported promotion path is
   coerces to string concatenation.
 - Aggregations in EOD / net-worth / velocity all run through `toN` so a stale
   Float-era code path can't reintroduce IEEE-754 drift.
+
+### Inbound validation: `MoneyAmount` Zod schema
+
+Every money field on every write endpoint flows through the shared
+`MoneyAmount` Zod schema in `src/common/zod/money.ts`. The schema:
+
+- Accepts `string` or `number` from the client.
+- Rejects `NaN`, `±Infinity`, non-finite numbers, more than 2 decimal places,
+  more than 12 integer digits, and non-numeric strings.
+- Outputs a `Prisma.Decimal` — pass it directly to Prisma; no `parseFloat`
+  and no `Number()` round-trip in the service.
+- Has three preset variants: `MoneyAmount()` (default: zero ok, no negatives),
+  `MoneyAmountPositive()`, `MoneyAmountNonNegative()`, and
+  `MoneyAmountAny()`.
+
+The locked-down write surfaces are:
+
+| Surface | DTO schema | Endpoint(s) |
+|---|---|---|
+| EOD | `SubmitEODSchema` | `POST /api/eod`, `PUT /api/eod/:id` |
+| Payday | `DeployPaycheckSchema`, `SavePaydayTemplateSchema` | `POST /api/payday`, `POST /api/payday/templates` |
+| Onboarding | `SubmitQuizSchema` (and `UpdateProfileSchema` income fields) | `POST /api/onboarding/quiz`, profile updates |
+| Accounts | `CreateAccountSchema`, `UpdateAccountSchema` | `POST /api/accounts`, `PUT /api/accounts/:id` |
+
+#### Adding a new money-writing endpoint
+
+```ts
+// 1. Define the DTO using MoneyAmount, not z.number()
+import { z } from 'zod';
+import { MoneyAmountPositive } from '../common/zod/money';
+
+export const TransferSchema = z.object({
+  from_account_id: z.string().uuid(),
+  to_account_id: z.string().uuid(),
+  amount: MoneyAmountPositive(), // → Prisma.Decimal in parsed.data
+});
+
+// 2. In the controller, safeParse and propagate the error
+const parsed = TransferSchema.safeParse(body);
+if (!parsed.success) {
+  throw new BadRequestException({
+    error: parsed.error.errors.map((e) => e.message).join(', '),
+    code: 'VALIDATION_ERROR',
+  });
+}
+return this.service.transfer(user.id, parsed.data);
+
+// 3. In the service, accept Prisma.Decimal and pass it straight to Prisma —
+//    do NOT call parseFloat or Number() on the value.
+async transfer(userId: string, dto: { amount: Prisma.Decimal; ... }) {
+  await this.prisma.transferLog.create({
+    data: { user_id: userId, amount: dto.amount },
+  });
+}
+```
+
+#### Forbidden patterns
+
+- ❌ `z.number().positive()` for a money field — use `MoneyAmountPositive()`.
+- ❌ `parseFloat(answers.monthly_take_home)` — Zod already coerced.
+- ❌ `data: { balance: Number(snapshot.balance) }` — pass the Decimal.
+- ❌ `amount: number` on a service method that persists money — type as
+  `Prisma.Decimal | number` only if you must accept legacy callers, and
+  promote to Decimal before any DB write.
 
 ## Environment variables
 
