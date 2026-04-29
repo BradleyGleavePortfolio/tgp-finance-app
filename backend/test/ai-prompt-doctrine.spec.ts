@@ -53,19 +53,20 @@ describe('buildFinanceCoachSystemPrompt — quiet-luxury doctrine', () => {
     expect(prompt).toContain('USER CONTEXT');
   });
 
-  // Doctrine §10 item 3: pin the Perplexity model name. Service code is the
-  // ground truth and uses 'sonar' (not 'sonar-pro'). This test fails if any
-  // call site drifts back to 'sonar-pro' so README, boot log, and SDK config
-  // stay aligned.
-  it('uses model name "sonar" everywhere it appears in ai.service.ts', () => {
+  // Doctrine §10 item 3: pin the Perplexity model name. The fitness backend
+  // uses 'sonar-pro', and the finance backend follows. This test fails if
+  // any call site drifts back to bare 'sonar' so README, boot log, and SDK
+  // config stay aligned with the fitness backend.
+  it('uses model name "sonar-pro" everywhere it appears in ai.service.ts', () => {
     const source = fs.readFileSync(
       path.resolve(__dirname, '..', 'src', 'ai', 'ai.service.ts'),
       'utf8',
     );
     const sonarProMatches = source.match(/['"]sonar-pro['"]/g);
-    expect(sonarProMatches).toBeNull();
-    const sonarMatches = source.match(/model: ['"]sonar['"]/g);
-    expect(sonarMatches).not.toBeNull();
-    expect((sonarMatches || []).length).toBeGreaterThanOrEqual(3);
+    expect(sonarProMatches).not.toBeNull();
+    expect((sonarProMatches || []).length).toBeGreaterThanOrEqual(3);
+    // Reject any bare 'sonar' string in a model: position.
+    const bareSonarMatches = source.match(/model: ['"]sonar['"]/g);
+    expect(bareSonarMatches).toBeNull();
   });
 });

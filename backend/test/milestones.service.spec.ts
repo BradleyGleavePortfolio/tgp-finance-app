@@ -1,6 +1,16 @@
 import { Prisma } from '@prisma/client';
 import { MILESTONES } from '../src/milestones/milestones.service';
 
+// The first_debt_paid check signature is (profile, accounts, onboardDebt) but
+// only inspects accounts. A zeroed profile is enough — keep the field set
+// minimal so a future schema change doesn't ripple through the test.
+const ZERO_PROFILE = {
+  total_cash: new Prisma.Decimal(0),
+  total_debt: new Prisma.Decimal(0),
+  net_worth_snapshot: new Prisma.Decimal(0),
+  annual_income_gross: new Prisma.Decimal(0),
+};
+
 describe('MILESTONES — first_debt_paid Decimal equality', () => {
   // Doctrine §10 item 5. Prisma surfaces money columns as Decimal instances;
   // strict equality against a JS number is always false. The check has to
@@ -15,8 +25,8 @@ describe('MILESTONES — first_debt_paid Decimal equality', () => {
     const accounts = [
       { is_debt: true, balance: new Prisma.Decimal(0) },
       { is_debt: true, balance: new Prisma.Decimal(2500) },
-    ];
-    const result = def!.check({}, accounts, 0);
+    ] as Parameters<NonNullable<typeof def>['check']>[1];
+    const result = def!.check(ZERO_PROFILE, accounts, 0);
     expect(result).toBe(true);
   });
 
@@ -24,8 +34,8 @@ describe('MILESTONES — first_debt_paid Decimal equality', () => {
     const accounts = [
       { is_debt: true, balance: new Prisma.Decimal(100) },
       { is_debt: true, balance: new Prisma.Decimal(2500) },
-    ];
-    const result = def!.check({}, accounts, 0);
+    ] as Parameters<NonNullable<typeof def>['check']>[1];
+    const result = def!.check(ZERO_PROFILE, accounts, 0);
     expect(result).toBe(false);
   });
 
@@ -33,19 +43,16 @@ describe('MILESTONES — first_debt_paid Decimal equality', () => {
     const accounts = [
       { is_debt: false, balance: new Prisma.Decimal(0) },
       { is_debt: true, balance: new Prisma.Decimal(500) },
-    ];
-    const result = def!.check({}, accounts, 0);
+    ] as Parameters<NonNullable<typeof def>['check']>[1];
+    const result = def!.check(ZERO_PROFILE, accounts, 0);
     expect(result).toBe(false);
   });
 });
 
 describe('MILESTONES — title doctrine', () => {
   // Doctrine §10 item 4: titles must be declarative noun phrases. No gamer
-  // register, no rank superlatives, no streak titles (streak category is
-  // being removed in PR #98).
-  // Phrases that must not appear in any milestone title. The matcher is
-  // case-sensitive to avoid colliding with lowercase noun forms (the new
-  // "Debt free" title is fine; only the shouty "DEBT FREE" was banned).
+  // register, no rank superlatives, no streak titles. The streak category
+  // was removed entirely; the discriminated union below pins that.
   const FORBIDDEN_PHRASES = [
     'First Blood',
     'DEBT FREE',
@@ -72,8 +79,10 @@ describe('MILESTONES — title doctrine', () => {
     }
   });
 
-  it('has dropped every streak-category milestone', () => {
-    const streakKeys = MILESTONES.filter((m) => m.category === 'streak');
-    expect(streakKeys).toHaveLength(0);
+  it('exposes only declared milestone categories (no streak)', () => {
+    const allowed = new Set(['cash', 'debt', 'networth', 'income']);
+    for (const m of MILESTONES) {
+      expect(allowed.has(m.category)).toBe(true);
+    }
   });
 });

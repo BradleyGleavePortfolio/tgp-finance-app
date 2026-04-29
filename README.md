@@ -19,7 +19,7 @@ Part of The Growth Project coaching ecosystem
 - Backend: Node.js + NestJS (TypeScript)
 - Database: PostgreSQL + Prisma ORM (v5.22)
 - Auth: Supabase Auth (email/password + Google OAuth)
-- AI Coach: Perplexity sonar (backend-proxied, 20 req/user/hr,
+- AI Coach: Perplexity sonar-pro (backend-proxied, 20 req/user/hr,
   DB-backed sliding-window rate limit, voice doctrine pinned by test)
 - Charts: react-native-gifted-charts
 - Validation: Zod (shared frontend + backend)
@@ -223,7 +223,7 @@ are placeholders.
 - **Net-worth projections.** Interactive sliders on top of the live
   vital signs.
 - **Debt strategies.** Avalanche and snowball, side by side.
-- **AI coach.** Backed by Perplexity sonar. The system prompt is
+- **AI coach.** Backed by Perplexity sonar-pro. The system prompt is
   declarative and editorial — voice rules mirror `mobile/DESIGN.md`
   §5 (no emoji, no hype, no audience framing, numbers over
   adjectives). Pinned by `backend/test/ai-prompt-doctrine.spec.ts`.

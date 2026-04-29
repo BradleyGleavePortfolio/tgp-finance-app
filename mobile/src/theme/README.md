@@ -33,10 +33,9 @@ The short version:
 - No emoji in product surfaces. Eyebrow + serif heading + body + one
   CTA replaces them.
 - No `TODO` / `FIXME` / fake values / lorem in shipped UI.
-- The `WinReaction.kind` enum (`fire`, `clap`) survives in the
-  database for migration safety, but the UI exposes a single neutral
-  acknowledgement — never the words "fire" or "clap" and never an
-  emoji.
+- The `WinReaction` model and `ReactionKind` enum were dropped from
+  the schema in the doctrine drop migration. The UI never references
+  reactions, "fire", "clap", or any equivalent.
 - Voice is editorial and quiet: a bank statement, not a funnel.
 
 ## Failure modes
