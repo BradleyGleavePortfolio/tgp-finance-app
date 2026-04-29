@@ -314,7 +314,7 @@ export class PrioritiesService {
       const def = PRIORITY_WATERFALL[newIdx];
       await this.pushSender
         .send(userId, 'priority_levelup', {
-          title: '⬆️ New priority unlocked',
+          title: 'New priority',
           body: def?.title ?? `Priority ${newIdx}`,
           data: { priority_index: newIdx, screen: 'Priorities' },
         })

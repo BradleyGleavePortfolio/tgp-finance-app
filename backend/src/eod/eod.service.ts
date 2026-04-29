@@ -246,7 +246,7 @@ export class EODService {
             if (this.pushSender) {
               await this.pushSender
                 .send(userId, 'priority_levelup', {
-                  title: '⬆️ New priority unlocked',
+                  title: 'New priority',
                   body: computed.current.title,
                   data: {
                     priority_index: computed.current_index,
