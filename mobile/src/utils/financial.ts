@@ -200,11 +200,15 @@ export function projectNetWorth(
 
 // ─── Financial Independence ───────────────────────────────────────────────────
 
-/**
- * FI Number: (dream_lifestyle_cost_mo × 12) / 0.04
- */
+// FI Number: (dream_lifestyle_cost_mo × 12) / 0.04
+// Server (backend/src/whatif/whatif.service.ts) is the source of truth and
+// applies no inflation buffer. The previous client-side ×1.20 multiplier
+// silently diverged from the server, so the same input produced different
+// numbers on opposite sides of the wire. Remove it; if an inflation-adjusted
+// projection is wanted, surface it as its own field rather than re-pricing
+// the headline FI number.
 export function computeFINumber(dreamMonthlyExpenses: number): number {
-  return (dreamMonthlyExpenses * 12 / 0.04) * 1.20; // 4% rule + 20% inflation buffer
+  return (dreamMonthlyExpenses * 12) / 0.04;
 }
 
 /**
