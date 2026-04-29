@@ -146,7 +146,6 @@ export class AdminFederationService {
         total_assets: numberOrNull(profile?.total_assets),
         total_debt: numberOrNull(profile?.total_debt),
         total_cash: numberOrNull(profile?.total_cash),
-        streak_days: profile?.streak_days ?? 0,
         wealth_velocity_score: profile?.wealth_velocity_score ?? null,
         last_eod_date: profile?.last_eod_date?.toISOString() ?? null,
         current_priority_index: profile?.current_priority_index ?? 0,

@@ -16,7 +16,6 @@ export default function NotificationsScreen() {
   const [prefs, setPrefs] = useState<Partial<NotificationPreferences>>({
     eod_reminder_enabled: true,
     eod_reminder_time: '20:00',
-    streak_alerts_enabled: true,
     milestone_alerts: true,
     coach_messages: true,
     red_flag_alerts: true,
@@ -68,7 +67,6 @@ export default function NotificationsScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {[
           { key: 'eod_reminder_enabled', label: 'EOD Reminder', desc: 'Daily check-in reminder at your configured time' },
-          { key: 'streak_alerts_enabled', label: 'Streak at Risk', desc: "9 PM ping if you haven't checked in and have a streak" },
           { key: 'milestone_alerts', label: 'Milestones', desc: 'When you reach a financial milestone' },
           { key: 'priority_levelup_alerts', label: 'Priority Level-Up', desc: 'When you advance to the next Priority Waterfall stage' },
           { key: 'future_self_letter_enabled', label: 'Future-Self Letter', desc: 'Delivered 90 days after you write it during onboarding' },

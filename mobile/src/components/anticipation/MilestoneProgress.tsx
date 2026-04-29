@@ -32,7 +32,6 @@ function categoryColor(category: ResolvedMilestone['category']): string {
     case 'cash':       return semantic.success;     // green
     case 'debt':       return semantic.danger;       // crimson — debt destroyed
     case 'net_worth':  return gold[400];             // gold
-    case 'streak':     return semantic.info;         // teal
     default:           return gold[400];
   }
 }

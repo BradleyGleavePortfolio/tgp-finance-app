@@ -97,9 +97,14 @@ export class OwnsStudentGuard implements CanActivate {
     return true;
   }
 
-  private extractStudentId(req: any): string | undefined {
-    const params = req.params || {};
-    const body = req.body || {};
+  private extractStudentId(req: {
+    params?: Record<string, string | undefined>;
+    body?: Record<string, unknown>;
+    route?: { path?: string };
+    url?: string;
+  }): string | undefined {
+    const params: Record<string, string | undefined> = req.params || {};
+    const body: Record<string, unknown> = req.body || {};
     const route: string = req.route?.path || req.url || '';
 
     // Explicit student-id param names first.
@@ -112,8 +117,8 @@ export class OwnsStudentGuard implements CanActivate {
     if (params.id && /\/students\/[^/]+/.test(route)) return params.id;
 
     // Fallback: body fields (POSTs that take student_id in JSON).
-    if (body.student_id) return body.student_id;
-    if (body.studentId) return body.studentId;
+    if (typeof body.student_id === 'string') return body.student_id;
+    if (typeof body.studentId === 'string') return body.studentId;
 
     return undefined;
   }

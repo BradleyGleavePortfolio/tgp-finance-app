@@ -1,12 +1,11 @@
 // Expo Push Notifications setup for The Growth Project: Finance
 //
-// v1 ships six client-scheduled local notifications:
+// v1 ships five client-scheduled local notifications:
 //   1. Daily EOD check-in reminder
-//   2. Streak-at-risk reminder (21:00 local, only when streak > 0 and no EOD today)
-//   3. Milestone unlocked (immediate, after EOD submit response)
-//   4. Future-Self Letter delivery (day 90, one-shot)
-//   5. Priority Waterfall level-up (immediate, when current_priority_index climbs)
-//   6. Monthly Spending DNA report ready (foreground poll against /latest)
+//   2. Milestone unlocked (immediate, after EOD submit response)
+//   3. Future-Self Letter delivery (day 90, one-shot)
+//   4. Priority Waterfall level-up (immediate, when current_priority_index climbs)
+//   5. Monthly Spending DNA report ready (foreground poll against /latest)
 //
 // All scheduling is local via expo-notifications — there is no backend cron or
 // Expo push-send path. We still register the push token on startup so a future
@@ -15,7 +14,7 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-import { notificationsApi, eodApi, aiApi, profileApi } from './api';
+import { notificationsApi, aiApi } from './api';
 
 // Local cache keys — co-located so the suppression / idempotency contracts are
 // discoverable from one place.
@@ -114,47 +113,7 @@ export async function cancelEODReminders(): Promise<void> {
   }
 }
 
-// ─── #2 Streak-at-risk reminder ──────────────────────────────────────────────
-
-/**
- * Schedule the streak-at-risk reminder at 21:00 local. Only arms the repeating
- * trigger when the user has a live streak and has NOT submitted EOD today —
- * this keeps a cancelled-then-rearmed path clean and avoids nagging users on
- * days the streak isn't in play.
- */
-export async function scheduleStreakRiskReminder(opts: {
-  streakDays: number;
-  lastEodDate?: string | null;
-}): Promise<void> {
-  await cancelStreakRiskReminders();
-
-  if ((opts.streakDays ?? 0) <= 0) return;
-  if (isSameLocalDay(opts.lastEodDate, new Date())) return;
-
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: 'Streak holds.',
-      body: 'Submit today to keep the streak intact.',
-      data: { type: 'streak_risk', screen: '/eod' },
-    },
-    trigger: {
-      hour: 21,
-      minute: 0,
-      repeats: true,
-    },
-  });
-}
-
-export async function cancelStreakRiskReminders(): Promise<void> {
-  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-  for (const notification of scheduled) {
-    if (notification.content.data?.type === 'streak_risk') {
-      await Notifications.cancelScheduledNotificationAsync(notification.identifier);
-    }
-  }
-}
-
-// ─── #3 Milestone unlocked ──────────────────────────────────────────────────
+// ─── #2 Milestone unlocked ──────────────────────────────────────────────────
 
 /**
  * Fire an immediate milestone-unlocked notification. No guard here — the
@@ -282,37 +241,12 @@ export async function maybeNotifyNewSpendingDnaReport(latest: {
 // ─── Foreground sync helpers ────────────────────────────────────────────────
 
 /**
- * One-stop call to run on app foreground / auth-ready. Re-evaluates the
- * streak-at-risk schedule (using today's EOD state) and checks for a newly
- * generated Spending DNA report. Safe to call repeatedly — every branch is
- * idempotent.
+ * One-stop call to run on app foreground / auth-ready. Checks for a newly
+ * generated Spending DNA report. Safe to call repeatedly — idempotent.
  */
 export async function refreshForegroundNotifications(prefs: {
-  streak_alerts_enabled?: boolean;
   spending_dna_alerts?: boolean;
 }): Promise<void> {
-  // Streak-at-risk
-  if (prefs.streak_alerts_enabled !== false) {
-    try {
-      const { data } = await eodApi.getToday();
-      const submittedToday = !!(data && (data.id || data?.submission?.id));
-      const profile = await safeFetchProfile();
-      const streakDays = Number(profile?.streak_days || 0);
-      if (submittedToday) {
-        await cancelStreakRiskReminders();
-      } else {
-        await scheduleStreakRiskReminder({
-          streakDays,
-          lastEodDate: profile?.last_eod_date ?? null,
-        });
-      }
-    } catch {
-      // best-effort
-    }
-  } else {
-    await cancelStreakRiskReminders();
-  }
-
   // Spending DNA ready
   if (prefs.spending_dna_alerts !== false) {
     try {
@@ -324,22 +258,12 @@ export async function refreshForegroundNotifications(prefs: {
   }
 }
 
-async function safeFetchProfile(): Promise<any | null> {
-  try {
-    const { data } = await profileApi.get();
-    return data || null;
-  } catch {
-    return null;
-  }
-}
-
 // ─── EOD submit integration ─────────────────────────────────────────────────
 
 /**
  * Run all post-EOD-submission notification side effects in one pass:
  *   - milestone unlocks (per entry in newly_unlocked_milestones)
  *   - priority level-up (when current_priority.index > cached)
- *   - streak-at-risk suppression (today was submitted)
  *   - last_eod_date cache bump
  * Every branch respects its preference toggle.
  */
@@ -348,18 +272,12 @@ export async function handleEodSubmissionNotifications(
   prefs: {
     milestone_alerts?: boolean;
     priority_levelup_alerts?: boolean;
-    streak_alerts_enabled?: boolean;
   },
 ): Promise<void> {
   // Cache the fact that the user submitted today so foreground re-checks
-  // don't re-arm streak-at-risk needlessly.
+  // can stay aligned.
   const today = new Date().toISOString().slice(0, 10);
   await AsyncStorage.setItem(STORAGE_KEYS.lastEodDate, today);
-
-  // Suppress streak-at-risk for today — they already submitted.
-  if (prefs.streak_alerts_enabled !== false) {
-    await cancelStreakRiskReminders();
-  }
 
   // Milestone notifications.
   if (prefs.milestone_alerts !== false) {
@@ -404,16 +322,6 @@ export async function registerPushToken(token: string): Promise<void> {
 export async function registerPushTokenIfGranted(): Promise<void> {
   const token = await registerForPushNotificationsAsync();
   if (token) await registerPushToken(token);
-}
-
-function isSameLocalDay(a: string | null | undefined, b: Date): boolean {
-  if (!a) return false;
-  const da = new Date(a);
-  return (
-    da.getFullYear() === b.getFullYear() &&
-    da.getMonth() === b.getMonth() &&
-    da.getDate() === b.getDate()
-  );
 }
 
 function formatMonth(ym: string): string {

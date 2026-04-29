@@ -7,7 +7,7 @@ import { toN } from '../common/money';
 // FinancialProfile, just the numeric/Decimal ones referenced below.
 type MilestoneProfile = Pick<
   FinancialProfile,
-  'total_cash' | 'total_debt' | 'net_worth_snapshot' | 'annual_income_gross' | 'streak_days'
+  'total_cash' | 'total_debt' | 'net_worth_snapshot' | 'annual_income_gross'
 > | null;
 
 type MilestoneCheck = (
@@ -20,7 +20,7 @@ interface MilestoneDef {
   key: string;
   title: string;
   description: string;
-  category: 'cash' | 'debt' | 'networth' | 'streak' | 'income';
+  category: 'cash' | 'debt' | 'networth' | 'income';
   check: MilestoneCheck;
 }
 
@@ -48,12 +48,6 @@ export const MILESTONES: MilestoneDef[] = [
   { key: 'nw_250k', title: 'Quarter Millionaire', description: '$250K net worth', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) >= 250000 },
   { key: 'nw_500k', title: 'Half Millionaire', description: '$500K net worth', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) >= 500000 },
   { key: 'nw_1m', title: 'The Million Dollar Moment', description: '$1M net worth', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) >= 1000000 },
-
-  // STREAK milestones
-  { key: 'streak_7', title: 'Week Warrior', description: '7-day EOD streak', category: 'streak', check: (p) => (p?.streak_days ?? 0) >= 7 },
-  { key: 'streak_30', title: 'Month Master', description: '30-day streak', category: 'streak', check: (p) => (p?.streak_days ?? 0) >= 30 },
-  { key: 'streak_90', title: '90-Day Operator', description: '90-day streak', category: 'streak', check: (p) => (p?.streak_days ?? 0) >= 90 },
-  { key: 'streak_365', title: 'Financial Discipline: Elite', description: '365-day streak', category: 'streak', check: (p) => (p?.streak_days ?? 0) >= 365 },
 
   // INCOME milestones
   { key: 'income_100k', title: 'Six-Figure Earner', description: 'Annual income hits $100K', category: 'income', check: (p) => toN(p?.annual_income_gross) >= 100000 },

@@ -264,7 +264,6 @@ export class AIService {
         primary_goal: profile.primary_goal,
         dream_lifestyle_cost_mo: profile.dream_lifestyle_cost_mo,
         wealth_velocity_score: profile.wealth_velocity_score,
-        streak_days: profile.streak_days,
         motivation_style: profile.motivation_style,
         city: profile.city,
         state: profile.state,

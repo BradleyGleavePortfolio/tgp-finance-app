@@ -142,23 +142,7 @@ export class EODService {
           });
         }
 
-        // Update profile totals + streak.
-        const profile = await tx.financialProfile.findUnique({ where: { user_id: userId } });
-        let streak_days = 1;
-
-        if (profile?.last_eod_date) {
-          const lastDate = new Date(profile.last_eod_date);
-          const today = dateObj;
-          const diffMs = today.getTime() - lastDate.getTime();
-          const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-
-          if (diffDays === 1) {
-            streak_days = (profile.streak_days || 0) + 1;
-          } else if (diffDays === 0) {
-            streak_days = profile.streak_days || 1; // Same day (shouldn't happen due to duplicate check)
-          }
-        }
-
+        // Update profile totals.
         await tx.financialProfile.upsert({
           where: { user_id: userId },
           update: {
@@ -167,7 +151,6 @@ export class EODService {
             total_assets: totalAssetsDec,
             total_cash: totalCashDec,
             last_eod_date: dateObj,
-            streak_days,
             updated_at: new Date(),
           },
           create: {
@@ -177,14 +160,12 @@ export class EODService {
             total_assets: totalAssetsDec,
             total_cash: totalCashDec,
             last_eod_date: dateObj,
-            streak_days: 1,
           },
         });
 
         // Compute velocity score from inside the same transaction so its reads
         // see the totals we just wrote.
         const velocityScore = await this.computeWealthVelocityScore(tx, userId, {
-          streak_days,
           net_worth_computed,
           total_debt,
         });
@@ -196,7 +177,6 @@ export class EODService {
 
         return {
           submission,
-          streak_days,
           wealth_velocity_score: velocityScore,
         };
       });
@@ -304,7 +284,6 @@ export class EODService {
         total_assets,
         total_debt,
         total_cash,
-        streak_days: result.streak_days,
         wealth_velocity_score: result.wealth_velocity_score,
         newly_unlocked_milestones,
         current_priority,
@@ -326,15 +305,14 @@ export class EODService {
     tx: Tx | PrismaService,
     userId: string,
     current: {
-      streak_days: number;
       net_worth_computed: number;
       total_debt: number;
     },
   ): Promise<number> {
-    // Factor 1: Streak consistency (30%): streak / 30 days × 30
-    const streakScore = Math.min((current.streak_days / 30) * 30, 30);
+    // Doctrine: streak removed. Score now sums to 100 across debt
+    // payoff (35%), net-worth momentum (35%), and savings rate (30%).
 
-    // Factor 2: Debt payoff rate (25%): % of debt paid vs 90 days ago
+    // Factor 1: Debt payoff rate (35%): % of debt paid vs 90 days ago
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
@@ -347,12 +325,12 @@ export class EODService {
     const oldTotalDebt = toN(oldEOD?.total_debt_computed);
     if (oldEOD && oldTotalDebt > 0) {
       const pctPaid = Math.max(0, (oldTotalDebt - current.total_debt) / oldTotalDebt);
-      debtPayoffScore = Math.min(pctPaid * 100 * 0.25, 25);
+      debtPayoffScore = Math.min(pctPaid * 100 * 0.35, 35);
     } else {
-      debtPayoffScore = current.total_debt === 0 ? 25 : 0;
+      debtPayoffScore = current.total_debt === 0 ? 35 : 0;
     }
 
-    // Factor 3: Net worth momentum (25%): growth % vs 30 days ago
+    // Factor 2: Net worth momentum (35%): growth % vs 30 days ago
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -366,11 +344,11 @@ export class EODService {
       const oldNW = toN(oldNetWorthEOD.net_worth_computed);
       if (oldNW !== 0) {
         const growthPct = (current.net_worth_computed - oldNW) / Math.abs(oldNW);
-        momentumScore = Math.min(Math.max(growthPct * 100, 0), 25);
+        momentumScore = Math.min(Math.max(growthPct * 100, 0), 35);
       }
     }
 
-    // Factor 4: Savings rate (20%): estimated from profile
+    // Factor 3: Savings rate (30%): estimated from profile
     const profile = await tx.financialProfile.findUnique({ where: { user_id: userId } });
     let savingsScore = 0;
     const monthlyIncome = toN(profile?.monthly_income_gross);
@@ -378,10 +356,10 @@ export class EODService {
     if (monthlyIncome > 0 && totalCash > 0) {
       const estimatedExpenses = monthlyIncome * 0.6;
       const savingsRate = Math.max(0, (monthlyIncome - estimatedExpenses) / monthlyIncome);
-      savingsScore = Math.min(savingsRate * 100 * 0.2, 20);
+      savingsScore = Math.min(savingsRate * 100 * 0.3, 30);
     }
 
-    const total = streakScore + debtPayoffScore + momentumScore + savingsScore;
+    const total = debtPayoffScore + momentumScore + savingsScore;
     return Math.min(Math.round(total), 100);
   }
 

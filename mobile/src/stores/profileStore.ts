@@ -37,7 +37,6 @@ function safeProfile(raw: any): FinancialProfile | null {
       total_cash: safeNum(p.total_cash),
       current_priority_index: safeNum(p.current_priority_index),
       wealth_velocity_score: safeNum(p.wealth_velocity_score),
-      streak_days: safeNum(p.streak_days),
       country: typeof p.country === 'string' ? p.country : 'US',
       risk_tolerance: ['conservative', 'moderate', 'aggressive'].includes(p.risk_tolerance)
         ? p.risk_tolerance

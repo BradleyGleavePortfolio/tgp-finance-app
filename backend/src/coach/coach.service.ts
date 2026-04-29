@@ -36,7 +36,6 @@ export class CoachService {
             net_worth_snapshot: true,
             total_debt: true,
             total_assets: true,
-            streak_days: true,
             wealth_velocity_score: true,
             current_priority_index: true,
             last_eod_date: true,
@@ -57,7 +56,6 @@ export class CoachService {
       return {
         user: { id: s.id, email: s.email, name: s.name },
         profile: {
-          streak_days: profile?.streak_days ?? 0,
           wealth_velocity_score: profile?.wealth_velocity_score ?? 0,
           net_worth_snapshot: profile?.net_worth_snapshot ?? 0,
           current_priority_index: profile?.current_priority_index ?? 0,
@@ -301,7 +299,7 @@ export class CoachService {
     const students = await this.prisma.user.findMany({
       where: { role: 'student', coach_id: coachId },
       include: {
-        profile: { select: { last_eod_date: true, streak_days: true, wealth_velocity_score: true } },
+        profile: { select: { last_eod_date: true, wealth_velocity_score: true } },
       },
     });
 

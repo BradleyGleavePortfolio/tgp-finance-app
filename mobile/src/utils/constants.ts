@@ -103,12 +103,6 @@ export const MILESTONE_DEFINITIONS: MilestoneDefinition[] = [
   { key: 'nw_500k', title: 'Half Millionaire', description: '$500K net worth', category: 'net_worth', icon: '·' },
   { key: 'nw_1m', title: 'The Million Dollar Moment', description: '$1M net worth', category: 'net_worth', icon: '·' },
 
-  // Streak milestones
-  { key: 'streak_7', title: 'Week One', description: '7-day EOD streak', category: 'streak', icon: '·' },
-  { key: 'streak_30', title: 'Month One', description: '30-day EOD streak', category: 'streak', icon: '·' },
-  { key: 'streak_90', title: 'Day 90', description: '90-day EOD streak', category: 'streak', icon: '·' },
-  { key: 'streak_365', title: 'Year One', description: '365-day EOD streak', category: 'streak', icon: '·' },
-
   // Income milestones
   { key: 'income_100k', title: 'Six-Figure Earner', description: 'Annual income hits $100K', category: 'income', icon: '·' },
   { key: 'income_200k', title: 'Top Five Percent', description: 'Annual income $200K', category: 'income', icon: '·' },

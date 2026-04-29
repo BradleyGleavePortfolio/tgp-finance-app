@@ -152,7 +152,6 @@ model FinancialProfile {
   total_cash              Decimal?        @db.Decimal(14, 2) // Computed sum of checking + savings
   current_priority_index  Int             @default(0) // Index in PRIORITY_WATERFALL
   wealth_velocity_score   Float? // 0-100, updated daily — score, not money
-  streak_days             Int             @default(0)
   last_eod_date           DateTime?
   filing_status           String          @default("single") // for tax estimator
   onboarding_complete     Boolean         @default(false)
@@ -252,7 +251,6 @@ model NotificationPreferences {
   user                        User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
   eod_reminder_enabled        Boolean @default(true)
   eod_reminder_time           String  @default("20:00")
-  streak_alerts_enabled       Boolean @default(true)
   milestone_alerts            Boolean @default(true)
   coach_messages              Boolean @default(true)
   red_flag_alerts             Boolean @default(true)
@@ -339,11 +337,6 @@ enum WinVisibility {
   public
 }
 
-enum ReactionKind {
-  fire
-  clap
-}
-
 model CommunityWin {
   id         String        @id @default(uuid())
   user_id    String
@@ -351,23 +344,9 @@ model CommunityWin {
   action     String
   visibility WinVisibility @default(public)
   created_at DateTime      @default(now())
-  reactions  WinReaction[]
 
   @@index([visibility, created_at])
   @@map("community_wins")
-}
-
-model WinReaction {
-  id         String       @id @default(uuid())
-  win_id     String
-  win        CommunityWin @relation(fields: [win_id], references: [id], onDelete: Cascade)
-  user_id    String
-  kind       ReactionKind
-  created_at DateTime     @default(now())
-
-  @@unique([win_id, user_id, kind])
-  @@index([user_id])
-  @@map("win_reactions")
 }
 
 // ============================================================

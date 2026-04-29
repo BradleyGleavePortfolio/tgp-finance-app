@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as https from 'https';
 
-interface CostLivingRow {
+export interface CostLivingRow {
   country: string;
   city: string;
   cost_index: number;

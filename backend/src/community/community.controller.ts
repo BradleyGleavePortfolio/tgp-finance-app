@@ -3,7 +3,6 @@ import {
   Controller,
   Get,
   Post,
-  Param,
   Body,
   UseGuards,
   BadRequestException,
@@ -21,19 +20,6 @@ export class CommunityController {
   @Get('feed')
   async getFeed(@CurrentUser() user: CurrentUser) {
     return this.communityService.getFeed(user.id);
-  }
-
-  /** POST /community/wins/:id/react  body: { kind: "fire" | "clap" } */
-  @Post('wins/:id/react')
-  async react(
-    @Param('id') id: string,
-    @Body('kind') kind: string,
-    @CurrentUser() user: CurrentUser,
-  ) {
-    if (kind !== 'fire' && kind !== 'clap') {
-      throw new BadRequestException('kind must be "fire" or "clap"');
-    }
-    return this.communityService.react(user.id, id, kind as 'fire' | 'clap');
   }
 
   /** POST /community/wins  body: { action, visibility: "circle" | "public" } */

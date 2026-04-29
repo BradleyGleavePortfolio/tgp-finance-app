@@ -306,11 +306,9 @@ export const preferencesApi = {
 export default api;
 
 // Community API — UX Psychology Report #5: Contribution Loops
+// Doctrine: no reactions, no badges. Read-only feed + post-only composer.
 export const communityApi = {
   getFeed: () => api.get('/community/feed'),
-  react: (winId: string, kind: 'fire' | 'clap') =>
-    api.post(`/community/wins/${winId}/react`, { kind }),
   postWin: (action: string, visibility: 'circle' | 'public') =>
     api.post('/community/wins', { action, visibility }),
-  getBadges: () => api.get('/users/me/badges'),
 };

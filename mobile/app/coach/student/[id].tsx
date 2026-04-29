@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card } from '../../../src/components/ui/Card';
 import { Button } from '../../../src/components/ui/Button';
 import { EmptyState } from '../../../src/components/ui/EmptyState';
-import { StreakBadge, VelocityBadge } from '../../../src/components/ui/Badge';
+import { ProgressMarker, MomentumIndicator } from '../../../src/components/ui/Badge';
 import { Colors, Typography, Spacing, BorderRadius } from '../../../src/theme/finance';
 import { coachApi, priorityApi } from '../../../src/services/api';
 import { formatCurrency } from '../../../src/utils/formatters';
@@ -122,8 +122,8 @@ export default function StudentDetailScreen() {
           <Text style={styles.studentName}>{user.name || 'Unknown'}</Text>
           <Text style={styles.studentEmail}>{user.email || ''}</Text>
           <View style={styles.badgeRow}>
-            <StreakBadge streak={profile.streak_days || 0} />
-            <VelocityBadge score={profile.wealth_velocity_score || 0} showScore />
+            <ProgressMarker streak={profile.streak_days || 0} />
+            <MomentumIndicator score={profile.wealth_velocity_score || 0} showScore />
           </View>
         </Card>
 

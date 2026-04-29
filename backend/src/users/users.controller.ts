@@ -8,16 +8,12 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { UsersService } from './users.service';
-import { CommunityService } from '../community/community.service';
 
 @ApiTags('users')
 @Controller('users/me')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
-  constructor(
-    private readonly usersService: UsersService,
-    private readonly communityService: CommunityService,
-  ) {}
+  constructor(private readonly usersService: UsersService) {}
 
   /**
    * GET /users/me/founding-number
@@ -64,16 +60,6 @@ export class UsersController {
       supportContactEmail,
       acknowledgedFor: user?.id ?? null,
     };
-  }
-
-  /**
-   * GET /users/me/badges
-   * UX Psychology Report #5: Contribution Loops
-   * Returns earned + locked badges for the current user.
-   */
-  @Get('badges')
-  async getBadges(@CurrentUser() user: CurrentUser) {
-    return this.communityService.getBadges(user.id);
   }
 
   /**

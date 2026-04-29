@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, FlatLi
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Card } from '../../src/components/ui/Card';
-import { Badge, StreakBadge, VelocityBadge } from '../../src/components/ui/Badge';
+import { Badge, MomentumIndicator } from '../../src/components/ui/Badge';
 import { ChatPanel } from '../../src/components/ai/ChatPanel';
 import { EmptyState } from '../../src/components/ui/EmptyState';
 import { LoadingSpinner } from '../../src/components/ui/LoadingSpinner';
@@ -28,7 +28,7 @@ function CoachDashboard() {
   const { students, alerts, fetchStudents, fetchAlerts, isLoading } = useCoachStore();
   const [search, setSearch] = useState('');
   const [emailSearch, setEmailSearch] = useState('');
-  const [sortBy, setSortBy] = useState<'name' | 'velocity' | 'streak' | 'net_worth'>('velocity');
+  const [sortBy, setSortBy] = useState<'name' | 'velocity' | 'net_worth'>('velocity');
   const [digest, setDigest] = useState<any>(null);
   const [digestLoading, setDigestLoading] = useState(false);
 
@@ -119,7 +119,6 @@ function CoachDashboard() {
   const sorted = [...filtered].sort((a, b) => {
     switch (sortBy) {
       case 'velocity': return (b.profile.wealth_velocity_score || 0) - (a.profile.wealth_velocity_score || 0);
-      case 'streak': return (b.profile.streak_days || 0) - (a.profile.streak_days || 0);
       case 'net_worth': return (b.profile.net_worth_snapshot || 0) - (a.profile.net_worth_snapshot || 0);
       default: return a.user.name.localeCompare(b.user.name);
     }
@@ -324,7 +323,7 @@ function CoachDashboard() {
           />
 
           <View style={styles.sortRow}>
-            {(['velocity', 'streak', 'net_worth', 'name'] as const).map((s) => (
+            {(['velocity', 'net_worth', 'name'] as const).map((s) => (
               <TouchableOpacity
                 key={s}
                 style={[styles.sortBtn, sortBy === s && styles.sortBtnActive]}
@@ -356,7 +355,6 @@ function CoachDashboard() {
                   <Text style={styles.studentName}>{student.user.name}</Text>
                   <Text style={styles.studentEmail}>{student.user.email}</Text>
                   <View style={styles.studentBadges}>
-                    <StreakBadge streak={student.profile.streak_days} />
                     <View style={[styles.submitDot, { backgroundColor: student.submitted_today ? Colors.profitGreen : Colors.debtCrimson }]} />
                   </View>
                 </View>
@@ -364,7 +362,7 @@ function CoachDashboard() {
                   <Text style={styles.studentNetWorth}>
                     {formatCurrency(student.profile.net_worth_snapshot || 0, { compact: true })}
                   </Text>
-                  <VelocityBadge score={student.profile.wealth_velocity_score || 0} showScore />
+                  <MomentumIndicator score={student.profile.wealth_velocity_score || 0} showScore />
                 </View>
               </TouchableOpacity>
             ))

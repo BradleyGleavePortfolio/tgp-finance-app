@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 export type PromoteRole = 'coach' | 'owner';
@@ -49,8 +50,13 @@ export class AdminService {
             invite_code: AdminService.generateInviteCode(),
           },
         });
-      } catch (err: any) {
-        if (err?.code !== 'P2002') throw err;
+      } catch (err) {
+        if (
+          !(err instanceof Prisma.PrismaClientKnownRequestError) ||
+          err.code !== 'P2002'
+        ) {
+          throw err;
+        }
       }
     }
     throw new BadRequestException({
