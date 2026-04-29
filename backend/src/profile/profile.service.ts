@@ -6,9 +6,14 @@ import { toN } from '../common/money';
 // Profile updates accept the same fields as Prisma's update input plus the
 // monthly/annual income mirroring the service applies inline. user_id is
 // taken from the authenticated request and must not arrive on the body.
-export type ProfileUpdate = Omit<Prisma.FinancialProfileUncheckedUpdateInput, 'user_id'> & {
-  monthly_income_gross?: number;
-  annual_income_gross?: number;
+// Income values arrive as Prisma.Decimal because the Zod schema produces
+// Decimal via MoneyAmountPositive.
+export type ProfileUpdate = Omit<
+  Prisma.FinancialProfileUncheckedUpdateInput,
+  'user_id' | 'monthly_income_gross' | 'annual_income_gross'
+> & {
+  monthly_income_gross?: Prisma.Decimal;
+  annual_income_gross?: Prisma.Decimal;
 };
 
 @Injectable()
@@ -33,14 +38,15 @@ export class ProfileService {
   }
 
   async updateProfile(userId: string, data: ProfileUpdate) {
-    // Compute annual from monthly if only monthly provided
+    // Compute annual from monthly if only monthly provided.
     if (data.monthly_income_gross && !data.annual_income_gross) {
-      data.annual_income_gross = (data.monthly_income_gross as number) * 12;
+      data.annual_income_gross = data.monthly_income_gross.mul(12);
     }
 
-    // Compute monthly from annual if only annual provided
+    // Compute monthly from annual if only annual provided. Round to two
+    // decimal places to match the DECIMAL(14,2) column.
     if (data.annual_income_gross && !data.monthly_income_gross) {
-      data.monthly_income_gross = Math.round((data.annual_income_gross as number) / 12);
+      data.monthly_income_gross = data.annual_income_gross.div(12).toDecimalPlaces(2);
     }
 
     const profile = await this.prisma.financialProfile.upsert({
