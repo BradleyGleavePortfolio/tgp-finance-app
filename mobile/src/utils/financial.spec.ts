@@ -1,4 +1,4 @@
-import { computeNetWorth, computeDailyInterest, computeInterestBreakdown } from './financial';
+import { computeNetWorth, computeDailyInterest, computeInterestBreakdown, computeFINumber } from './financial';
 import type { FinancialAccount } from '../types';
 
 function acc(partial: Partial<FinancialAccount>): FinancialAccount {
@@ -64,5 +64,25 @@ describe('computeDailyInterest', () => {
     const [row] = computeInterestBreakdown(accounts);
     expect(row.monthly).toBeCloseTo(row.daily * 30, 5);
     expect(row.annual).toBeCloseTo(row.daily * 365, 5);
+  });
+});
+
+describe('computeFINumber — client/server parity', () => {
+  // Doctrine §10 item 7. The server (backend/src/whatif/whatif.service.ts)
+  // computes FI number as annualNeeded / 0.04 with no buffer. The client
+  // previously applied a silent ×1.20 inflation buffer, so the same input
+  // produced a 20% larger headline on mobile. Pin the parity here.
+  function serverFINumber(monthly: number) {
+    return (monthly * 12) / 0.04;
+  }
+
+  it('matches the server formula for a typical input', () => {
+    expect(computeFINumber(5000)).toBe(serverFINumber(5000));
+  });
+
+  it('matches the server formula across a range of inputs', () => {
+    for (const monthly of [1000, 2500, 5000, 8000, 12500, 25000]) {
+      expect(computeFINumber(monthly)).toBeCloseTo(serverFINumber(monthly), 6);
+    }
   });
 });

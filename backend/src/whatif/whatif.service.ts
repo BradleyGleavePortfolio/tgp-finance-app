@@ -624,6 +624,7 @@ export class WhatIfService {
       altMonthsToFI = Math.log(1 + (gap * r) / altMonthlySavings) / Math.log(1 + r);
     }
     const altFIAge = currentAge + Math.ceil(altMonthsToFI / 12);
+    const altYearsToFI = altFIAge - currentAge;
 
     return {
       result_summary: {
@@ -635,7 +636,7 @@ export class WhatIfService {
         years_to_fi_at_current_rate: yearsToFI,
         fi_age: fiAge,
         fi_age_at_25pct_savings: altFIAge,
-        years_saved_at_25pct: Math.max(0, yearsToFI - (currentAge - altFIAge + currentAge)),
+        years_saved_at_25pct: Math.max(0, yearsToFI - altYearsToFI),
         narrative: `Your FI number is $${Math.round(fiNumber).toLocaleString()} (${monthlyNeeded.toLocaleString()}/mo × 12 / 4%). At your current savings rate, you hit FI at age ${fiAge}. Increase savings to 25% and you reach it at ${altFIAge}. That's ${Math.max(0, fiAge - altFIAge)} years of your life you buy back.`,
       },
       projection_1yr: Math.round(currentNetWorth + fvAnnuity(monthlySavings, r, 12)),

@@ -79,33 +79,36 @@ export const PRIORITY_WATERFALL = [
 
 // ─── Milestone Definitions ────────────────────────────────────────────────────
 
+// Mirrors backend MILESTONES (backend/src/milestones/milestones.service.ts).
+// Keep titles in lockstep — the doctrine forbids gamer-register copy on
+// either surface, and CelebrationModal renders these directly.
 export const MILESTONE_DEFINITIONS: MilestoneDefinition[] = [
   // Cash milestones
-  { key: 'cash_1k', title: 'Starter Pack Achieved', description: 'First $1,000 in cash', category: 'cash', icon: '·' },
-  { key: 'cash_5k', title: 'Buffer Mode', description: '$5,000 in cash', category: 'cash', icon: '·' },
-  { key: 'cash_10k', title: 'Cash Stack Building', description: '$10,000 in cash', category: 'cash', icon: '·' },
-  { key: 'cash_20k', title: 'Emergency Fund: Complete', description: '$20,000 in cash', category: 'cash', icon: '·' },
+  { key: 'cash_1k', title: 'Starter buffer reached', description: 'First $1,000 in cash', category: 'cash', icon: '·' },
+  { key: 'cash_5k', title: 'Cash buffer reached', description: '$5,000 in cash', category: 'cash', icon: '·' },
+  { key: 'cash_10k', title: '$10,000 in cash', description: '$10,000 in cash', category: 'cash', icon: '·' },
+  { key: 'cash_20k', title: 'Emergency fund complete', description: '$20,000 in cash', category: 'cash', icon: '·' },
 
   // Debt milestones
-  { key: 'first_debt_paid', title: 'First Debt Cleared', description: 'First debt account reaches $0', category: 'debt', icon: '·' },
-  { key: 'debt_half', title: 'Halfway There', description: 'Total debt cut in half', category: 'debt', icon: '·' },
-  { key: 'debt_zero', title: 'Debt Free', description: 'All debt = $0', category: 'debt', icon: '·' },
+  { key: 'first_debt_paid', title: 'First debt cleared', description: 'First debt account reaches $0', category: 'debt', icon: '·' },
+  { key: 'debt_half', title: 'Halfway to FI', description: 'Total debt cut in half', category: 'debt', icon: '·' },
+  { key: 'debt_zero', title: 'Debt free', description: 'All debt cleared', category: 'debt', icon: '·' },
 
   // Net worth milestones
-  { key: 'nw_positive', title: 'Into the Black', description: 'Net worth turns positive', category: 'net_worth', icon: '·' },
-  { key: 'nw_1k', title: 'First Rung', description: '$1K net worth', category: 'net_worth', icon: '·' },
-  { key: 'nw_5k', title: 'Climbing', description: '$5K net worth', category: 'net_worth', icon: '·' },
-  { key: 'nw_10k', title: 'Five Figures', description: '$10K net worth', category: 'net_worth', icon: '·' },
-  { key: 'nw_25k', title: 'Quarter to Fifty', description: '$25K net worth', category: 'net_worth', icon: '·' },
-  { key: 'nw_50k', title: 'Building', description: '$50K net worth', category: 'net_worth', icon: '·' },
-  { key: 'nw_100k', title: 'Six Figures', description: '$100K net worth', category: 'net_worth', icon: '·' },
-  { key: 'nw_250k', title: 'Quarter Millionaire', description: '$250K net worth', category: 'net_worth', icon: '·' },
-  { key: 'nw_500k', title: 'Half Millionaire', description: '$500K net worth', category: 'net_worth', icon: '·' },
-  { key: 'nw_1m', title: 'The Million Dollar Moment', description: '$1M net worth', category: 'net_worth', icon: '·' },
+  { key: 'nw_positive', title: 'Net worth positive', description: 'Net worth turns positive', category: 'net_worth', icon: '·' },
+  { key: 'nw_1k', title: 'Net worth $1,000', description: '$1K net worth', category: 'net_worth', icon: '·' },
+  { key: 'nw_5k', title: 'Net worth $5,000', description: '$5K net worth', category: 'net_worth', icon: '·' },
+  { key: 'nw_10k', title: 'Net worth $10,000', description: '$10K net worth', category: 'net_worth', icon: '·' },
+  { key: 'nw_25k', title: 'Net worth $25,000', description: '$25K net worth', category: 'net_worth', icon: '·' },
+  { key: 'nw_50k', title: 'Wealth building underway', description: '$50K net worth', category: 'net_worth', icon: '·' },
+  { key: 'nw_100k', title: 'Net worth $100,000', description: '$100K net worth', category: 'net_worth', icon: '·' },
+  { key: 'nw_250k', title: 'Net worth $250,000', description: '$250K net worth', category: 'net_worth', icon: '·' },
+  { key: 'nw_500k', title: 'Net worth $500,000', description: '$500K net worth', category: 'net_worth', icon: '·' },
+  { key: 'nw_1m', title: 'Net worth $1,000,000', description: '$1M net worth', category: 'net_worth', icon: '·' },
 
   // Income milestones
-  { key: 'income_100k', title: 'Six-Figure Earner', description: 'Annual income hits $100K', category: 'income', icon: '·' },
-  { key: 'income_200k', title: 'Top Five Percent', description: 'Annual income $200K', category: 'income', icon: '·' },
+  { key: 'income_100k', title: 'Income $100,000', description: 'Annual income reaches $100K', category: 'income', icon: '·' },
+  { key: 'income_200k', title: 'Income top 5%', description: 'Annual income reaches $200K', category: 'income', icon: '·' },
 ];
 
 // ─── Daily Habits ─────────────────────────────────────────────────────────────

@@ -1,11 +1,11 @@
-// Full-screen milestone celebration with confetti animation
+// Calm milestone acknowledgement. Per doctrine §10 item 11: no confetti, no
+// spring animation, no emoji icon, no social-share button. A centered card,
+// soft fade-in, single text-link to dismiss.
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Modal, TouchableOpacity } from 'react-native';
 import { Colors, Typography, Spacing } from '../../theme/finance';
 import { MILESTONE_DEFINITIONS } from '../../utils/constants';
 import type { MilestoneUnlock } from '../../types';
-import { ShareCard } from '../ShareCard';
-import { useShareCard } from '../../hooks/useShareCard';
 import { track } from '../../lib/analytics';
 
 interface CelebrationModalProps {
@@ -14,20 +14,17 @@ interface CelebrationModalProps {
 }
 
 export function CelebrationModal({ milestone, onDismiss }: CelebrationModalProps) {
-  const scaleAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
-  const { viewRef: shareRef, share } = useShareCard();
 
   useEffect(() => {
     if (milestone) {
-      // Track goal_completed when a milestone is celebrated
       track('goal_completed', { milestone_key: milestone.milestone_key });
-      Animated.parallel([
-        Animated.spring(scaleAnim, { toValue: 1, tension: 40, friction: 7, useNativeDriver: true }),
-        Animated.timing(opacityAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
-      ]).start();
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }).start();
     } else {
-      scaleAnim.setValue(0);
       opacityAnim.setValue(0);
     }
   }, [milestone]);
@@ -37,80 +34,28 @@ export function CelebrationModal({ milestone, onDismiss }: CelebrationModalProps
   const definition = MILESTONE_DEFINITIONS.find((m) => m.key === milestone.milestone_key);
   if (!definition) return null;
 
-  // Animated confetti dots
-  const confetti = Array.from({ length: 12 }, (_, i) => i);
-
   return (
     <Modal transparent animationType="fade" visible={!!milestone}>
       <Animated.View style={[styles.overlay, { opacity: opacityAnim }]}>
-        {/* Confetti dots */}
-        {confetti.map((i) => (
-          <ConfettiDot key={i} index={i} />
-        ))}
-
-        <Animated.View style={[styles.card, { transform: [{ scale: scaleAnim }] }]}>
-          {/* Milestone icon — emoji from data (luxury/wave4 will replace). Rendered as-is from server data. */}
-          <Text style={styles.icon}>{definition.icon}</Text>
-          <Text style={styles.achieved}>MILESTONE</Text>
+        <View style={styles.card}>
+          <View style={styles.hairline} />
+          <Text style={styles.eyebrow}>Milestone</Text>
           <Text style={styles.title}>{definition.title}</Text>
           <Text style={styles.description}>{definition.description}</Text>
 
           <View style={styles.actions}>
             <TouchableOpacity
-              style={styles.shareBtn}
-              onPress={() => share({ dialogTitle: 'Share your milestone' })}
-              activeOpacity={0.8}
+              onPress={onDismiss}
+              activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel="Share your milestone"
+              accessibilityLabel="Close"
             >
-              <Text style={styles.shareBtnText}>Share your milestone</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.btn} onPress={onDismiss} activeOpacity={0.8}>
-              <Text style={styles.btnText}>Continue →</Text>
+              <Text style={styles.closeLink}>Close</Text>
             </TouchableOpacity>
           </View>
-        </Animated.View>
-
-        <View style={styles.shareOffscreen} pointerEvents="none">
-          <ShareCard
-            ref={shareRef}
-            emoji={definition.icon}
-            subtitle="MILESTONE"
-            title={`I just hit ${definition.title.toLowerCase().startsWith('i ') ? definition.title : definition.title}`}
-            primaryStat={definition.description}
-            primaryStatLabel="ACHIEVEMENT"
-            secondaryStat="Building wealth with @TheGrowthProject"
-            theme={definition.category === 'net_worth' ? 'green' : 'gold'}
-          />
         </View>
       </Animated.View>
     </Modal>
-  );
-}
-
-function ConfettiDot({ index }: { index: number }) {
-  const colors = [Colors.accentGold, Colors.profitGreen, Colors.debtCrimson, Colors.slateGray];
-  const anim = useRef(new Animated.Value(0)).current;
-  const color = colors[index % colors.length];
-  const left = `${(index * 8) + 4}%` as `${number}%`;
-  const top = `${10 + (index % 4) * 20}%` as `${number}%`;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(anim, { toValue: 1, duration: 600 + index * 100, useNativeDriver: true }),
-        Animated.timing(anim, { toValue: 0, duration: 600 + index * 100, useNativeDriver: true }),
-      ])
-    ).start();
-  }, []);
-
-  return (
-    <Animated.View
-      style={[
-        styles.confetti,
-        { left, top, backgroundColor: color, opacity: anim },
-      ]}
-    />
   );
 }
 
@@ -122,18 +67,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: Spacing.xl,
   },
-  confetti: {
-    position: 'absolute',
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
   card: {
     backgroundColor: Colors.cardSurfaceNavy,
-    borderRadius: 4, // radius.lg
-    borderWidth: 2,
-    borderColor: Colors.accentGold,
-    padding: Spacing.xxxl,
+    borderRadius: 4,
+    paddingVertical: Spacing.xxxl,
+    paddingHorizontal: Spacing.xxxl,
     alignItems: 'center',
     width: '100%',
     shadowColor: '#000',
@@ -142,16 +80,19 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
   },
-  icon: {
-    fontSize: 72,
-    marginBottom: Spacing.base,
+  hairline: {
+    width: 24,
+    height: 1,
+    backgroundColor: Colors.accentGold,
+    marginBottom: Spacing.lg,
   },
-  achieved: {
+  eyebrow: {
     fontFamily: 'Inter_700Bold',
     fontSize: Typography.bodySmall,
     color: Colors.accentGold,
     letterSpacing: 2,
     marginBottom: Spacing.sm,
+    textTransform: 'uppercase',
   },
   title: {
     fontFamily: 'Inter_700Bold',
@@ -168,34 +109,15 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xxl,
   },
   actions: {
-    gap: Spacing.md,
-    alignItems: 'stretch',
     width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
   },
-  btn: {
-    backgroundColor: Colors.accentGold,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.xxxl,
-    borderRadius: 4, // radius.lg
-    alignItems: 'center',
-  },
-  btnText: {
-    fontFamily: 'Inter_700Bold',
+  closeLink: {
+    fontFamily: 'Inter_400Regular',
     fontSize: Typography.bodyMedium,
-    color: Colors.backgroundDeepNavy,
+    color: Colors.slateGray,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
   },
-  shareBtn: {
-    borderWidth: 1,
-    borderColor: Colors.accentGold,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.xxxl,
-    borderRadius: 4, // radius.lg
-    alignItems: 'center',
-  },
-  shareBtnText: {
-    fontFamily: 'Inter_700Bold',
-    fontSize: Typography.bodyMedium,
-    color: Colors.accentGold,
-  },
-  shareOffscreen: { position: 'absolute', left: -10000, top: 0, opacity: 0 },
 });

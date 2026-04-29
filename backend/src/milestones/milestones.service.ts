@@ -24,34 +24,38 @@ interface MilestoneDef {
   check: MilestoneCheck;
 }
 
-// All 15 milestone definitions with unlock conditions
+// All 18 milestone definitions with unlock conditions. Titles are declarative
+// noun phrases per the doctrine — no gamer register, no rank-style superlatives.
+// The first_debt_paid and debt_zero checks use toN() because Prisma returns
+// Decimal instances for money columns and `Decimal(0) === 0` is always false
+// in JS — see backend/src/common/money.ts.
 export const MILESTONES: MilestoneDef[] = [
   // CASH milestones
-  { key: 'cash_1k', title: 'Starter Pack Achieved', description: 'First $1,000 in cash', category: 'cash', check: (p) => toN(p?.total_cash) >= 1000 },
-  { key: 'cash_5k', title: 'Buffer Mode Unlocked', description: '$5,000 in cash', category: 'cash', check: (p) => toN(p?.total_cash) >= 5000 },
-  { key: 'cash_10k', title: 'Cash Stack Building', description: '$10,000 in cash', category: 'cash', check: (p) => toN(p?.total_cash) >= 10000 },
-  { key: 'cash_20k', title: 'Emergency Fund: Complete', description: '$20,000 in cash', category: 'cash', check: (p) => toN(p?.total_cash) >= 20000 },
+  { key: 'cash_1k', title: 'Starter buffer reached', description: 'First $1,000 in cash', category: 'cash', check: (p) => toN(p?.total_cash) >= 1000 },
+  { key: 'cash_5k', title: 'Cash buffer reached', description: '$5,000 in cash', category: 'cash', check: (p) => toN(p?.total_cash) >= 5000 },
+  { key: 'cash_10k', title: '$10,000 in cash', description: '$10,000 in cash', category: 'cash', check: (p) => toN(p?.total_cash) >= 10000 },
+  { key: 'cash_20k', title: 'Emergency fund complete', description: '$20,000 in cash', category: 'cash', check: (p) => toN(p?.total_cash) >= 20000 },
 
   // DEBT milestones
-  { key: 'first_debt_paid', title: 'First Blood: Debt Slayer', description: 'First debt account reaches $0', category: 'debt', check: (_p, accounts) => accounts.some((a) => a.is_debt && toN(a.balance) === 0) },
-  { key: 'debt_half', title: 'Halfway There', description: 'Total debt cut in half vs onboarding', category: 'debt', check: (p, _accounts, onboardDebt) => onboardDebt > 0 && toN(p?.total_debt) <= onboardDebt / 2 },
-  { key: 'debt_zero', title: 'DEBT FREE — Wealth Mode Unlocked', description: 'All debt = $0', category: 'debt', check: (p) => toN(p?.total_debt) === 0 },
+  { key: 'first_debt_paid', title: 'First debt cleared', description: 'First debt account reaches $0', category: 'debt', check: (_p, accounts) => accounts.some((a) => a.is_debt && toN(a.balance) === 0) },
+  { key: 'debt_half', title: 'Halfway to FI', description: 'Total debt cut in half vs onboarding', category: 'debt', check: (p, _accounts, onboardDebt) => onboardDebt > 0 && toN(p?.total_debt) <= onboardDebt / 2 },
+  { key: 'debt_zero', title: 'Debt free', description: 'All debt cleared', category: 'debt', check: (p) => toN(p?.total_debt) === 0 },
 
   // NET WORTH milestones
-  { key: 'nw_positive', title: 'Into the Black', description: 'Net worth turns positive', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) > 0 },
-  { key: 'nw_1k', title: 'First Rung', description: '$1K net worth', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) >= 1000 },
-  { key: 'nw_5k', title: 'Climbing', description: '$5K net worth', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) >= 5000 },
-  { key: 'nw_10k', title: 'Five Figures', description: '$10K net worth', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) >= 10000 },
-  { key: 'nw_25k', title: 'Quarter to Fifty', description: '$25K net worth', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) >= 25000 },
-  { key: 'nw_50k', title: 'Wealth Builder', description: '$50K net worth', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) >= 50000 },
-  { key: 'nw_100k', title: 'Six Figures', description: '$100K net worth', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) >= 100000 },
-  { key: 'nw_250k', title: 'Quarter Millionaire', description: '$250K net worth', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) >= 250000 },
-  { key: 'nw_500k', title: 'Half Millionaire', description: '$500K net worth', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) >= 500000 },
-  { key: 'nw_1m', title: 'The Million Dollar Moment', description: '$1M net worth', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) >= 1000000 },
+  { key: 'nw_positive', title: 'Net worth positive', description: 'Net worth turns positive', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) > 0 },
+  { key: 'nw_1k', title: 'Net worth $1,000', description: '$1K net worth', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) >= 1000 },
+  { key: 'nw_5k', title: 'Net worth $5,000', description: '$5K net worth', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) >= 5000 },
+  { key: 'nw_10k', title: 'Net worth $10,000', description: '$10K net worth', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) >= 10000 },
+  { key: 'nw_25k', title: 'Net worth $25,000', description: '$25K net worth', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) >= 25000 },
+  { key: 'nw_50k', title: 'Wealth building underway', description: '$50K net worth', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) >= 50000 },
+  { key: 'nw_100k', title: 'Net worth $100,000', description: '$100K net worth', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) >= 100000 },
+  { key: 'nw_250k', title: 'Net worth $250,000', description: '$250K net worth', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) >= 250000 },
+  { key: 'nw_500k', title: 'Net worth $500,000', description: '$500K net worth', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) >= 500000 },
+  { key: 'nw_1m', title: 'Net worth $1,000,000', description: '$1M net worth', category: 'networth', check: (p) => toN(p?.net_worth_snapshot) >= 1000000 },
 
   // INCOME milestones
-  { key: 'income_100k', title: 'Six-Figure Earner', description: 'Annual income hits $100K', category: 'income', check: (p) => toN(p?.annual_income_gross) >= 100000 },
-  { key: 'income_200k', title: 'Top 5% Earner', description: 'Annual income hits $200K', category: 'income', check: (p) => toN(p?.annual_income_gross) >= 200000 },
+  { key: 'income_100k', title: 'Income $100,000', description: 'Annual income reaches $100K', category: 'income', check: (p) => toN(p?.annual_income_gross) >= 100000 },
+  { key: 'income_200k', title: 'Income top 5%', description: 'Annual income reaches $200K', category: 'income', check: (p) => toN(p?.annual_income_gross) >= 200000 },
 ];
 
 @Injectable()
