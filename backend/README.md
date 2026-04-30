@@ -202,7 +202,7 @@ Optional, feature-affecting:
 | `RELEASE_SHA`, `RELEASE_NAME` | Surfaced by `/system/release-info`. Falls back to Fly runtime envs and `package.json#version` when unset. |
 | `EXPO_ACCESS_TOKEN` | Push sender uses default Expo rate limits. |
 | `NUMBEO_API_KEY` | Cost-of-living scenarios fall back to bundled JSON. |
-| `SENTRY_DSN` | Errors are not forwarded to Sentry. |
+| `SENTRY_DSN` | Errors are not forwarded to Sentry. Sourcemaps still build but do not upload — see "Sentry sourcemaps" below. |
 | `POSTHOG_KEY` | `analytics.capture` is a no-op. |
 | `FEDERATION_SERVICE_TOKEN` | Required to enable `/api/admin/federation/*`. ≥ 32 chars. Unset → every federation request returns `503 FEDERATION_DISABLED`. The fitness backend must present the same secret as `Authorization: Bearer …`. See `src/admin/README.md` and `docs/TENANCY.md`. |
 | `SUPPORT_CONTACT_EMAIL` | Override for the concierge support address surfaced on `/system/trust-meta` and `/users/me/access-status`. Defaults to `support@thegrowthproject.courses`. |
@@ -268,6 +268,47 @@ so a fresh clone is always safe. If you are deploying from a pre-existing
 Windows checkout and the deploy fails with
 `set: invalid option name…pipefail`, your `release.sh` was committed with
 CRLF — `backend/docs/DEPLOY.md` has the recovery steps.
+
+### Sentry sourcemaps
+
+The compiled JavaScript Sentry sees on Fly is one bundled, transpiled
+file per module. Without sourcemaps, every captured stack trace is a
+list of `dist/src/*.js:row:col` lines that nobody can debug from. The
+deploy pipeline uploads sourcemaps to Sentry on every release so the
+dashboard renders the original TypeScript source.
+
+The upload runs in `backend/scripts/sentry-upload-sourcemaps.sh` from
+inside the Docker build, after `npm run build` in the builder stage.
+The release name is the commit SHA, passed as the `RELEASE_VERSION`
+build arg to both stages, and is also exported as a runtime ENV in the
+production stage so `src/instrument.ts` tags captured events with the
+same release. Events and sourcemaps line up by construction.
+
+The script no-ops gracefully when any of the four credentials are
+unset, so `docker build` and local `npm run build` work without Sentry
+configured. Required GitHub Actions secrets for the upload to actually
+run on prod deploys (set on the parent repository, not on Fly):
+
+| Secret              | Where to find it                                                                |
+| ------------------- | ------------------------------------------------------------------------------- |
+| `SENTRY_AUTH_TOKEN` | Sentry → Settings → Auth Tokens → Create. Scope: `project:releases`.            |
+| `SENTRY_ORG`        | Sentry org slug, e.g. `the-growth-project`.                                     |
+| `SENTRY_PROJECT`    | Sentry project slug for this app, e.g. `tgp-finance-api`.                       |
+| `SENTRY_DSN`        | Already required as a runtime secret; mirror it here so the build can confirm. |
+
+One-time operator setup (parent repo → Settings → Secrets → Actions):
+
+```bash
+gh secret set SENTRY_AUTH_TOKEN --repo BradleyGleavePortfolio/tgp-finance-app
+gh secret set SENTRY_ORG        --body 'the-growth-project' --repo BradleyGleavePortfolio/tgp-finance-app
+gh secret set SENTRY_PROJECT    --body 'tgp-finance-api'    --repo BradleyGleavePortfolio/tgp-finance-app
+gh secret set SENTRY_DSN        --repo BradleyGleavePortfolio/tgp-finance-app
+```
+
+The runtime DSN on Fly stays the source of truth — the GitHub copy is
+build-time only. The fitness backend uses the same env var names
+(`SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `RELEASE_VERSION`),
+so a single auth token can serve both deploys.
 
 ## Failure modes worth knowing
 
