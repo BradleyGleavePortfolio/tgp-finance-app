@@ -14,8 +14,9 @@ FROM node:20-slim AS builder
 
 WORKDIR /app
 
-# OpenSSL is required by the Prisma engines on Debian slim.
-RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+# OpenSSL is required by the Prisma engines on Debian slim. ca-certificates is
+# required by sentry-cli (TLS to sentry.io) during the source-map upload below.
+RUN apt-get update -y && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Copy manifests + Prisma schema first so the layer caches across source edits.
 COPY package.json package-lock.json ./
