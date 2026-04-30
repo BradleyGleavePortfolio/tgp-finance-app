@@ -43,7 +43,15 @@
       ],
       "expo-secure-store",
       "expo-font",
-      "expo-localization"
+      "expo-localization",
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "tgp",
+          "project": "tgp-finance-mobile",
+          "url": "https://sentry.io/"
+        }
+      ]
     ],
     "scheme": "tgp-finance",
     "experiments": {
