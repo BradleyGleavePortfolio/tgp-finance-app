@@ -125,6 +125,34 @@ the app uses. Today the meaningful coverage is `notifications.spec.ts`
 (local notification scheduling). Component-level coverage is not yet
 in place; see the issue tracker.
 
+## Versioning
+
+Version metadata is owned by `mobile/app.json` and bumped manually in
+git before each EAS production build. `eas.json` `cli.appVersionSource`
+is set to `"local"` so EAS reads the values from source rather than
+auto-incrementing remotely — every change is visible in the commit
+history.
+
+| Field | Where | When to bump |
+|-------|-------|--------------|
+| `expo.version` | `app.json` | Every public release. Semantic-version style (`1.0.0` → `1.0.1` for fixes, `1.1.0` for features, `2.0.0` for store-listing-visible reshapes). |
+| `expo.ios.buildNumber` | `app.json` | Every TestFlight or App Store upload, including reuploads of the same `version`. Apple rejects duplicate `(version, buildNumber)` pairs. Monotonically increasing string (`"1"`, `"2"`, …). |
+| `expo.android.versionCode` | `app.json` | Every Play Console upload, including reuploads. Google rejects duplicate `versionCode`. Monotonically increasing integer (`1`, `2`, …). |
+
+`expo.ios.infoPlist.ITSAppUsesNonExemptEncryption` is set to `false`
+so TestFlight skips the export-compliance prompt on every upload. The
+app does not implement custom cryptography beyond the standard iOS
+TLS stack, which is exempt.
+
+Sentry's release identifier (see `src/services/sentry.ts`) is built
+from `expo.version` plus the platform-specific build number, so
+forgetting to bump the build number on an upload also collapses the
+Sentry release tag onto the previous one. Always bump both.
+
+This pattern matches the fitness mobile repo, which has the same
+`appVersionSource: "local"` policy. Keeping the two repos aligned
+means a single release runbook covers both apps.
+
 ## Operations
 
 - Expo OTA updates: shipping a JS-only change goes through `eas
