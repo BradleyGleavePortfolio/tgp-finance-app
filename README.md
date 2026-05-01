@@ -274,136 +274,188 @@ that ships today. The recent enterprise-readiness pass added:
   plus the cross-cutting doctrine + federation overview + the
   README-per-PR rule (PR #94).
 
-### Prepared (open, draft, unmerged)
+### The Wave 1–10 model
 
-- **Coach-led finance programs — spec set.** Draft PR
+The Growth Project's cross-repo work is grouped into ten waves.
+Wave 1 is the enterprise-readiness pass already on `main`. Waves 2–4
+land in the sister repos (`growth-project-backend`,
+`growth-project-mobile`); the finance app **mirrors** their data
+shapes read-only where required. Waves 5–10 land here as
+documentation-only spec PRs first, then runtime PRs per surface.
+
+The summary table below is the canonical living-status of finance-
+side work. PR numbers and statuses are accurate as of 2026-05-01;
+keep this table in lock-step with the open PR list.
+
+| Wave | Owner | This repo's role | PRs | Status |
+|---|---|---|---|---|
+| 1 — Enterprise readiness | both | shipped | #88 #91 #92 #93 #100 #101 #102 #105 | ✅ on `main` |
+| 2 — Sub-coach hierarchy | backend | mirrors `org_memberships` read-only | (cross-repo) | dep for Wave 5/8/9/10 runtime |
+| 3 — Admin control room | backend | finance bridge endpoints | #92 (shipped), #93 (shipped) | ✅ on `main` |
+| 4 — Mobile org mode | mobile | consumer of `/api/v1/org/:id/revenue/*` | (cross-repo) | dep for Wave 5 mobile |
+| 5 — Sub-coach billing split | finance | spec is here | **#109** | DRAFT |
+| 6 — Marketplace permission scopes | finance | finance-data scope model | **#111** | DRAFT |
+| 7 — Discovery trust signals | finance | bucketed-only, outcome-claim filter | **#111** | DRAFT |
+| 8 — Payout extensions (Connect, ledger, anti-fraud) | finance | the payout rail | **#110** | DRAFT |
+| 9 — Storefront blocks + funnel + community privacy | finance | finance-aware blocks, money-shape scrubber | **#111** | DRAFT |
+| 10 — Cross-product federation identity | finance | v1 email-only, v2 `shared_identity_id` reserved | **#111** | DRAFT |
+
+Sibling delivery / commerce / community spec sets that compose with
+the wave model:
+
+- **Coach-led finance programs** — Draft PR
   [#106](https://github.com/BradleyGleavePortfolio/tgp-finance-app/pull/106).
-  Documentation-only. Twelve specs (~4,576 lines) under
-  `docs/specs/coach-led-programs/` covering finance challenges,
-  multi-phase regimens, opt-in balance-redacted leaderboards, profile
-  avatars, coach content boards, the L1 / L2 / L3 client tier model
-  and the `coach` / `coach_premium` coach tiers, the assignment
-  contract shared across challenges / content / regimens, structured
-  messaging progress payloads, the consumer-finance compliance
-  boundary (`09-compliance.md`, gates merge), and the rollout /
-  operator playbook. No runtime code, schema, or migration changes.
-  No `new-website/` changes (none exists in this repo).
+  12 specs, ~4,576 lines under `docs/specs/coach-led-programs/`.
+  Defines the *delivery* primitives — challenges, regimens,
+  leaderboards, profile avatars, coach content boards, assignment
+  contract, structured messaging progress, L1/L2/L3 entitlements,
+  consumer-finance compliance boundary, rollout playbook. **Money
+  never appears in a leaderboard or a community post.**
+- **Finance one-stop-shop (storefront / marketplace)** — Draft PR
+  [#108](https://github.com/BradleyGleavePortfolio/tgp-finance-app/pull/108).
+  13 specs, ~4,625 lines under `docs/specs/storefront-marketplace/`.
+  Defines the *commerce / discovery / community / events / rewards
+  / copilot* layer that sits on top of #106. Whop-shape one-stop-
+  shop in the TGP register: bone / ink / oxblood, no emoji, no
+  gamification chrome, no outcome guarantees, redacted balances.
 
-  Architectural decisions taken in that PR:
+### Wave 5 — sub-coach billing split (PR [#109](https://github.com/BradleyGleavePortfolio/tgp-finance-app/pull/109))
 
-  1. Programs / challenges / content share an **assignment
-     contract**, not an assignments table. Each has its own row
-     shape.
-  2. Money never appears in a leaderboard. Pinned by Zod `.strict()`
-     + a doctrine spec.
-  3. Content storage is Supabase Storage with signed URLs, not
-     Postgres bytea.
-  4. No public web profiles for coaches or clients in v1.
-  5. Feature flags are global × per-coach. A surface is on for a
-     request iff both are true.
-  6. Doctrine-pin tests extend, do not branch on flags. The
-     `mobile/DESIGN.md` register applies whether the flag is on or
-     off.
+Two billing flows for sub-coach orgs:
 
-### Current wave — finance one-stop-shop UX (specs in flight)
+- **Flow A** — sub-coach has own Stripe Connect customer; charge
+  lands directly.
+- **Flow B** — head coach is the merchant; platform takes its fee;
+  head coach's Stripe Connect account forwards the sub-coach's share
+  via Transfer.
 
-A second documentation wave is being prepared (target spec set,
-draft / unmerged; PR numbers to be assigned in the **#117–#123**
-range as the backend dependencies land). The intent is to make this
-app the single place a coach runs a finance program end-to-end
-without sending a client to a separate checkout, course host, chat
-tool, or events tool.
+`docs/billing/` adds three docs (1,215 lines): the index/conventions
+README, `sub-coach-billing-split-spec.md`, and
+`finance-org-roll-ups.md`. Refund cascade has four strategies (default
+`pro_rata` + three OWNER-only). Org MRR/ARR/cohort surfaces with
+drilldown invariants. Daily reconciliation job at 02:00 UTC.
 
-Whop is the reference shape — a creator one-stop-shop where the
-storefront, checkout, members area, content, community, events,
-affiliates, and rewards live behind one login. The TGP register
-(bone / ink / oxblood, no emoji, no gamification chrome, no
-outcome guarantees, redacted balances) replaces the consumer-
-finance-incompatible parts. Strategic context:
-[whop.com](https://whop.com), [whop.com/sell](https://whop.com/sell).
+Cross-repo deps: Wave 2 backend `sub-coach-hierarchy.md`; this repo
+PR #108 §02–§03.
 
-The current wave (specs only, no schema, no controllers, no
-migrations) covers:
+### Wave 6 — app marketplace permission scopes (PR [#111](https://github.com/BradleyGleavePortfolio/tgp-finance-app/pull/111))
 
-- **Coach storefronts.** A coach-scoped public-facing storefront
-  with editorial copy, no testimonials carousel, no countdown
-  timers, no urgency chrome. L2 / L3 tier presentation, plain
-  pricing, the disclaimer rendered before the CTA. No public web
-  profile of the coach in v1 — the storefront is the coach's
-  surface.
-- **Checkout, deposits, and subscriptions.** Stripe-backed checkout
-  for one-time programs, recurring subscriptions, and refundable
-  commitment deposits. Read-only over balances; the app does not
-  move client money. SCA / 3-D Secure is required end-to-end.
-  Receipts are editorial, not promotional.
-- **Applications.** A coach can require an application before a
-  client can purchase or attach. The application lives next to the
-  invite-code flow already shipped in PR #81. Decisions are
-  appealable; reasons for rejection are templated to avoid
-  fair-lending risk.
-- **Affiliates and referrals.** Coach- and client-side referral
-  links, a transparent commission model, no MLM chains
-  (single-tier only), no off-platform payout. Compliance pin: no
-  outcome-based affiliate copy.
-- **Marketplace.** Cross-coach discovery surface inside the app for
-  L2 / L3 clients. Coaches opt in; ranking is editorial, not
-  outcome-driven. No reviews-with-stars in v1 — review quotes only,
-  curated, never auto-aggregated, to keep the consumer-finance
-  outcome-claim line clear.
-- **Finance communities.** Threaded subject extension on top of the
-  existing messaging surface. Money never appears in community
-  posts; quote-of-balance is stripped server-side. Moderation queue
-  + URL allowlist as in `09-compliance.md`.
-- **Events, calls, and replays.** Coach-scheduled live calls
-  (third-party video, link allowlist) with a calendar surface,
-  RSVP, recordings as `coach_premium`-tier content, and a replay
-  index. No native group video in v1.
-- **Rewards and bounties.** Coach-defined non-monetary rewards
-  (status, content unlocks, free month) tied to challenge / regimen
-  completion. No cash bounties — keeps the platform out of money
-  transmission.
-- **Finance-safe AI copilot.** Extends the Perplexity-backed coach
-  proxy already shipped. Voice rules and the
-  `backend/test/ai-prompt-doctrine.spec.ts` pin apply to every new
-  surface (chat, EOD insight, Spending DNA, and any new copilots
-  introduced in this wave). No outcome promises, no specific
-  ticker / fund recommendations, no tax advice.
+12 named, finely-scoped permissions on a closed enum
+(`finance_scope`). Default-deny per `OWNER_DECISION
+W6_PERMISSION_DEFAULT_NO`. Token TTL 60s; revoke takes effect within
+that window. **No scope grants raw client balance.** Doctrine pin:
+`marketplace-permission-scope.spec.ts`.
 
-Every spec in this wave is expected to follow the
-`docs/specs/coach-led-programs/` shape: why / when / where / who /
-what / how, plus the 16-section structural checklist (data + API
-sketches, UX / nav, privacy / security, abuse / moderation, feature
-flags, analytics, rollout, tests, risks, dependencies, acceptance
-criteria, operator handoff). Money never appears in a leaderboard
-or a community post; balances stay redacted on every shared surface.
+### Wave 7 — discovery trust signals (PR [#111](https://github.com/BradleyGleavePortfolio/tgp-finance-app/pull/111))
 
-### Backend dependencies
+Closed enum of 8 signals (all bucketed). Editorial boost capped at
+2.0× per `OWNER_DECISION W7_BOOST_CAP`. Outcome-claim filter shadows
+every signal. **No outcome-derived signal enters the rank.** Doctrine
+pin: `discovery-bucketed-signals.spec.ts`.
 
-The wave above does not land before the backend lifts the
-foundations it needs. The PRs in the **#117–#123** range
-(numbers assigned as they open; not yet on GitHub) are reserved
-for, in rough order:
+### Wave 8 — finance payout extensions (PR [#110](https://github.com/BradleyGleavePortfolio/tgp-finance-app/pull/110))
 
-1. Stripe webhook + checkout session module + idempotent ledger of
-   purchases / subscriptions / deposits.
-2. Application + decision tables, with the coach-invite flow in
-   `backend/src/invites/` as the integration point.
-3. Affiliate + referral attribution, single-tier commission model,
-   payout export (no in-app payout).
+The payout rail under every Wave 5–10 money flow. 11-file spec set
+(~3,217 lines) under `docs/specs/wave-8-payout-extensions/`:
+
+- Stripe Connect Express onboarding + KYC state machine.
+- Append-only `ledger_entries` (closed `effect_kind` enum, 16 kinds)
+  + `payout_audit_events`. RLS + trigger + service all enforce
+  append-only.
+- Idempotency at every money write: inbound `Idempotency-Key` header
+  + outbound to Stripe; inbox/outbox tables.
+- Refund/chargeback cascade with five strategies (`pro_rata` default
+  + four OWNER-only; non-default require compliance sign-off before
+  `PR-W8-4`).
+- Affiliate accrual / hold / clawback with FTC pin and $500
+  negative-balance ceiling.
+- Reward liability accounting (non-cash; money-transmitter avoidance).
+- Anti-fraud closed rule set (5 rules) + OWNER queue (no ML in v1).
+- Daily reconciliation job at 02:30 UTC against Stripe Balance
+  Transactions; payout report endpoints with p95 < 200ms.
+- Tax + multi-currency OWNER decisions: Stripe Tax ON for US
+  destinations (`OWNER_DECISION STRIPE_TAX_DEFAULT`), USD-only in v1
+  (`OWNER_DECISION MULTI_CURRENCY_V2`), 1099-K threshold tracker
+  including state-level (`OWNER_DECISION STATE_1099_TRACKING`).
+- Five new doctrine pins:
+  `payouts-ledger-invariants.spec.ts`,
+  `payouts-idempotency.spec.ts`,
+  `payouts-money-shape.spec.ts`,
+  `payouts-refund-cascade.spec.ts`,
+  `payouts-fraud-rules.spec.ts`.
+
+PR sequence: `PR-W8-1` (ledger + idempotency) → `PR-W8-2` (Connect)
+→ `PR-W8-3` (default refund cascade) → `PR-W8-4` (OWNER strategies,
+compliance gate) → `PR-W8-5` (affiliate) → `PR-W8-6` (rewards) →
+`PR-W8-7` (fraud rules + queue) → `PR-W8-8` (reconciliation +
+reports) → `PR-W8-9` (Stripe Tax + 1099-K).
+
+### Wave 9 — storefront finance blocks, funnel analytics, community privacy (PR [#111](https://github.com/BradleyGleavePortfolio/tgp-finance-app/pull/111))
+
+Three finance-aware storefront blocks (`OfferPriceBlock` with
+price-band display, `TrustStripBlock` derived from bucketed signals,
+`ApplicationGatedOfferBlock` with per-state visibility). Funnel
+analytics: closed event enum, bucketed payloads, k-anonymity ≥ 50
+on platform aggregate, default-OFF consent per `OWNER_DECISION
+W9_FUNNEL_CONSENT_DEFAULT`, 13-month TTL. Community privacy:
+money-shape scrubber on every post-write path, balance-quote
+redaction on replies, OWNER kill-switch via space-freeze. Doctrine
+pins: `community-privacy.spec.ts`, `funnel-analytics-consent.spec.ts`.
+
+### Wave 10 — cross-product federation identity (PR [#111](https://github.com/BradleyGleavePortfolio/tgp-finance-app/pull/111))
+
+v1 stays email-only per PR #93's existing posture. v2
+`shared_identity_id` dual-write reference reserved per
+`OWNER_DECISION W10_IDENTITY_MAPPING_V2` (recommendation: defer).
+Three new federation endpoints: `/users/:email/org-rollup`,
+`/orgs/:org_id/summary`, `/payouts/:user_email/summary`. Every
+response carries `identityMapping: 'email'`; `503
+FEDERATION_DISABLED` without the env var. Doctrine pin:
+`federation-identity-shape.spec.ts`.
+
+### Backend dependencies (cross-repo, in rough order)
+
+The runtime PRs in this repo do not land before the cross-repo and
+in-repo dependencies they need. The list below maps each finance
+runtime PR to its hard dep.
+
+1. Stripe checkout + webhook + idempotent ledger
+   (`PR-W8-1` here / `growth-project-backend` checkout PR).
+2. Application + decision tables (extends `backend/src/invites/`).
+3. Affiliate attribution + single-tier commission model.
 4. Marketplace ranking surface — editorial signals only, no
-   outcome-derived ordering.
+   outcome-derived ordering (Wave 7 here).
 5. Threaded community / subject-extension storage on top of
    `backend/src/community/` with the moderation queue + URL
-   allowlist from `09-compliance.md`.
+   allowlist (PR #106 §09 + Wave 9 here).
 6. Events / calls / replays — calendar table, RSVP, replay index;
    third-party video provider, link allowlist.
-7. Rewards engine — non-monetary reward grants tied to the
-   assignment contract from `06-assignments.md`.
+7. Rewards engine (Wave 8 here) tied to the assignment contract
+   from PR #106 §06.
+8. Sub-coach hierarchy backend `org_memberships` (cross-repo Wave 2).
+9. Admin control room backend (cross-repo Wave 3).
+10. Mobile org mode (cross-repo Wave 4).
 
-Each PR in this range is expected to land with its module README
-updated in the same PR (per the README-per-PR rule above), the
-matching doctrine pin (or an extension of an existing one), and the
-matching `.env.example` entry where a new env var is introduced.
+Each runtime PR in this repo is expected to land with its module
+README updated in the same PR (per the README-per-PR rule above),
+the matching doctrine pin (or an extension of an existing one), and
+the matching `.env.example` entry where a new env var is introduced.
+
+### OWNER decisions tabled across the wave specs
+
+Each is recorded in its wave's spec with choices, recommendation,
+and consequence. The OWNER ratifies before the relevant runtime PR
+opens.
+
+| Decision | Spec | Recommendation |
+|---|---|---|
+| `W6_PERMISSION_DEFAULT_NO` | Wave 6 | A — default-deny |
+| `W7_BOOST_CAP` | Wave 7 | A — max 2.0× |
+| `W9_FUNNEL_CONSENT_DEFAULT` | Wave 9 | A — default OFF |
+| `W10_IDENTITY_MAPPING_V2` | Wave 10 | A — defer to v2 |
+| `STRIPE_TAX_DEFAULT` | Wave 8 | A — ON for US destinations |
+| `STATE_1099_TRACKING` | Wave 8 | A — track all state thresholds |
+| `MULTI_CURRENCY_V2` | Wave 8 | A — defer; USD-only in v1 |
 
 ### Future plans (not yet specced)
 
@@ -411,11 +463,14 @@ matching `.env.example` entry where a new env var is introduced.
   SEO + reputation system).
 - Group native video / live streaming (deferred; third-party in v1).
 - Cross-coach client transfer.
-- Billing / Stripe upgrade flow surfaced inside the app
-  (today: out-of-band).
-- Shared `shared_identity_id` between the fitness and finance
-  backends (today: email-only mapping; see "Where this app sits in
-  the TGP product").
+- Billing / Stripe upgrade flow surfaced inside the app (today:
+  out-of-band).
+- v2 dual-write `shared_identity_id` between the fitness and
+  finance backends (today: email-only mapping per Wave 10
+  recommendation A).
+- Multi-currency presentation + settlement (Wave 11).
+- ML fraud assist (Wave 11).
+- Cross-coach app installs (Wave 11).
 
 ### Operator guidance for this roadmap
 
@@ -425,15 +480,22 @@ matching `.env.example` entry where a new env var is introduced.
   doctrine pin updated in the same PR.
 - A consumer-finance compliance reviewer signs off on every spec
   that touches checkout, affiliates, marketplace ranking, AI
-  copilot, or community moderation before that spec's runtime PR
-  opens.
+  copilot, community moderation, or non-default refund strategies
+  (Wave 8 §4) before that spec's runtime PR opens.
 - Trust Center capability flags reflect what the backend actually
   implements end-to-end. Flipping a flag without shipping the
   feature is treated as a sale-readiness regression and is pinned
   by `backend/test/system-trust-meta.spec.ts`.
+- The full doctrine-pin set (extended across the waves) lives under
+  `backend/test/`. Each new wave's spec adds at most one or two
+  pins; the runtime PR adds the pin in the same commit as the
+  runtime code. Failing a pin fails CI.
+- Money is **`Decimal(14,2)`** end-to-end. Wire-side money is
+  `{ amount: string, currency: string }`. PostHog events use
+  bucketed bands; raw amounts never leave the server.
 - `new-website/` is intentionally **not** part of this roadmap.
-  No surface in the wave above renders in a public marketing site;
-  every storefront is in-app and coach-scoped.
+  No surface in any wave renders in a public marketing site; every
+  storefront is in-app and coach-scoped.
 
 ## Extending
 - Add What-If scenario: Add to `ScenarioType` enum in `prisma/schema.prisma` → handler in `whatif.service.ts` → UI in `mobile/app/whatif/`

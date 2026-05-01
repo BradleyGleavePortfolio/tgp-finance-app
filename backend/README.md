@@ -343,35 +343,91 @@ so a single auth token can serve both deploys.
 
 Run with `npm run -w backend test` or `npm run -w backend test:cov`.
 
-## Expansion roadmap (backend dependencies for the one-stop-shop wave)
+## Expansion roadmap (backend dependencies across Waves 1–10)
 
 The root [`README.md` "Expansion roadmap"](../README.md#expansion-roadmap)
 section is the canonical living map of what is built, in flight, and
-planned. From the backend's point of view, the **#117–#123** range
-(numbers assigned as PRs open; not yet on GitHub) is reserved for the
-modules below. Each lands in its own PR with the matching module
-README, doctrine pin, and `.env.example` entry updated in the same PR.
+planned. From the backend's point of view, the table below maps each
+in-flight wave to the module(s) it lands in. Each runtime PR opens
+with its module README, doctrine pin, and `.env.example` entry
+updated in the same commit (per the README-per-PR rule).
 
-| Reserved | Module | Anchors in this codebase |
+### Storefront / one-stop-shop modules (sourced by PRs #106, #108)
+
+PRs in the **#117–#123** range are reserved for the modules below
+(numbers assigned as the PRs open; not yet on GitHub). These
+implement the commerce / discovery / community / events / rewards /
+copilot layer.
+
+| Reserved | Module | Anchors in this codebase | Source spec |
+|---|---|---|---|
+| `#117` | Stripe checkout sessions, webhooks, and an idempotent purchase / subscription / deposit ledger. Read-only over client balances; the API does not move client money. | New `src/billing/` module; integrates with `src/users/` for entitlement promotion. | PR #108 §02–§03 |
+| `#118` | Application + decision tables for coach-required gating before purchase or attach. | Extends `src/invites/` (Phase 1B/1C). | PR #108 §03 |
+| `#119` | Affiliate + referral attribution, single-tier commission model, payout export. | New `src/affiliates/` module; analytics fan-out via `src/analytics/`. | PR #108 §04 |
+| `#120` | Marketplace ranking surface for cross-coach discovery (editorial signals only, no outcome-derived ordering). | New `src/marketplace/` module; entitlement check via `src/auth/` + `src/users/`. | PR #108 §05 |
+| `#121` | Threaded community / subject extension storage with the moderation queue + URL allowlist. | Extends `src/community/`; compliance pins from `docs/specs/coach-led-programs/09-compliance.md` (PR #106). | PR #108 §06 |
+| `#122` | Events / calls / replays — calendar table, RSVP, replay index. Third-party video provider, link allowlist. | New `src/events/` module; replays as `coach_premium`-tier content via the existing tier model. | PR #108 §07 |
+| `#123` | Rewards engine — non-monetary reward grants (status, content unlocks, free month) tied to the assignment contract. | New `src/rewards/` module; consumes the assignment contract from `06-assignments.md` (PR #106). | PR #108 §08 |
+
+### Wave 5 — sub-coach billing split (sourced by PR #109)
+
+Wave 5 runtime PRs extend the Wave 9 catalogue (PR #117 above) with
+sub-coach attribution. They land **after** PR #117 and after the
+cross-repo `growth-project-backend` Wave 2 sub-coach hierarchy spec.
+
+| Reserved | Module | Anchors |
 |---|---|---|
-| `#117` | Stripe checkout sessions, webhooks, and an idempotent purchase / subscription / deposit ledger. Read-only over client balances; the API does not move client money. | New `src/billing/` module; integrates with `src/users/` for entitlement promotion. |
-| `#118` | Application + decision tables for coach-required gating before purchase or attach. | Extends `src/invites/` (Phase 1B/1C). |
-| `#119` | Affiliate + referral attribution, single-tier commission model, payout export. | New `src/affiliates/` module; analytics fan-out via `src/analytics/`. |
-| `#120` | Marketplace ranking surface for cross-coach discovery (editorial signals only, no outcome-derived ordering). | New `src/marketplace/` module; entitlement check via `src/auth/` + `src/users/`. |
-| `#121` | Threaded community / subject extension storage with the moderation queue + URL allowlist. | Extends `src/community/`; compliance pins from `docs/specs/coach-led-programs/09-compliance.md` (PR #106). |
-| `#122` | Events / calls / replays — calendar table, RSVP, replay index. Third-party video provider, link allowlist. | New `src/events/` module; replays as `coach_premium`-tier content via the existing tier model. |
-| `#123` | Rewards engine — non-monetary reward grants (status, content unlocks, free month) tied to the assignment contract. | New `src/rewards/` module; consumes the assignment contract from `06-assignments.md` (PR #106). |
+| `PR-W5-1` | Sub-coach offer-catalogue extension (`payout_owner_user_id`, `payout_split_pct`, `payout_destination`). | Extends `src/billing/` (PR #117). |
+| `PR-W5-2` | Flow A wiring (separate Stripe customer per sub-coach). | `src/billing/` + `src/payouts/connect/`. |
+| `PR-W5-3` | Flow B wiring (Connect transfer from head coach). | `src/billing/` + `src/payouts/`. |
+| `PR-W5-4` | Org roll-up surfaces (`/api/v1/org/:id/revenue/*`). | New `src/orgs/` module; reads `src/payouts/ledger/`. |
+| `PR-W5-5` | Daily reconciliation against Stripe Balance Transactions. | `src/payouts/reconciliation/` (the Wave 8 module — see below). |
 
-Operator notes for this wave:
+### Wave 8 — payout extensions (sourced by PR #110)
 
-- Every module above ships behind a feature flag (global × per-coach,
+Wave 8 runtime PRs add the payout rail under every Wave 5–10 money
+flow. They land **first** in the runtime sequence (since every
+other money-touching PR depends on the ledger).
+
+| Reserved | Module | Anchors |
+|---|---|---|
+| `PR-W8-1` | `src/payouts/ledger/` + `src/payouts/idempotency/` + `inbox`/`outbox`. | Net-new module under `src/payouts/`. |
+| `PR-W8-2` | `src/payouts/connect/` (Stripe Connect Express, KYC state machine). | New. |
+| `PR-W8-3` | `src/payouts/refunds/` (default `pro_rata` cascade). | New; consumes `src/payouts/ledger/`. |
+| `PR-W8-4` | `src/payouts/refunds/` non-default strategies (compliance gate). | Extends `PR-W8-3`. |
+| `PR-W8-5` | `src/payouts/affiliates/` (accrual / hold / clawback). | New; sibling to `src/affiliates/` (PR #119). |
+| `PR-W8-6` | `src/payouts/rewards/` (reward liability accounting). | New; sibling to `src/rewards/` (PR #123). |
+| `PR-W8-7` | `src/payouts/fraud/` (closed rule set + OWNER queue). | New. |
+| `PR-W8-8` | `src/payouts/reconciliation/` + report endpoints. | New. |
+| `PR-W8-9` | `src/payouts/tax/` (Stripe Tax + 1099-K). | New. |
+
+### Wave 6 / 7 / 9 / 10 — finance mirror modules (sourced by PR #111)
+
+| Reserved | Module | Anchors |
+|---|---|---|
+| `PR-W6-1` | `src/marketplace/permissions/` — `app_install_grants` + `app_install_audit`; consent UX; token-scope guard. | Extends `src/marketplace/` (PR #120). |
+| `PR-W7-1` | `src/marketplace/discovery/` — bucketed signal materialised view + ranker + editorial overrides. | Extends `src/marketplace/` (PR #120). |
+| `PR-W9-1` | Storefront finance blocks; `src/funnel/` (consent-gated, k-anonymity ≥ 50); community money-shape scrubber + space freeze. | Extends `src/community/`, `src/billing/`, new `src/funnel/`. |
+| `PR-W10-1` | Three new federation endpoints under `src/admin/federation/`. | Extends shipped PR #93 surface. |
+
+### Operator notes for the runtime sequence
+
+- Every module ships behind a feature flag (global × per-coach,
   AND-gated). A surface is on for a request iff both flags are true.
+- Money is `Decimal(14,2)` end-to-end. Wire-side money is
+  `{ amount: string, currency: string }`. PostHog events use bands.
 - Money never appears in a leaderboard or community post. The
-  `02-leaderboards.md` and `09-compliance.md` rules from PR #106 apply
-  to every new write surface in this range.
+  `02-leaderboards.md` and `09-compliance.md` rules from PR #106
+  apply to every new write surface.
 - The assignment contract from `06-assignments.md` is shared, not a
   table — programs / challenges / content / rewards each have their
   own row shape.
+- The append-only ledger from PR #110 §02 is the canonical money
+  record; Stripe is the cross-check. Drift pages OWNER.
+- Every money-writing controller requires an `Idempotency-Key`
+  header (PR #110 §03). Outbound Stripe calls carry our own key.
+- The three OWNER decisions from PR #110 + four from PR #111 are
+  ratified before the relevant runtime PR opens.
 - Trust Center capability flags must reflect what the backend
   actually implements end-to-end. Pinned by
   `test/system-trust-meta.spec.ts`. Flipping a flag without shipping
