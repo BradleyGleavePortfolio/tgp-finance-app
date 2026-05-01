@@ -342,3 +342,37 @@ so a single auth token can serve both deploys.
   + cron behavior
 
 Run with `npm run -w backend test` or `npm run -w backend test:cov`.
+
+## Expansion roadmap (backend dependencies for the one-stop-shop wave)
+
+The root [`README.md` "Expansion roadmap"](../README.md#expansion-roadmap)
+section is the canonical living map of what is built, in flight, and
+planned. From the backend's point of view, the **#117–#123** range
+(numbers assigned as PRs open; not yet on GitHub) is reserved for the
+modules below. Each lands in its own PR with the matching module
+README, doctrine pin, and `.env.example` entry updated in the same PR.
+
+| Reserved | Module | Anchors in this codebase |
+|---|---|---|
+| `#117` | Stripe checkout sessions, webhooks, and an idempotent purchase / subscription / deposit ledger. Read-only over client balances; the API does not move client money. | New `src/billing/` module; integrates with `src/users/` for entitlement promotion. |
+| `#118` | Application + decision tables for coach-required gating before purchase or attach. | Extends `src/invites/` (Phase 1B/1C). |
+| `#119` | Affiliate + referral attribution, single-tier commission model, payout export. | New `src/affiliates/` module; analytics fan-out via `src/analytics/`. |
+| `#120` | Marketplace ranking surface for cross-coach discovery (editorial signals only, no outcome-derived ordering). | New `src/marketplace/` module; entitlement check via `src/auth/` + `src/users/`. |
+| `#121` | Threaded community / subject extension storage with the moderation queue + URL allowlist. | Extends `src/community/`; compliance pins from `docs/specs/coach-led-programs/09-compliance.md` (PR #106). |
+| `#122` | Events / calls / replays — calendar table, RSVP, replay index. Third-party video provider, link allowlist. | New `src/events/` module; replays as `coach_premium`-tier content via the existing tier model. |
+| `#123` | Rewards engine — non-monetary reward grants (status, content unlocks, free month) tied to the assignment contract. | New `src/rewards/` module; consumes the assignment contract from `06-assignments.md` (PR #106). |
+
+Operator notes for this wave:
+
+- Every module above ships behind a feature flag (global × per-coach,
+  AND-gated). A surface is on for a request iff both flags are true.
+- Money never appears in a leaderboard or community post. The
+  `02-leaderboards.md` and `09-compliance.md` rules from PR #106 apply
+  to every new write surface in this range.
+- The assignment contract from `06-assignments.md` is shared, not a
+  table — programs / challenges / content / rewards each have their
+  own row shape.
+- Trust Center capability flags must reflect what the backend
+  actually implements end-to-end. Pinned by
+  `test/system-trust-meta.spec.ts`. Flipping a flag without shipping
+  the underlying module is a sale-readiness regression.

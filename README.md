@@ -242,6 +242,199 @@ are placeholders.
 - **Spending habits.** Five daily mini-habits.
 - **Onboarding quiz.** Sixteen questions across five phases.
 
+## Expansion roadmap
+
+A living map of what is built, what is in flight, and what is planned.
+Every entry below is either shipped on `main`, in a draft PR, or
+explicitly future work. Nothing here is a placeholder feature in the
+running app.
+
+### Done / shipped on `main`
+
+The "What is in the app" section above lists every end-to-end surface
+that ships today. The recent enterprise-readiness pass added:
+
+- DB-backed sliding-window AI rate limit, OpenAPI surface, tenancy
+  guardrails, deploy CI (PR #88).
+- Cross-app federation endpoints + service-token gating for the
+  unified admin console (PR #93, paired with the finance bridge in
+  PR #92).
+- OWNER role, coach invites, and source-of-truth gating
+  (`FEATURE_REQUIRE_COACH_CODE`) (PR #81).
+- Decimal-aware money DTOs + Zod validation on EOD / payday /
+  onboarding / account writes (PR #100).
+- Sentry source-map upload + release identifier on every Fly deploy
+  and the mobile app (PRs #101, #102).
+- Trust Center capability flags pinned to what the backend actually
+  implements end-to-end; AI prompt voice rules pinned by test
+  (PR #91).
+- Per-module README shape across `backend/src/*` and `mobile/src/*`
+  with the same purpose / key files / endpoints / data flow /
+  security / env vars / failure modes / tests / ops layout (PR #82),
+  plus the cross-cutting doctrine + federation overview + the
+  README-per-PR rule (PR #94).
+
+### Prepared (open, draft, unmerged)
+
+- **Coach-led finance programs — spec set.** Draft PR
+  [#106](https://github.com/BradleyGleavePortfolio/tgp-finance-app/pull/106).
+  Documentation-only. Twelve specs (~4,576 lines) under
+  `docs/specs/coach-led-programs/` covering finance challenges,
+  multi-phase regimens, opt-in balance-redacted leaderboards, profile
+  avatars, coach content boards, the L1 / L2 / L3 client tier model
+  and the `coach` / `coach_premium` coach tiers, the assignment
+  contract shared across challenges / content / regimens, structured
+  messaging progress payloads, the consumer-finance compliance
+  boundary (`09-compliance.md`, gates merge), and the rollout /
+  operator playbook. No runtime code, schema, or migration changes.
+  No `new-website/` changes (none exists in this repo).
+
+  Architectural decisions taken in that PR:
+
+  1. Programs / challenges / content share an **assignment
+     contract**, not an assignments table. Each has its own row
+     shape.
+  2. Money never appears in a leaderboard. Pinned by Zod `.strict()`
+     + a doctrine spec.
+  3. Content storage is Supabase Storage with signed URLs, not
+     Postgres bytea.
+  4. No public web profiles for coaches or clients in v1.
+  5. Feature flags are global × per-coach. A surface is on for a
+     request iff both are true.
+  6. Doctrine-pin tests extend, do not branch on flags. The
+     `mobile/DESIGN.md` register applies whether the flag is on or
+     off.
+
+### Current wave — finance one-stop-shop UX (specs in flight)
+
+A second documentation wave is being prepared (target spec set,
+draft / unmerged; PR numbers to be assigned in the **#117–#123**
+range as the backend dependencies land). The intent is to make this
+app the single place a coach runs a finance program end-to-end
+without sending a client to a separate checkout, course host, chat
+tool, or events tool.
+
+Whop is the reference shape — a creator one-stop-shop where the
+storefront, checkout, members area, content, community, events,
+affiliates, and rewards live behind one login. The TGP register
+(bone / ink / oxblood, no emoji, no gamification chrome, no
+outcome guarantees, redacted balances) replaces the consumer-
+finance-incompatible parts. Strategic context:
+[whop.com](https://whop.com), [whop.com/sell](https://whop.com/sell).
+
+The current wave (specs only, no schema, no controllers, no
+migrations) covers:
+
+- **Coach storefronts.** A coach-scoped public-facing storefront
+  with editorial copy, no testimonials carousel, no countdown
+  timers, no urgency chrome. L2 / L3 tier presentation, plain
+  pricing, the disclaimer rendered before the CTA. No public web
+  profile of the coach in v1 — the storefront is the coach's
+  surface.
+- **Checkout, deposits, and subscriptions.** Stripe-backed checkout
+  for one-time programs, recurring subscriptions, and refundable
+  commitment deposits. Read-only over balances; the app does not
+  move client money. SCA / 3-D Secure is required end-to-end.
+  Receipts are editorial, not promotional.
+- **Applications.** A coach can require an application before a
+  client can purchase or attach. The application lives next to the
+  invite-code flow already shipped in PR #81. Decisions are
+  appealable; reasons for rejection are templated to avoid
+  fair-lending risk.
+- **Affiliates and referrals.** Coach- and client-side referral
+  links, a transparent commission model, no MLM chains
+  (single-tier only), no off-platform payout. Compliance pin: no
+  outcome-based affiliate copy.
+- **Marketplace.** Cross-coach discovery surface inside the app for
+  L2 / L3 clients. Coaches opt in; ranking is editorial, not
+  outcome-driven. No reviews-with-stars in v1 — review quotes only,
+  curated, never auto-aggregated, to keep the consumer-finance
+  outcome-claim line clear.
+- **Finance communities.** Threaded subject extension on top of the
+  existing messaging surface. Money never appears in community
+  posts; quote-of-balance is stripped server-side. Moderation queue
+  + URL allowlist as in `09-compliance.md`.
+- **Events, calls, and replays.** Coach-scheduled live calls
+  (third-party video, link allowlist) with a calendar surface,
+  RSVP, recordings as `coach_premium`-tier content, and a replay
+  index. No native group video in v1.
+- **Rewards and bounties.** Coach-defined non-monetary rewards
+  (status, content unlocks, free month) tied to challenge / regimen
+  completion. No cash bounties — keeps the platform out of money
+  transmission.
+- **Finance-safe AI copilot.** Extends the Perplexity-backed coach
+  proxy already shipped. Voice rules and the
+  `backend/test/ai-prompt-doctrine.spec.ts` pin apply to every new
+  surface (chat, EOD insight, Spending DNA, and any new copilots
+  introduced in this wave). No outcome promises, no specific
+  ticker / fund recommendations, no tax advice.
+
+Every spec in this wave is expected to follow the
+`docs/specs/coach-led-programs/` shape: why / when / where / who /
+what / how, plus the 16-section structural checklist (data + API
+sketches, UX / nav, privacy / security, abuse / moderation, feature
+flags, analytics, rollout, tests, risks, dependencies, acceptance
+criteria, operator handoff). Money never appears in a leaderboard
+or a community post; balances stay redacted on every shared surface.
+
+### Backend dependencies
+
+The wave above does not land before the backend lifts the
+foundations it needs. The PRs in the **#117–#123** range
+(numbers assigned as they open; not yet on GitHub) are reserved
+for, in rough order:
+
+1. Stripe webhook + checkout session module + idempotent ledger of
+   purchases / subscriptions / deposits.
+2. Application + decision tables, with the coach-invite flow in
+   `backend/src/invites/` as the integration point.
+3. Affiliate + referral attribution, single-tier commission model,
+   payout export (no in-app payout).
+4. Marketplace ranking surface — editorial signals only, no
+   outcome-derived ordering.
+5. Threaded community / subject-extension storage on top of
+   `backend/src/community/` with the moderation queue + URL
+   allowlist from `09-compliance.md`.
+6. Events / calls / replays — calendar table, RSVP, replay index;
+   third-party video provider, link allowlist.
+7. Rewards engine — non-monetary reward grants tied to the
+   assignment contract from `06-assignments.md`.
+
+Each PR in this range is expected to land with its module README
+updated in the same PR (per the README-per-PR rule above), the
+matching doctrine pin (or an extension of an existing one), and the
+matching `.env.example` entry where a new env var is introduced.
+
+### Future plans (not yet specced)
+
+- Public web coach profile (deferred from v1; behind a domain +
+  SEO + reputation system).
+- Group native video / live streaming (deferred; third-party in v1).
+- Cross-coach client transfer.
+- Billing / Stripe upgrade flow surfaced inside the app
+  (today: out-of-band).
+- Shared `shared_identity_id` between the fitness and finance
+  backends (today: email-only mapping; see "Where this app sits in
+  the TGP product").
+
+### Operator guidance for this roadmap
+
+- All wave specs land as draft, documentation-only PRs first.
+  Runtime code lands in a follow-up PR per surface, behind a
+  feature flag (global × per-coach), with the module README + a
+  doctrine pin updated in the same PR.
+- A consumer-finance compliance reviewer signs off on every spec
+  that touches checkout, affiliates, marketplace ranking, AI
+  copilot, or community moderation before that spec's runtime PR
+  opens.
+- Trust Center capability flags reflect what the backend actually
+  implements end-to-end. Flipping a flag without shipping the
+  feature is treated as a sale-readiness regression and is pinned
+  by `backend/test/system-trust-meta.spec.ts`.
+- `new-website/` is intentionally **not** part of this roadmap.
+  No surface in the wave above renders in a public marketing site;
+  every storefront is in-app and coach-scoped.
+
 ## Extending
 - Add What-If scenario: Add to `ScenarioType` enum in `prisma/schema.prisma` → handler in `whatif.service.ts` → UI in `mobile/app/whatif/`
 - Update cost-of-living: Replace `data/cost_of_living_2026.json`
