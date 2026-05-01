@@ -40,6 +40,7 @@ import { TenantGuard } from './auth/guards/tenant.guard';
 import { ClientCoachLinkedGuard } from './auth/guards/client-coach-linked.guard';
 import { AdminModule } from './admin/admin.module';
 import { InvitesModule } from './invites/invites.module';
+import { ProofModule } from './proof/proof.module';
 
 @Module({
   imports: [
@@ -89,6 +90,7 @@ import { InvitesModule } from './invites/invites.module';
     PreferencesModule,
     AdminModule,
     InvitesModule,
+    ProofModule,
   ],
   controllers: [HealthController],
   providers: [

@@ -70,6 +70,59 @@ enum ScenarioType {
   retire_early
 }
 
+// ProofKind: what kind of progress proof a user is submitting. Kept narrow
+// and explicit on purpose — every new kind needs its own validator and its
+// own coach/admin review path.
+enum ProofKind {
+  net_worth_milestone   // user-claimed net worth threshold, needs coach signoff
+  finance_screenshot    // bank/brokerage/payroll screenshot
+  income_statement      // pay stub, 1099, contract receipt
+  bank_statement        // multi-line statement
+  platform_payout       // Stripe/Plaid/PayPal payout snapshot
+  fitness_metric        // weight/lift/body comp, coach-verified
+  habit_consistency     // streaks/check-ins, app-derived
+  coach_report          // coach-authored progress report
+  admin_report          // admin-authored audit/note
+  self_report           // user-attested, no document
+  milestone_review      // coach review of an auto-unlocked milestone
+}
+
+enum ProofStatus {
+  pending_review        // submitted, no human has touched it
+  coach_signed_off      // coach has reviewed and approved
+  coach_rejected        // coach has reviewed and rejected
+  admin_reviewed        // admin has performed a higher-tier review
+  disputed              // user or coach has flagged a dispute
+  flagged_abuse         // moderation: suspected fraud / misuse
+  stale                 // source data is too old to trust
+  superseded            // replaced by a newer artifact for the same claim
+}
+
+enum ProofSource {
+  user_upload           // user uploaded a screenshot or document
+  app_derived           // computed from in-app data (logs, EOD, accounts)
+  coach_entered         // coach typed/uploaded on student's behalf
+  admin_entered         // admin/owner action
+  external_link         // URL to external system (read-only reference)
+}
+
+enum ProofAuditAction {
+  submitted
+  viewed
+  coach_signoff
+  coach_rejection
+  admin_review
+  dispute_opened
+  dispute_resolved
+  abuse_flag_raised
+  abuse_flag_cleared
+  marked_stale
+  superseded
+  ai_draft_generated
+  ai_draft_dismissed
+  amount_corrected
+}
+
 // ============================================================
 // MODELS
 // ============================================================
@@ -100,6 +153,9 @@ model User {
   community_wins       CommunityWin[]
   preferences          UserPreferences?
   coach_profile        CoachProfile?
+  proof_artifacts      ProofArtifact[]      @relation("ProofSubject")
+  proof_signoffs       ProofArtifact[]      @relation("ProofReviewer")
+  proof_audit_entries  ProofAuditLog[]      @relation("ProofAuditActor")
 
   @@map("users")
 }
@@ -386,4 +442,170 @@ model AIRequestLog {
 
   @@index([user_id, created_at])
   @@map("ai_request_logs")
+}
+
+
+// ============================================================
+// PROOF — verified-progress rails
+// ============================================================
+//
+// `ProofArtifact` is a single piece of evidence a student (or coach/admin
+// on a student's behalf) submits to back a claim — net worth milestone,
+// income statement, fitness metric, login streak. The row is the artifact;
+// the surrounding `ProofSignoff` and `ProofAuditLog` rows are the
+// trust/audit chain.
+//
+// Trust model:
+//   - Submission alone never proves anything. Status starts at
+//     `pending_review`.
+//   - Coach signoff promotes status to `coach_signed_off`. Coach signoff is
+//     the bar for showing the artifact in client-facing aggregates.
+//   - Admin review (`admin_reviewed`) is a higher tier used for disputes
+//     and high-value claims (e.g. NW > $250k milestones).
+//   - `disputed` and `flagged_abuse` are moderation states that *block*
+//     downstream consumption — neither AI summaries nor client-facing
+//     aggregates may treat a flagged artifact as authoritative.
+//
+// Money fields use `Decimal(14, 2)` per backend/docs/MONEY.md. JSON columns
+// store source metadata (URLs, file refs, derived inputs) — they are
+// validated by the Zod contracts in src/proof/contracts.ts before write.
+model ProofArtifact {
+  id                  String       @id @default(uuid())
+  // Subject = the student the proof is *about*. Always required.
+  user_id             String
+  user                User         @relation("ProofSubject", fields: [user_id], references: [id], onDelete: Cascade)
+  // Reviewer = the coach or admin currently responsible for this artifact.
+  // Nullable: an unreviewed artifact has no reviewer yet.
+  reviewer_id         String?
+  reviewer            User?        @relation("ProofReviewer", fields: [reviewer_id], references: [id])
+  kind                ProofKind
+  status              ProofStatus  @default(pending_review)
+  source              ProofSource
+  // The claim the artifact backs. For milestones this is the milestone_key;
+  // for finance proof it is a free-text label ("April pay stub"). Free-form
+  // because milestone keys, kpi names, and external claims do not share a
+  // single namespace.
+  claim_label         String
+  // Money amount the artifact attests to, when applicable. Net worth
+  // milestones, income statements, payouts. Nullable for self-reports and
+  // habit consistency where the proof is not numeric.
+  claimed_amount      Decimal?     @db.Decimal(14, 2)
+  // Currency for `claimed_amount`. ISO 4217. Defaults to USD; multi-currency
+  // is not supported by downstream aggregates yet (flagged in README).
+  currency            String       @default("USD")
+  // ISO date of the underlying record (statement date, milestone date).
+  // Distinct from `submitted_at` (when the user uploaded). Used to detect
+  // staleness — artifacts older than the staleness threshold (configurable
+  // per kind) get auto-marked `stale`.
+  occurred_at         DateTime     @db.Date
+  submitted_at        DateTime     @default(now())
+  reviewed_at         DateTime?
+  // Source metadata: opaque JSON blob validated by the Zod contracts
+  // before write. Shape varies by `source`:
+  //   user_upload    -> { storage_ref, mime_type, sha256, byte_size }
+  //   app_derived    -> { derived_from: 'eod'|'habit_logs'|..., from_id }
+  //   coach_entered  -> { entered_by_coach_id, note }
+  //   admin_entered  -> { entered_by_admin_id, reason }
+  //   external_link  -> { url, captured_at }
+  source_metadata     Json
+  // Free-text user note. Coach/admin notes go on signoff rows.
+  user_note           String?
+  // Abuse / dispute flags. `dispute_reason` is set when a coach or user
+  // opens a dispute; `abuse_flag_reason` when moderation flags fraud.
+  dispute_reason      String?
+  abuse_flag_reason   String?
+  // Set when `status = stale`. Records the staleness threshold the
+  // artifact tripped, in days, so the audit trail is reproducible even if
+  // the threshold config changes later.
+  stale_after_days    Int?
+  // Set when `status = superseded`. Points at the artifact that replaced it.
+  superseded_by_id    String?
+  signoffs            ProofSignoff[]
+  audit_log           ProofAuditLog[]
+  ai_drafts           ProofAIDraft[]
+  created_at          DateTime     @default(now())
+  updated_at          DateTime     @updatedAt
+
+  @@index([user_id, kind, status])
+  @@index([reviewer_id, status])
+  @@index([status, occurred_at])
+  @@map("proof_artifacts")
+}
+
+// ProofSignoff: a single coach or admin acting on an artifact. One artifact
+// can accumulate multiple signoffs (initial coach review, follow-up admin
+// review, dispute resolution). Each row is immutable — corrections create a
+// new signoff with `supersedes_id` set, not an UPDATE.
+model ProofSignoff {
+  id              String        @id @default(uuid())
+  artifact_id     String
+  artifact        ProofArtifact @relation(fields: [artifact_id], references: [id], onDelete: Cascade)
+  // The reviewer (coach or admin). We don't relation-link here because the
+  // FK pulls a duplicate `User` relation set into the schema — keep it as a
+  // plain id and resolve at read time.
+  reviewer_id     String
+  reviewer_role   String        // 'coach' | 'admin' | 'owner' (snapshot at signoff time)
+  decision        ProofStatus   // coach_signed_off | coach_rejected | admin_reviewed | disputed
+  note            String?
+  supersedes_id   String?       // points at the prior signoff this one replaces
+  created_at      DateTime      @default(now())
+
+  @@index([artifact_id, created_at])
+  @@map("proof_signoffs")
+}
+
+// ProofAuditLog: append-only event stream for an artifact. Every state
+// transition, view, signoff, dispute, abuse flag, and AI draft event lands
+// here. The other proof tables can be reconstructed from this log if needed.
+model ProofAuditLog {
+  id           String           @id @default(uuid())
+  artifact_id  String
+  artifact     ProofArtifact    @relation(fields: [artifact_id], references: [id], onDelete: Cascade)
+  actor_id     String?          // null for system actions (staleness sweep, AI)
+  actor        User?            @relation("ProofAuditActor", fields: [actor_id], references: [id])
+  actor_role   String           // 'student' | 'coach' | 'admin' | 'owner' | 'system' | 'ai'
+  action       ProofAuditAction
+  // Snapshot of the field(s) that changed. Free-form by design — the audit
+  // log is for humans, not for replay. Keep payloads small.
+  detail       Json?
+  created_at   DateTime         @default(now())
+
+  @@index([artifact_id, created_at])
+  @@index([actor_id, created_at])
+  @@map("proof_audit_logs")
+}
+
+// ProofAIDraft: an AI-generated *advisory* note attached to an artifact.
+// Drafts are never authoritative — they are suggestions a coach or admin
+// can copy into their own signoff note. Storing them lets us show provenance
+// ("AI draft, dismissed by coach") in the audit log.
+//
+// Hard rules (enforced in src/proof/proof-ai.service.ts):
+//   - AI may produce: summary, missing/stale flags, contradiction flags,
+//     draft note text.
+//   - AI may NOT: change `status`, write a `ProofSignoff`, alter
+//     `claimed_amount`, mark anything `coach_signed_off`/`admin_reviewed`,
+//     or trigger any payout/notification side-effect.
+model ProofAIDraft {
+  id              String        @id @default(uuid())
+  artifact_id     String
+  artifact        ProofArtifact @relation(fields: [artifact_id], references: [id], onDelete: Cascade)
+  // 'summary' | 'missing_data_flag' | 'stale_data_flag' | 'contradiction_flag'
+  // | 'coach_note_draft' | 'admin_note_draft'
+  draft_kind      String
+  // The model + prompt version used. Snapshot at generation time so
+  // post-hoc audits can pin behaviour to a specific revision.
+  model_label     String
+  prompt_version  String
+  // The draft text shown to a human reviewer. Plain text; no markdown
+  // execution, no tool-call payloads.
+  draft_text      String
+  // Set when a coach/admin dismisses or accepts the draft.
+  resolved_by_id  String?
+  resolved_action String?       // 'accepted' | 'dismissed' | 'edited'
+  resolved_at     DateTime?
+  created_at      DateTime      @default(now())
+
+  @@index([artifact_id, created_at])
+  @@map("proof_ai_drafts")
 }
