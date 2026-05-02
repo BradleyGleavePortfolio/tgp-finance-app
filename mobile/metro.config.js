@@ -18,4 +18,12 @@
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { getSentryExpoConfig } = require('@sentry/react-native/metro');
 
-module.exports = getSentryExpoConfig(__dirname);
+const config = getSentryExpoConfig(__dirname);
+
+// SDK 53+ enabled package.json `exports` resolution by default. Until
+// @supabase/supabase-js publishes an exports map that resolves correctly
+// under React Native, fall back to the legacy resolver. See:
+// https://expo.dev/changelog/sdk-53#package-exports-disabled-by-default
+config.resolver.unstable_enablePackageExports = false;
+
+module.exports = config;
