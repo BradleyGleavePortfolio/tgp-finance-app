@@ -25,10 +25,14 @@ export const STORAGE_KEYS = {
   futureSelfScheduled: 'notif.future_self_scheduled',
 } as const;
 
-// Configure how notifications appear when app is foregrounded
+// Configure how notifications appear when app is foregrounded.
+// SDK 53 (expo-notifications 0.30) renamed `shouldShowAlert` to the explicit
+// pair `shouldShowBanner` / `shouldShowList`; both are required and `shouldShowAlert`
+// is retained for back-compat but typed as deprecated.
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
   }),
@@ -97,9 +101,9 @@ export async function scheduleEODReminder(time: string, _timezone: string): Prom
       data: { type: 'eod_reminder', screen: '/eod' },
     },
     trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DAILY,
       hour: hours,
       minute: minutes,
-      repeats: true,
     },
   });
 }
@@ -162,7 +166,10 @@ export async function scheduleFutureSelfDelivery(accountCreatedAt: string): Prom
         body: 'Your past self left you a message.',
         data: { type: 'future_self', screen: '/future-letter' },
       },
-      trigger: { date: deliveryDate },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: deliveryDate,
+      },
     });
   }
 
