@@ -9,6 +9,9 @@
       "developmentClient": true,
       "distribution": "internal",
       "environment": "development",
+      "env": {
+        "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
+      },
       "android": {
         "buildType": "apk"
       }
@@ -16,6 +19,9 @@
     "preview": {
       "distribution": "internal",
       "environment": "preview",
+      "env": {
+        "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
+      },
       "android": {
         "buildType": "apk"
       }
@@ -23,6 +29,9 @@
     "production": {
       "distribution": "store",
       "environment": "production",
+      "env": {
+        "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
+      },
       "android": {
         "buildType": "app-bundle"
       }
