@@ -20,10 +20,37 @@ const { getSentryExpoConfig } = require('@sentry/react-native/metro');
 
 const config = getSentryExpoConfig(__dirname);
 
-// SDK 53+ enabled package.json `exports` resolution by default. Until
-// @supabase/supabase-js publishes an exports map that resolves correctly
-// under React Native, fall back to the legacy resolver. See:
-// https://expo.dev/changelog/sdk-53#package-exports-disabled-by-default
-config.resolver.unstable_enablePackageExports = false;
+// SDK 53+ enabled package.json `exports` resolution by default. We keep it
+// enabled globally so libraries that REQUIRE the exports map (e.g.
+// posthog-react-native importing `@posthog/core/surveys`) resolve correctly.
+//
+// `@supabase/supabase-js` is the one known holdout whose exports map breaks
+// under React Native. We surgically fall back to the legacy CommonJS
+// resolver for that package only via `resolveRequest`. Once Supabase ships
+// an RN-aware exports map this hook can be deleted.
+config.resolver.unstable_enablePackageExports = true;
+
+const originalResolveRequest = config.resolver.resolveRequest;
+
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (
+    moduleName === '@supabase/supabase-js' ||
+    moduleName.startsWith('@supabase/supabase-js/')
+  ) {
+    // Disable package.json exports resolution just for this request so we
+    // hit the legacy CommonJS entry point instead of the broken RN exports.
+    return context.resolveRequest(
+      { ...context, unstable_enablePackageExports: false },
+      moduleName,
+      platform
+    );
+  }
+
+  if (originalResolveRequest) {
+    return originalResolveRequest(context, moduleName, platform);
+  }
+
+  return context.resolveRequest(context, moduleName, platform);
+};
 
 module.exports = config;
