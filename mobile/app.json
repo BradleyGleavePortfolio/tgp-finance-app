@@ -59,6 +59,7 @@
     },
     "extra": {
       "apiUrl": "https://tgp-finance-api.fly.dev",
+      "sentryDsn": "https://6349b163a0a16f3f611929c304d79f13@o4511290973749248.ingest.us.sentry.io/4511304802238464",
       "router": {
         "origin": false
       },
