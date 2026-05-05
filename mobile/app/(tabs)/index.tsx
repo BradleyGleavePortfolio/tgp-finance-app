@@ -1,6 +1,16 @@
 // Home — Luxury Hero Screen (Wave 3)
-// Spec: deep navy bg · single 56pt net worth · oxblood eyebrow · thin oxblood chart
+// Spec: deep navy bg · single 56pt net worth · stone eyebrow · thin oxblood chart
 //       soft interest line · three text-link actions
+//
+// Contrast note (DESIGN.md §1):
+//   The eyebrow was originally oxblood-on-navy. That pairing measures
+//   1.11:1 contrast — below WCAG large-text minimum (3:1) — and the
+//   meta line was illegible on device. The doctrine permits exactly
+//   one oxblood accent per screen, and on this hero that accent is
+//   the chart line. Eyebrow demoted to colors.stone (6.17:1, AA),
+//   which is already the doctrine's tertiary/meta colour and is
+//   reused below for the chevrons and the interest line.
+//   Palette unchanged; no new tokens introduced.
 import React, { useEffect } from 'react';
 import {
   View,
@@ -160,12 +170,15 @@ export default function HomeScreen() {
             {formatNetWorth(displayNetWorth)}
           </Text>
 
-          {/* ── Eyebrow — "JANUARY · WEEK ONE" (oxblood, tracked uppercase, 11pt) ── */}
+          {/* ── Eyebrow — "JANUARY · WEEK ONE" (stone, tracked uppercase, 11pt) ──
+              Was oxblood; oxblood-on-navy = 1.11:1 contrast (fails WCAG).
+              Stone keeps the meta-typography register and reserves the
+              one oxblood accent for the chart below. */}
           <Text
             style={{
               fontFamily: typography.families.medium,
               ...typography.scale.eyebrow,
-              color: colors.oxblood,
+              color: colors.stone,
               marginBottom: 56,
             }}
           >
