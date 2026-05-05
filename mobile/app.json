@@ -14,7 +14,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.tgp.finance",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -25,7 +25,7 @@
         "backgroundColor": "#F5EFE4"
       },
       "package": "com.tgp.finance",
-      "versionCode": 1
+      "versionCode": 2
     },
     "web": {
       "favicon": "./assets/favicon.png",
