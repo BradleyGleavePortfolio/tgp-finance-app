@@ -128,13 +128,10 @@ content, not about `placeholder` as an attribute name.
 
 The app does not clap, fire, confetti, or cheer. We are quiet.
 
-- Community wins use a single neutral acknowledgement (`Acknowledge` /
-  count). The legacy `fire` and `clap` reaction kinds remain in the
-  database for backward compatibility (`backend/prisma/schema.prisma`
-  → `ReactionKind`), but the UI only ever sends `fire` as the neutral
-  kind under a non-emoji label, and only one count is shown. Schema
-  migration is intentionally deferred — the values are inert at the
-  surface.
+- Community wins are read-only social proof. There is no reaction
+  surface (no `fire`, no `clap`, no acknowledgement counter). The
+  `WinReaction` model and `ReactionKind` enum were removed from the
+  schema in the doctrine drop migration alongside the streak columns.
 - No streak fireworks, no level-up confetti, no "🎉" toasts. The
   `Milestone Achieved.` push is a period, not an exclamation.
 - Mood selector is 1–5 numeric with text labels (`Stressed`, `Neutral`,

@@ -22,16 +22,28 @@ export class EODService {
 
   async submitEOD(userId: string, dto: {
     submission_date: string;
-    account_snapshots: Array<{ account_id: string; balance: number; notes?: string }>;
+    account_snapshots: Array<{ account_id: string; balance: Prisma.Decimal | number; notes?: string }>;
     notes?: string;
     mood?: number;
     habits_checked?: string[];
   }) {
     const dateObj = new Date(dto.submission_date);
 
+    // Promote every snapshot balance to Decimal up front so balances + totals
+    // never round-trip through Number. The Zod DTO already produces Decimal,
+    // but tests sometimes pass plain numbers and we accept that for backward
+    // compatibility.
+    const snapshots = dto.account_snapshots.map((s) => ({
+      ...s,
+      balance:
+        s.balance instanceof Prisma.Decimal
+          ? s.balance
+          : new Prisma.Decimal(s.balance),
+    }));
+
     // Validate accounts belong to user BEFORE opening the transaction — no
     // point holding a db connection if the DTO is bad.
-    const accountIds = dto.account_snapshots.map((s) => s.account_id);
+    const accountIds = snapshots.map((s) => s.account_id);
     const accounts = await this.prisma.financialAccount.findMany({
       where: { id: { in: accountIds }, user_id: userId, is_active: true },
     });
@@ -43,26 +55,34 @@ export class EODService {
       });
     }
 
-    // Compute totals from snapshots.
-    let total_assets = 0;
-    let total_debt = 0;
-    let total_cash = 0;
+    // Compute totals from snapshots — Decimal math, not Number, so the
+    // persisted net-worth column never drifts.
+    let totalAssetsDec = new Prisma.Decimal(0);
+    let totalDebtDec = new Prisma.Decimal(0);
+    let totalCashDec = new Prisma.Decimal(0);
 
-    for (const snapshot of dto.account_snapshots) {
+    for (const snapshot of snapshots) {
       const account = accounts.find((a) => a.id === snapshot.account_id);
       if (!account) continue;
 
       if (account.is_debt) {
-        total_debt += snapshot.balance;
+        totalDebtDec = totalDebtDec.plus(snapshot.balance);
       } else {
-        total_assets += snapshot.balance;
+        totalAssetsDec = totalAssetsDec.plus(snapshot.balance);
         if (['checking', 'savings'].includes(account.account_type)) {
-          total_cash += snapshot.balance;
+          totalCashDec = totalCashDec.plus(snapshot.balance);
         }
       }
     }
 
-    const net_worth_computed = total_assets - total_debt;
+    const netWorthDec = totalAssetsDec.minus(totalDebtDec);
+    // Numbers retained for downstream consumers (push messages, velocity
+    // score, response envelope). The persisted columns receive the Decimal
+    // versions so DB precision is preserved.
+    const total_assets = toN(totalAssetsDec);
+    const total_debt = toN(totalDebtDec);
+    const total_cash = toN(totalCashDec);
+    const net_worth_computed = toN(netWorthDec);
 
     // Wrap all writes in a single interactive transaction so a failure halfway
     // through (duplicate unique key, broken account ref, etc.) rolls back the
@@ -88,19 +108,25 @@ export class EODService {
           data: {
             user_id: userId,
             submission_date: dateObj,
-            account_snapshots: dto.account_snapshots as any,
-            net_worth_computed,
-            total_debt_computed: total_debt,
-            total_assets_computed: total_assets,
-            total_cash_computed: total_cash,
+            // Persist snapshots with their Decimal balances stringified so
+            // the JSON column round-trips losslessly (no IEEE-754 drift).
+            account_snapshots: snapshots.map((s) => ({
+              account_id: s.account_id,
+              balance: s.balance.toFixed(2),
+              ...(s.notes !== undefined ? { notes: s.notes } : {}),
+            })) as unknown as Prisma.InputJsonValue,
+            net_worth_computed: netWorthDec,
+            total_debt_computed: totalDebtDec,
+            total_assets_computed: totalAssetsDec,
+            total_cash_computed: totalCashDec,
             notes: dto.notes,
             mood: dto.mood,
-            habits_checked: dto.habits_checked as any,
+            habits_checked: dto.habits_checked as unknown as Prisma.InputJsonValue,
           },
         });
 
         // Update account balances + write balance logs.
-        for (const snapshot of dto.account_snapshots) {
+        for (const snapshot of snapshots) {
           await tx.financialAccount.update({
             where: { id: snapshot.account_id },
             data: { balance: snapshot.balance, updated_at: new Date() },
@@ -116,49 +142,30 @@ export class EODService {
           });
         }
 
-        // Update profile totals + streak.
-        const profile = await tx.financialProfile.findUnique({ where: { user_id: userId } });
-        let streak_days = 1;
-
-        if (profile?.last_eod_date) {
-          const lastDate = new Date(profile.last_eod_date);
-          const today = dateObj;
-          const diffMs = today.getTime() - lastDate.getTime();
-          const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-
-          if (diffDays === 1) {
-            streak_days = (profile.streak_days || 0) + 1;
-          } else if (diffDays === 0) {
-            streak_days = profile.streak_days || 1; // Same day (shouldn't happen due to duplicate check)
-          }
-        }
-
+        // Update profile totals.
         await tx.financialProfile.upsert({
           where: { user_id: userId },
           update: {
-            net_worth_snapshot: net_worth_computed,
-            total_debt,
-            total_assets,
-            total_cash,
+            net_worth_snapshot: netWorthDec,
+            total_debt: totalDebtDec,
+            total_assets: totalAssetsDec,
+            total_cash: totalCashDec,
             last_eod_date: dateObj,
-            streak_days,
             updated_at: new Date(),
           },
           create: {
             user_id: userId,
-            net_worth_snapshot: net_worth_computed,
-            total_debt,
-            total_assets,
-            total_cash,
+            net_worth_snapshot: netWorthDec,
+            total_debt: totalDebtDec,
+            total_assets: totalAssetsDec,
+            total_cash: totalCashDec,
             last_eod_date: dateObj,
-            streak_days: 1,
           },
         });
 
         // Compute velocity score from inside the same transaction so its reads
         // see the totals we just wrote.
         const velocityScore = await this.computeWealthVelocityScore(tx, userId, {
-          streak_days,
           net_worth_computed,
           total_debt,
         });
@@ -170,7 +177,6 @@ export class EODService {
 
         return {
           submission,
-          streak_days,
           wealth_velocity_score: velocityScore,
         };
       });
@@ -240,7 +246,7 @@ export class EODService {
             if (this.pushSender) {
               await this.pushSender
                 .send(userId, 'priority_levelup', {
-                  title: '⬆️ New priority unlocked',
+                  title: 'New priority',
                   body: computed.current.title,
                   data: {
                     priority_index: computed.current_index,
@@ -257,7 +263,7 @@ export class EODService {
           const profile = await this.prisma.financialProfile.findUnique({ where: { user_id: userId } });
           const accounts = await this.prisma.financialAccount.findMany({ where: { user_id: userId, is_active: true } });
           for (const priority of PRIORITY_WATERFALL) {
-            const r = priority.check(profile as any, accounts as any);
+            const r = priority.check(profile, accounts);
             if (!r.complete) {
               current_priority = { index: priority.index, title: priority.title };
               break;
@@ -278,7 +284,6 @@ export class EODService {
         total_assets,
         total_debt,
         total_cash,
-        streak_days: result.streak_days,
         wealth_velocity_score: result.wealth_velocity_score,
         newly_unlocked_milestones,
         current_priority,
@@ -300,15 +305,14 @@ export class EODService {
     tx: Tx | PrismaService,
     userId: string,
     current: {
-      streak_days: number;
       net_worth_computed: number;
       total_debt: number;
     },
   ): Promise<number> {
-    // Factor 1: Streak consistency (30%): streak / 30 days × 30
-    const streakScore = Math.min((current.streak_days / 30) * 30, 30);
+    // Doctrine: streak removed. Score now sums to 100 across debt
+    // payoff (35%), net-worth momentum (35%), and savings rate (30%).
 
-    // Factor 2: Debt payoff rate (25%): % of debt paid vs 90 days ago
+    // Factor 1: Debt payoff rate (35%): % of debt paid vs 90 days ago
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
@@ -321,12 +325,12 @@ export class EODService {
     const oldTotalDebt = toN(oldEOD?.total_debt_computed);
     if (oldEOD && oldTotalDebt > 0) {
       const pctPaid = Math.max(0, (oldTotalDebt - current.total_debt) / oldTotalDebt);
-      debtPayoffScore = Math.min(pctPaid * 100 * 0.25, 25);
+      debtPayoffScore = Math.min(pctPaid * 100 * 0.35, 35);
     } else {
-      debtPayoffScore = current.total_debt === 0 ? 25 : 0;
+      debtPayoffScore = current.total_debt === 0 ? 35 : 0;
     }
 
-    // Factor 3: Net worth momentum (25%): growth % vs 30 days ago
+    // Factor 2: Net worth momentum (35%): growth % vs 30 days ago
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -340,11 +344,11 @@ export class EODService {
       const oldNW = toN(oldNetWorthEOD.net_worth_computed);
       if (oldNW !== 0) {
         const growthPct = (current.net_worth_computed - oldNW) / Math.abs(oldNW);
-        momentumScore = Math.min(Math.max(growthPct * 100, 0), 25);
+        momentumScore = Math.min(Math.max(growthPct * 100, 0), 35);
       }
     }
 
-    // Factor 4: Savings rate (20%): estimated from profile
+    // Factor 3: Savings rate (30%): estimated from profile
     const profile = await tx.financialProfile.findUnique({ where: { user_id: userId } });
     let savingsScore = 0;
     const monthlyIncome = toN(profile?.monthly_income_gross);
@@ -352,10 +356,10 @@ export class EODService {
     if (monthlyIncome > 0 && totalCash > 0) {
       const estimatedExpenses = monthlyIncome * 0.6;
       const savingsRate = Math.max(0, (monthlyIncome - estimatedExpenses) / monthlyIncome);
-      savingsScore = Math.min(savingsRate * 100 * 0.2, 20);
+      savingsScore = Math.min(savingsRate * 100 * 0.3, 30);
     }
 
-    const total = streakScore + debtPayoffScore + momentumScore + savingsScore;
+    const total = debtPayoffScore + momentumScore + savingsScore;
     return Math.min(Math.round(total), 100);
   }
 
@@ -382,7 +386,7 @@ export class EODService {
     userId: string,
     dto: {
       submission_date: string;
-      account_snapshots: Array<{ account_id: string; balance: number; notes?: string }>;
+      account_snapshots: Array<{ account_id: string; balance: Prisma.Decimal | number; notes?: string }>;
       notes?: string;
       mood?: number;
       habits_checked?: string[];
@@ -404,8 +408,17 @@ export class EODService {
       });
     }
 
+    // Coerce snapshots to Decimal up front so the recompute uses precise math.
+    const snapshots = dto.account_snapshots.map((s) => ({
+      ...s,
+      balance:
+        s.balance instanceof Prisma.Decimal
+          ? s.balance
+          : new Prisma.Decimal(s.balance),
+    }));
+
     // Recompute totals from new snapshots.
-    const accountIds = dto.account_snapshots.map((s) => s.account_id);
+    const accountIds = snapshots.map((s) => s.account_id);
     const accounts = await this.prisma.financialAccount.findMany({
       where: { id: { in: accountIds }, user_id: userId, is_active: true },
     });
@@ -417,38 +430,48 @@ export class EODService {
       });
     }
 
-    let total_assets = 0;
-    let total_debt = 0;
-    let total_cash = 0;
-    for (const snapshot of dto.account_snapshots) {
+    let totalAssetsDec = new Prisma.Decimal(0);
+    let totalDebtDec = new Prisma.Decimal(0);
+    let totalCashDec = new Prisma.Decimal(0);
+    for (const snapshot of snapshots) {
       const account = accounts.find((a) => a.id === snapshot.account_id);
       if (!account) continue;
       if (account.is_debt) {
-        total_debt += snapshot.balance;
+        totalDebtDec = totalDebtDec.plus(snapshot.balance);
       } else {
-        total_assets += snapshot.balance;
+        totalAssetsDec = totalAssetsDec.plus(snapshot.balance);
         if (['checking', 'savings'].includes(account.account_type)) {
-          total_cash += snapshot.balance;
+          totalCashDec = totalCashDec.plus(snapshot.balance);
         }
       }
     }
-    const net_worth_computed = total_assets - total_debt;
+    const netWorthDec = totalAssetsDec.minus(totalDebtDec);
 
     const updated = await this.prisma.eODSubmission.update({
       where: { id },
       data: {
-        account_snapshots: dto.account_snapshots as any,
-        net_worth_computed,
-        total_debt_computed: total_debt,
-        total_assets_computed: total_assets,
-        total_cash_computed: total_cash,
+        account_snapshots: snapshots.map((s) => ({
+          account_id: s.account_id,
+          balance: s.balance.toFixed(2),
+          ...(s.notes !== undefined ? { notes: s.notes } : {}),
+        })) as unknown as Prisma.InputJsonValue,
+        net_worth_computed: netWorthDec,
+        total_debt_computed: totalDebtDec,
+        total_assets_computed: totalAssetsDec,
+        total_cash_computed: totalCashDec,
         notes: dto.notes,
         mood: dto.mood,
-        habits_checked: dto.habits_checked as any,
+        habits_checked: dto.habits_checked as unknown as Prisma.InputJsonValue,
       },
     });
 
-    return { submission: updated, net_worth_computed, total_assets, total_debt, total_cash };
+    return {
+      submission: updated,
+      net_worth_computed: toN(netWorthDec),
+      total_assets: toN(totalAssetsDec),
+      total_debt: toN(totalDebtDec),
+      total_cash: toN(totalCashDec),
+    };
   }
 
   async getTodayEOD(userId: string) {

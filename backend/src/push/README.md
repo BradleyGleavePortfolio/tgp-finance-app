@@ -28,7 +28,6 @@ strategy plus a `NotificationPreferences` field that gates it:
 | Type | Dedupe | Pref field |
 |------|--------|------------|
 | `eod_reminder` | once per local day per user | `eod_reminder_enabled` |
-| `streak_at_risk` | once per local day | `streak_alerts_enabled` |
 | `net_worth_milestone` | event-id (`milestone_key`) | `milestone_alerts` |
 | `priority_levelup` | event-id (`priority_index`) | `priority_levelup_alerts` |
 | `future_self_letter` | once per user (key fixed) | `future_self_letter_enabled` |

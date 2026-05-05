@@ -11,32 +11,10 @@ import {
 import { PaydayService } from './payday.service';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { z } from 'zod';
-
-// ── Validation schemas ────────────────────────────────────────────────────────
-
-const AllocationSchema = z.object({
-  account_id: z.string().uuid('account_id must be a valid UUID'),
-  amount: z.number().positive('Allocation amount must be positive'),
-  percentage: z.number().min(0).max(100).optional(),
-});
-
-const DeployPaycheckSchema = z.object({
-  paycheck_amount: z.number().positive('paycheck_amount must be positive'),
-  allocations: z
-    .array(AllocationSchema)
-    .min(1, 'At least one allocation is required'),
-});
-
-const SaveTemplateSchema = z.object({
-  name: z.string().min(1).max(100),
-  allocations: z.array(
-    z.object({
-      account_id: z.string().uuid(),
-      percentage: z.number().min(0).max(100),
-    }),
-  ).min(1),
-});
+import {
+  DeployPaycheckSchema,
+  SavePaydayTemplateSchema,
+} from '../common/validators/schemas';
 
 // ── Controller ────────────────────────────────────────────────────────────────
 
@@ -51,7 +29,7 @@ export class PaydayController {
    */
   @Post()
   @HttpCode(HttpStatus.OK)
-  async deployPaycheck(@Body() body: any, @CurrentUser() user: any) {
+  async deployPaycheck(@Body() body: unknown, @CurrentUser() user: CurrentUser) {
     const parsed = DeployPaycheckSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException({
@@ -71,7 +49,7 @@ export class PaydayController {
    * Return the user's saved allocation templates.
    */
   @Get('templates')
-  async getTemplates(@CurrentUser() user: any) {
+  async getTemplates(@CurrentUser() user: CurrentUser) {
     return this.paydayService.getTemplates(user.id);
   }
 
@@ -81,8 +59,8 @@ export class PaydayController {
    */
   @Post('templates')
   @HttpCode(HttpStatus.CREATED)
-  async saveTemplate(@Body() body: any, @CurrentUser() user: any) {
-    const parsed = SaveTemplateSchema.safeParse(body);
+  async saveTemplate(@Body() body: unknown, @CurrentUser() user: CurrentUser) {
+    const parsed = SavePaydayTemplateSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException({
         error: parsed.error.errors.map((e) => e.message).join(', '),

@@ -92,6 +92,9 @@ and is **never** enabled in production; the supported promotion path is
 
 ## Money handling
 
+**Doctrine: every money field is `Decimal(14, 2)` server-side. No `number`
+for money on the wire. No `parseFloat` on user input.**
+
 - Stored as `DECIMAL(14, 2)` in Postgres (Prisma migration
   `20260423000001_money_fields_to_decimal`).
 - Returned to clients as `number` via `DecimalToNumberInterceptor`.
@@ -100,6 +103,70 @@ and is **never** enabled in production; the supported promotion path is
   coerces to string concatenation.
 - Aggregations in EOD / net-worth / velocity all run through `toN` so a stale
   Float-era code path can't reintroduce IEEE-754 drift.
+
+### Inbound validation: `MoneyAmount` Zod schema
+
+Every money field on every write endpoint flows through the shared
+`MoneyAmount` Zod schema in `src/common/zod/money.ts`. The schema:
+
+- Accepts `string` or `number` from the client.
+- Rejects `NaN`, `±Infinity`, non-finite numbers, more than 2 decimal places,
+  more than 12 integer digits, and non-numeric strings.
+- Outputs a `Prisma.Decimal` — pass it directly to Prisma; no `parseFloat`
+  and no `Number()` round-trip in the service.
+- Has three preset variants: `MoneyAmount()` (default: zero ok, no negatives),
+  `MoneyAmountPositive()`, `MoneyAmountNonNegative()`, and
+  `MoneyAmountAny()`.
+
+The locked-down write surfaces are:
+
+| Surface | DTO schema | Endpoint(s) |
+|---|---|---|
+| EOD | `SubmitEODSchema` | `POST /api/eod`, `PUT /api/eod/:id` |
+| Payday | `DeployPaycheckSchema`, `SavePaydayTemplateSchema` | `POST /api/payday`, `POST /api/payday/templates` |
+| Onboarding | `SubmitQuizSchema` (and `UpdateProfileSchema` income fields) | `POST /api/onboarding/quiz`, profile updates |
+| Accounts | `CreateAccountSchema`, `UpdateAccountSchema` | `POST /api/accounts`, `PUT /api/accounts/:id` |
+
+#### Adding a new money-writing endpoint
+
+```ts
+// 1. Define the DTO using MoneyAmount, not z.number()
+import { z } from 'zod';
+import { MoneyAmountPositive } from '../common/zod/money';
+
+export const TransferSchema = z.object({
+  from_account_id: z.string().uuid(),
+  to_account_id: z.string().uuid(),
+  amount: MoneyAmountPositive(), // → Prisma.Decimal in parsed.data
+});
+
+// 2. In the controller, safeParse and propagate the error
+const parsed = TransferSchema.safeParse(body);
+if (!parsed.success) {
+  throw new BadRequestException({
+    error: parsed.error.errors.map((e) => e.message).join(', '),
+    code: 'VALIDATION_ERROR',
+  });
+}
+return this.service.transfer(user.id, parsed.data);
+
+// 3. In the service, accept Prisma.Decimal and pass it straight to Prisma —
+//    do NOT call parseFloat or Number() on the value.
+async transfer(userId: string, dto: { amount: Prisma.Decimal; ... }) {
+  await this.prisma.transferLog.create({
+    data: { user_id: userId, amount: dto.amount },
+  });
+}
+```
+
+#### Forbidden patterns
+
+- ❌ `z.number().positive()` for a money field — use `MoneyAmountPositive()`.
+- ❌ `parseFloat(answers.monthly_take_home)` — Zod already coerced.
+- ❌ `data: { balance: Number(snapshot.balance) }` — pass the Decimal.
+- ❌ `amount: number` on a service method that persists money — type as
+  `Prisma.Decimal | number` only if you must accept legacy callers, and
+  promote to Decimal before any DB write.
 
 ## Environment variables
 
@@ -135,7 +202,7 @@ Optional, feature-affecting:
 | `RELEASE_SHA`, `RELEASE_NAME` | Surfaced by `/system/release-info`. Falls back to Fly runtime envs and `package.json#version` when unset. |
 | `EXPO_ACCESS_TOKEN` | Push sender uses default Expo rate limits. |
 | `NUMBEO_API_KEY` | Cost-of-living scenarios fall back to bundled JSON. |
-| `SENTRY_DSN` | Errors are not forwarded to Sentry. |
+| `SENTRY_DSN` | Errors are not forwarded to Sentry. Sourcemaps still build but do not upload — see "Sentry sourcemaps" below. |
 | `POSTHOG_KEY` | `analytics.capture` is a no-op. |
 | `FEDERATION_SERVICE_TOKEN` | Required to enable `/api/admin/federation/*`. ≥ 32 chars. Unset → every federation request returns `503 FEDERATION_DISABLED`. The fitness backend must present the same secret as `Authorization: Bearer …`. See `src/admin/README.md` and `docs/TENANCY.md`. |
 | `SUPPORT_CONTACT_EMAIL` | Override for the concierge support address surfaced on `/system/trust-meta` and `/users/me/access-status`. Defaults to `support@thegrowthproject.courses`. |
@@ -201,6 +268,47 @@ so a fresh clone is always safe. If you are deploying from a pre-existing
 Windows checkout and the deploy fails with
 `set: invalid option name…pipefail`, your `release.sh` was committed with
 CRLF — `backend/docs/DEPLOY.md` has the recovery steps.
+
+### Sentry sourcemaps
+
+The compiled JavaScript Sentry sees on Fly is one bundled, transpiled
+file per module. Without sourcemaps, every captured stack trace is a
+list of `dist/src/*.js:row:col` lines that nobody can debug from. The
+deploy pipeline uploads sourcemaps to Sentry on every release so the
+dashboard renders the original TypeScript source.
+
+The upload runs in `backend/scripts/sentry-upload-sourcemaps.sh` from
+inside the Docker build, after `npm run build` in the builder stage.
+The release name is the commit SHA, passed as the `RELEASE_VERSION`
+build arg to both stages, and is also exported as a runtime ENV in the
+production stage so `src/instrument.ts` tags captured events with the
+same release. Events and sourcemaps line up by construction.
+
+The script no-ops gracefully when any of the four credentials are
+unset, so `docker build` and local `npm run build` work without Sentry
+configured. Required GitHub Actions secrets for the upload to actually
+run on prod deploys (set on the parent repository, not on Fly):
+
+| Secret              | Where to find it                                                                |
+| ------------------- | ------------------------------------------------------------------------------- |
+| `SENTRY_AUTH_TOKEN` | Sentry → Settings → Auth Tokens → Create. Scope: `project:releases`.            |
+| `SENTRY_ORG`        | Sentry org slug, e.g. `the-growth-project`.                                     |
+| `SENTRY_PROJECT`    | Sentry project slug for this app, e.g. `tgp-finance-api`.                       |
+| `SENTRY_DSN`        | Already required as a runtime secret; mirror it here so the build can confirm. |
+
+One-time operator setup (parent repo → Settings → Secrets → Actions):
+
+```bash
+gh secret set SENTRY_AUTH_TOKEN --repo BradleyGleavePortfolio/tgp-finance-app
+gh secret set SENTRY_ORG        --body 'the-growth-project' --repo BradleyGleavePortfolio/tgp-finance-app
+gh secret set SENTRY_PROJECT    --body 'tgp-finance-api'    --repo BradleyGleavePortfolio/tgp-finance-app
+gh secret set SENTRY_DSN        --repo BradleyGleavePortfolio/tgp-finance-app
+```
+
+The runtime DSN on Fly stays the source of truth — the GitHub copy is
+build-time only. The fitness backend uses the same env var names
+(`SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `RELEASE_VERSION`),
+so a single auth token can serve both deploys.
 
 ## Failure modes worth knowing
 

@@ -44,7 +44,6 @@ function makePrismaStub(overrides: any = {}): any {
         user_id: 'u1',
         expo_push_token: validToken,
         eod_reminder_enabled: true,
-        streak_alerts_enabled: true,
         milestone_alerts: true,
         priority_levelup_alerts: true,
         future_self_letter_enabled: true,

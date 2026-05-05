@@ -64,7 +64,7 @@ export default function LoginScreen() {
       if (user?.id) identify(user.id, { role: user.role });
       track('signed_in', { method: 'google' });
       router.replace('/');
-    } catch (err: any) {
+    } catch (err) {
       Alert.alert('Google sign-in', safeAuthError(err));
     } finally {
       setGoogleLoading(false);
@@ -79,7 +79,7 @@ export default function LoginScreen() {
     try {
       await sendPasswordResetEmail(email);
       setResetSent(true);
-    } catch (err: any) {
+    } catch (err) {
       Alert.alert('Password reset', safeAuthError(err));
     }
   };

@@ -23,7 +23,7 @@ export class AIController {
     summary: 'Send a coach chat message.',
     description: 'Counts against the per-user 20/hr AI budget tracked in ai_request_logs.',
   })
-  async chat(@Body() body: any, @CurrentUser() user: any) {
+  async chat(@Body() body: unknown, @CurrentUser() user: CurrentUser) {
     const parsed = AIChatSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException({
@@ -35,12 +35,12 @@ export class AIController {
   }
 
   @Get('context')
-  async getContext(@CurrentUser() user: any) {
+  async getContext(@CurrentUser() user: CurrentUser) {
     return this.aiService.buildUserContext(user.id);
   }
 
   @Post('eod-insight')
-  async eodInsight(@Body() body: any, @CurrentUser() user: any) {
+  async eodInsight(@Body() body: unknown, @CurrentUser() user: CurrentUser) {
     const parsed = EODInsightSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException({ error: 'eod_submission_id required', code: 'VALIDATION_ERROR' });
@@ -49,7 +49,7 @@ export class AIController {
   }
 
   @Post('spending-dna')
-  async spendingDna(@Body() body: any, @CurrentUser() user: any) {
+  async spendingDna(@Body() body: unknown, @CurrentUser() user: CurrentUser) {
     const parsed = SpendingDnaSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException({ error: 'month required (YYYY-MM format)', code: 'VALIDATION_ERROR' });
@@ -62,7 +62,7 @@ export class AIController {
   // { limit, used, remaining, window_seconds } scoped to the calling user.
   @Get('rate-limit')
   @ApiOperation({ summary: 'Read-only AI quota snapshot for the calling user.' })
-  async rateLimitStatus(@CurrentUser() user: any) {
+  async rateLimitStatus(@CurrentUser() user: CurrentUser) {
     return this.rateLimit.snapshot(user.id);
   }
 
@@ -72,7 +72,7 @@ export class AIController {
   // report_text payload — callers that need the body already hit POST
   // /api/ai/spending-dna to (re)generate and read it.
   @Get('spending-dna/latest')
-  async spendingDnaLatest(@CurrentUser() user: any) {
+  async spendingDnaLatest(@CurrentUser() user: CurrentUser) {
     return this.aiService.getLatestSpendingDNA(user.id);
   }
 }

@@ -9,17 +9,17 @@ export class MilestonesController {
   constructor(private readonly milestonesService: MilestonesService) {}
 
   @Get()
-  async getMilestones(@CurrentUser() user: any) {
+  async getMilestones(@CurrentUser() user: CurrentUser) {
     return this.milestonesService.getMilestones(user.id);
   }
 
   @Post('check')
-  async checkMilestones(@CurrentUser() user: any) {
+  async checkMilestones(@CurrentUser() user: CurrentUser) {
     return this.milestonesService.checkAndUnlockMilestones(user.id);
   }
 
   @Post(':key/celebrate')
-  async markCelebrated(@Param('key') key: string, @CurrentUser() user: any) {
+  async markCelebrated(@Param('key') key: string, @CurrentUser() user: CurrentUser) {
     return this.milestonesService.markCelebrated(user.id, key);
   }
 }

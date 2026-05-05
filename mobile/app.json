@@ -13,14 +13,19 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.tgp.finance"
+      "bundleIdentifier": "com.tgp.finance",
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F5EFE4"
       },
-      "package": "com.tgp.finance"
+      "package": "com.tgp.finance",
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -38,7 +43,15 @@
       ],
       "expo-secure-store",
       "expo-font",
-      "expo-localization"
+      "expo-localization",
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "tgp",
+          "project": "tgp-finance-mobile",
+          "url": "https://sentry.io/"
+        }
+      ]
     ],
     "scheme": "tgp-finance",
     "experiments": {

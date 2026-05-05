@@ -4,25 +4,31 @@ import { profileApi } from '../services/api';
 import type { FinancialProfile, IncomeSource } from '../types';
 
 /** Safely normalize a profile object — guard against NaN, missing arrays, bad types */
-function safeProfile(raw: any): FinancialProfile | null {
+function safeProfile(raw: unknown): FinancialProfile | null {
   if (!raw || typeof raw !== 'object') return null;
   try {
-    const p = raw.profile || raw;
-    if (!p || typeof p !== 'object') return null;
+    const wrapped = raw as { profile?: unknown };
+    const candidate: unknown = wrapped.profile ?? raw;
+    if (!candidate || typeof candidate !== 'object') return null;
+    const p = candidate as Record<string, unknown>;
 
     // Ensure income_sources is always an array
     let incomeSources: IncomeSource[] = [];
     if (Array.isArray(p.income_sources)) {
-      incomeSources = p.income_sources.filter(
-        (s: any) => s && typeof s === 'object' && typeof s.source === 'string'
+      incomeSources = (p.income_sources as unknown[]).filter(
+        (s): s is IncomeSource =>
+          !!s && typeof s === 'object' && typeof (s as { source?: unknown }).source === 'string',
       );
     }
 
     // Safe numeric extraction
-    const safeNum = (v: any, fallback = 0): number => {
+    const safeNum = (v: unknown, fallback = 0): number => {
       const n = Number(v);
       return isFinite(n) ? n : fallback;
     };
+
+    const riskTolerance = p.risk_tolerance;
+    const motivationStyle = p.motivation_style;
 
     return {
       ...p,
@@ -37,14 +43,17 @@ function safeProfile(raw: any): FinancialProfile | null {
       total_cash: safeNum(p.total_cash),
       current_priority_index: safeNum(p.current_priority_index),
       wealth_velocity_score: safeNum(p.wealth_velocity_score),
-      streak_days: safeNum(p.streak_days),
       country: typeof p.country === 'string' ? p.country : 'US',
-      risk_tolerance: ['conservative', 'moderate', 'aggressive'].includes(p.risk_tolerance)
-        ? p.risk_tolerance
-        : 'moderate',
-      motivation_style: ['small_wins', 'big_picture'].includes(p.motivation_style)
-        ? p.motivation_style
-        : 'small_wins',
+      risk_tolerance:
+        riskTolerance === 'conservative' ||
+        riskTolerance === 'moderate' ||
+        riskTolerance === 'aggressive'
+          ? riskTolerance
+          : 'moderate',
+      motivation_style:
+        motivationStyle === 'small_wins' || motivationStyle === 'big_picture'
+          ? motivationStyle
+          : 'small_wins',
       is_self_employed: !!p.is_self_employed,
       has_business: !!p.has_business,
     } as FinancialProfile;
@@ -88,7 +97,7 @@ export const useProfileStore = create<ProfileStore>((set) => ({
   updateProfile: async (profileData) => {
     set({ isLoading: true, error: null });
     try {
-      const { data } = await profileApi.update(profileData as Record<string, unknown>);
+      const { data } = await profileApi.update(profileData);
       const profile = safeProfile(data);
       set({ profile, isLoading: false });
     } catch (err: unknown) {

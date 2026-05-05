@@ -1,18 +1,42 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
+import { FinancialAccount, FinancialProfile } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PushSenderService } from '../push/push-sender.service';
+import { toN } from '../common/money';
+
+export type PriorityProfile = FinancialProfile | null;
+
+export interface PriorityCheckResult {
+  complete: boolean;
+  progress: number;
+  target: number;
+  current: number;
+  // Set by the high-APR-debt rung so getActionItems can prioritize the worst
+  // single debt. Other rungs leave it undefined.
+  debts?: FinancialAccount[];
+}
+
+export interface PriorityDef {
+  index: number;
+  title: string;
+  description: string;
+  category: 'cash' | 'debt' | 'invest' | 'business' | 'wealth';
+  check: (profile: PriorityProfile, accounts: FinancialAccount[]) => PriorityCheckResult;
+}
+
+const balanceN = (a: FinancialAccount): number => toN(a.balance);
 
 // The 7-level Priority Waterfall — the core logic of TGP Finance
-export const PRIORITY_WATERFALL = [
+export const PRIORITY_WATERFALL: PriorityDef[] = [
   {
     index: 0,
     title: 'Build $1,000 Cash Buffer',
     description: 'Establish a starter emergency fund before tackling debt.',
     category: 'cash',
-    check: (profile: any, accounts: any[]) => {
+    check: (_profile, accounts) => {
       const cash = accounts
         .filter((a) => ['checking', 'savings'].includes(a.account_type) && !a.is_debt)
-        .reduce((s, a) => s + a.balance, 0);
+        .reduce((s, a) => s + balanceN(a), 0);
       return { complete: cash >= 1000, progress: Math.min(cash / 1000, 1), target: 1000, current: cash };
     },
   },
@@ -21,11 +45,11 @@ export const PRIORITY_WATERFALL = [
     title: 'Pay Off High-APR Unsecured Debt (>10% APR)',
     description: 'Eliminate all unsecured debt above 10% APR. Use avalanche (highest APR first) or snowball (lowest balance first) based on your motivation style.',
     category: 'debt',
-    check: (profile: any, accounts: any[]) => {
+    check: (_profile, accounts) => {
       const highAprDebts = accounts.filter(
-        (a) => a.is_debt && !a.is_secured && (a.apr_percent || 0) >= 10 && a.balance > 0,
+        (a) => a.is_debt && !a.is_secured && (a.apr_percent ?? 0) >= 10 && balanceN(a) > 0,
       );
-      const totalHighAprDebt = highAprDebts.reduce((s, a) => s + a.balance, 0);
+      const totalHighAprDebt = highAprDebts.reduce((s, a) => s + balanceN(a), 0);
       return {
         complete: highAprDebts.length === 0,
         progress: totalHighAprDebt > 0 ? 0 : 1,
@@ -40,11 +64,11 @@ export const PRIORITY_WATERFALL = [
     title: 'Build 3-Month Emergency Fund',
     description: 'Save 3 months of expenses (minimum $10,000) for true security.',
     category: 'cash',
-    check: (profile: any, accounts: any[]) => {
+    check: (profile, accounts) => {
       const cash = accounts
         .filter((a) => ['checking', 'savings'].includes(a.account_type) && !a.is_debt)
-        .reduce((s, a) => s + a.balance, 0);
-      const monthlyIncome = profile?.monthly_income_gross || 0;
+        .reduce((s, a) => s + balanceN(a), 0);
+      const monthlyIncome = toN(profile?.monthly_income_gross);
       const monthlyExpenses = monthlyIncome * 0.6;
       const target = Math.max(monthlyExpenses * 3, 10000);
       return { complete: cash >= target, progress: Math.min(cash / target, 1), target, current: cash };
@@ -55,11 +79,11 @@ export const PRIORITY_WATERFALL = [
     title: 'Maximize Tax-Advantaged Investing',
     description: 'Max out 401k ($23,500/yr 2026) then Roth IRA ($7,000/yr 2026).',
     category: 'invest',
-    check: (profile: any, accounts: any[]) => {
+    check: (_profile, accounts) => {
       const retirement = accounts.filter(
         (a) => ['retirement_401k', 'retirement_ira'].includes(a.account_type) && !a.is_debt,
       );
-      const annualContributions = retirement.reduce((s, a) => s + a.balance, 0);
+      const annualContributions = retirement.reduce((s, a) => s + balanceN(a), 0);
       // Approximate: if retirement accounts exist and have meaningful balance
       const target = 30500; // 23500 + 7000
       return {
@@ -75,11 +99,11 @@ export const PRIORITY_WATERFALL = [
     title: 'Build 6-Month Emergency Fund',
     description: 'Extend your safety net to 6 months of income (minimum $20,000).',
     category: 'cash',
-    check: (profile: any, accounts: any[]) => {
+    check: (profile, accounts) => {
       const cash = accounts
         .filter((a) => ['checking', 'savings'].includes(a.account_type) && !a.is_debt)
-        .reduce((s, a) => s + a.balance, 0);
-      const monthlyIncome = profile?.monthly_income_gross || 0;
+        .reduce((s, a) => s + balanceN(a), 0);
+      const monthlyIncome = toN(profile?.monthly_income_gross);
       const target = Math.max(monthlyIncome * 6, 20000);
       return { complete: cash >= target, progress: Math.min(cash / target, 1), target, current: cash };
     },
@@ -89,7 +113,7 @@ export const PRIORITY_WATERFALL = [
     title: 'Build Business Nest Egg',
     description: 'Save $25,000+ to fund a business or major income-building venture.',
     category: 'business',
-    check: (profile: any, accounts: any[]) => {
+    check: (_profile, accounts) => {
       const businessSavings = accounts
         .filter(
           (a) =>
@@ -97,7 +121,7 @@ export const PRIORITY_WATERFALL = [
             (a.name?.toLowerCase().includes('business') ||
               a.notes?.toLowerCase().includes('business')),
         )
-        .reduce((s, a) => s + a.balance, 0);
+        .reduce((s, a) => s + balanceN(a), 0);
       const target = 25000;
       return {
         complete: businessSavings >= target,
@@ -112,7 +136,7 @@ export const PRIORITY_WATERFALL = [
     title: 'Asset Building & Wealth Accumulation',
     description: 'Invest in diversified index funds, real estate, and income-generating assets. This priority evolves continuously.',
     category: 'wealth',
-    check: (profile: any, accounts: any[]) => {
+    check: (_profile, accounts) => {
       const investments = accounts
         .filter(
           (a) =>
@@ -121,7 +145,7 @@ export const PRIORITY_WATERFALL = [
               a.account_type,
             ),
         )
-        .reduce((s, a) => s + a.balance, 0);
+        .reduce((s, a) => s + balanceN(a), 0);
       return { complete: false, progress: Math.min(investments / 1000000, 1), target: 1000000, current: investments };
     },
   },
@@ -145,7 +169,7 @@ export class PrioritiesService {
     return this.computeCurrentPriority(profile, accounts);
   }
 
-  computeCurrentPriority(profile: any, accounts: any[]) {
+  computeCurrentPriority(profile: PriorityProfile, accounts: FinancialAccount[]) {
     for (const priority of PRIORITY_WATERFALL) {
       const result = priority.check(profile, accounts);
       if (!result.complete) {
@@ -154,8 +178,8 @@ export class PrioritiesService {
           current: {
             ...priority,
             ...result,
-            action_items: this.getActionItems(priority.index, profile, accounts, result as any),
-            estimated_completion: this.estimateCompletion(priority.index, profile, accounts, result as any),
+            action_items: this.getActionItems(priority.index, profile, accounts, result),
+            estimated_completion: this.estimateCompletion(priority.index, profile, accounts, result),
           },
           next: nextPriority
             ? { index: nextPriority.index, title: nextPriority.title }
@@ -175,8 +199,12 @@ export class PrioritiesService {
     };
   }
 
-  private getActionItems(idx: number, profile: any, accounts: any[], result: any): string[] {
-    const income = profile?.monthly_income_gross || 0;
+  private getActionItems(
+    idx: number,
+    profile: PriorityProfile,
+    _accounts: FinancialAccount[],
+    result: PriorityCheckResult,
+  ): string[] {
     switch (idx) {
       case 0:
         return [
@@ -184,17 +212,18 @@ export class PrioritiesService {
           'Avoid new discretionary spending until buffer is reached',
         ];
       case 1: {
-        const debts: any[] = result.debts || [];
+        const debts = result.debts ?? [];
         const sorted =
           profile?.motivation_style === 'small_wins'
-            ? [...debts].sort((a, b) => a.balance - b.balance)
-            : [...debts].sort((a, b) => (b.apr_percent || 0) - (a.apr_percent || 0));
+            ? [...debts].sort((a, b) => balanceN(a) - balanceN(b))
+            : [...debts].sort((a, b) => (b.apr_percent ?? 0) - (a.apr_percent ?? 0));
         if (sorted.length === 0) return ['No high-APR debt found!'];
         const top = sorted[0];
+        const topBalance = balanceN(top);
         return [
-          `Focus extra payments on: ${top.name} ($${top.balance.toFixed(0)} at ${top.apr_percent}% APR)`,
+          `Focus extra payments on: ${top.name} ($${topBalance.toFixed(0)} at ${top.apr_percent}% APR)`,
           `Pay minimum payments on all other debts`,
-          `Extra $200/mo toward ${top.name} = debt-free ${this.extraPaymentMonths(top.balance, top.apr_percent || 26, top.minimum_payment || 0, 200)} months sooner`,
+          `Extra $200/mo toward ${top.name} = debt-free ${this.extraPaymentMonths(topBalance, top.apr_percent ?? 26, toN(top.minimum_payment), 200)} months sooner`,
         ];
       }
       case 2:
@@ -230,8 +259,13 @@ export class PrioritiesService {
     }
   }
 
-  private estimateCompletion(idx: number, profile: any, accounts: any[], result: any): string {
-    const income = profile?.monthly_income_gross || 0;
+  private estimateCompletion(
+    _idx: number,
+    profile: PriorityProfile,
+    _accounts: FinancialAccount[],
+    result: PriorityCheckResult,
+  ): string {
+    const income = toN(profile?.monthly_income_gross);
     const monthlySavings = income * 0.2; // Estimate 20% savings rate
     if (monthlySavings <= 0) return 'Unknown';
 
@@ -280,7 +314,7 @@ export class PrioritiesService {
       const def = PRIORITY_WATERFALL[newIdx];
       await this.pushSender
         .send(userId, 'priority_levelup', {
-          title: '⬆️ New priority unlocked',
+          title: 'New priority',
           body: def?.title ?? `Priority ${newIdx}`,
           data: { priority_index: newIdx, screen: 'Priorities' },
         })

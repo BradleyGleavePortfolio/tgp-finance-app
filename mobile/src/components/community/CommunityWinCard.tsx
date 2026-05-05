@@ -1,12 +1,8 @@
-// CommunityWinCard — Wave 5 cleanup: gamified emoji reactions removed.
-// Per mobile/DESIGN.md §4, the UI exposes a single neutral acknowledgement.
-// The backend still stores `fire` and `clap` kinds (`ReactionKind` in
-// `backend/prisma/schema.prisma`) for migration safety; we collapse the
-// counts on display and only ever send `fire` as the neutral kind.
+// CommunityWinCard — read-only social proof. Doctrine: no reactions, no
+// per-win acknowledgement surface. The card is purely informational.
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Card } from '../ui/Card';
-import { HapticPressable } from '../HapticPressable';
 import { Colors, Typography, Spacing, BorderRadius } from '../../theme/finance';
 
 export interface CommunityWin {
@@ -15,13 +11,10 @@ export interface CommunityWin {
   action: string;
   visibility: 'circle' | 'public';
   createdAt: string | Date;
-  reactions: { fire: number; clap: number };
-  myReactions: { fire: boolean; clap: boolean };
 }
 
 interface CommunityWinCardProps {
   win: CommunityWin;
-  onReact: (winId: string, kind: 'fire' | 'clap') => void;
 }
 
 function timeAgo(date: string | Date): string {
@@ -33,16 +26,13 @@ function timeAgo(date: string | Date): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-export function CommunityWinCard({ win, onReact }: CommunityWinCardProps) {
+export function CommunityWinCard({ win }: CommunityWinCardProps) {
   const initials = win.anonName
     .split(' ')
     .map((p) => p[0])
     .join('')
     .toUpperCase()
     .slice(0, 2);
-
-  const acknowledged = win.myReactions.fire || win.myReactions.clap;
-  const count = win.reactions.fire + win.reactions.clap;
 
   return (
     <Card style={styles.card}>
@@ -62,26 +52,6 @@ export function CommunityWinCard({ win, onReact }: CommunityWinCardProps) {
       </View>
 
       <Text style={styles.action}>{win.action}</Text>
-
-      <View style={styles.reactRow}>
-        <HapticPressable
-          intent="light"
-          style={[styles.reactBtn, acknowledged && styles.reactBtnActive]}
-          onPress={() => onReact(win.id, 'fire')}
-          accessibilityRole="button"
-          accessibilityLabel={acknowledged ? 'Acknowledged' : 'Acknowledge this win'}
-          accessibilityState={{ selected: acknowledged }}
-        >
-          <Text style={[styles.reactLabel, acknowledged && styles.reactLabelActive]}>
-            {acknowledged ? 'Acknowledged' : 'Acknowledge'}
-          </Text>
-          {count > 0 && (
-            <Text style={[styles.reactCount, acknowledged && styles.reactCountActive]}>
-              {count}
-            </Text>
-          )}
-        </HapticPressable>
-      </View>
     </Card>
   );
 }

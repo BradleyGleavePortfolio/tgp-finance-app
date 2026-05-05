@@ -11,7 +11,7 @@ import { MILESTONE_DEFINITIONS } from '../utils/constants';
 
 // ─── Result Types ─────────────────────────────────────────────────────────────
 
-export type MilestoneCategory = 'cash' | 'debt' | 'net_worth' | 'streak' | 'budget' | 'paycheck';
+export type MilestoneCategory = 'cash' | 'debt' | 'net_worth' | 'budget' | 'paycheck';
 
 export interface ResolvedMilestone {
   key: string;
@@ -213,45 +213,6 @@ function resolveNetWorthMilestones(
     .filter((m): m is ResolvedMilestone => m !== null);
 }
 
-// ─── Streak milestones ────────────────────────────────────────────────────────
-
-const STREAK_TARGETS: { key: string; target: number }[] = [
-  { key: 'streak_7',   target: 7 },
-  { key: 'streak_30',  target: 30 },
-  { key: 'streak_90',  target: 90 },
-  { key: 'streak_365', target: 365 },
-];
-
-function resolveStreakMilestones(
-  streakDays: number,
-  unlockedKeys: Set<string>,
-): ResolvedMilestone[] {
-  return STREAK_TARGETS
-    .filter(({ key }) => !unlockedKeys.has(key))
-    .filter(({ target }) => streakDays < target)
-    .slice(0, 1)
-    .map(({ key, target }) => {
-      const def = MILESTONE_DEFINITIONS.find((m) => m.key === key);
-      if (!def) return null;
-      const progress = clamp(streakDays / target, 0, 1);
-      const remaining = Math.max(0, target - streakDays);
-      return {
-        key,
-        title: def.title,
-        description: def.description,
-        icon: def.icon,
-        category: 'streak' as MilestoneCategory,
-        progress,
-        progressLabel: `${streakDays} / ${target} days`,
-        motivationalCopy: buildMotivationalCopy(def.title, remaining, 'days'),
-        isNearTarget: progress >= 0.8,
-        targetValue: target,
-        currentValue: streakDays,
-      };
-    })
-    .filter((m): m is ResolvedMilestone => m !== null);
-}
-
 // ─── Main Resolver ────────────────────────────────────────────────────────────
 
 export interface MilestoneResolverInput {
@@ -293,14 +254,11 @@ export function resolveNextMilestones(input: MilestoneResolverInput): ResolvedMi
     ? Number(profile?.net_worth_snapshot)
     : safeAccounts.reduce((s, a) => s + (a.is_debt ? -1 : 1) * (Number(a.balance) || 0), 0);
 
-  const streakDays = isFinite(Number(profile?.streak_days)) ? Number(profile?.streak_days) : 0;
-
   // Gather all candidate milestones
   const candidates: ResolvedMilestone[] = [
     ...resolveCashMilestones(totalCash, unlockedSet),
     ...resolveDebtMilestones(totalDebt, initialDebt, unlockedSet),
     ...resolveNetWorthMilestones(netWorth, unlockedSet),
-    ...resolveStreakMilestones(streakDays, unlockedSet),
   ];
 
   // Sort: closest to target first (highest progress)

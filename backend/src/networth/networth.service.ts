@@ -128,7 +128,6 @@ export class NetWorthService {
       interest_bleed_monthly: interest_bleed_daily * 30,
       interest_bleed_annual: interest_bleed_daily * 365,
       wealth_velocity_score: profile?.wealth_velocity_score || 0,
-      streak_days: profile?.streak_days || 0,
     };
   }
 }

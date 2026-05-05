@@ -51,7 +51,6 @@ jest.mock('./api', () => ({
 import * as Notifications from 'expo-notifications';
 import {
   STORAGE_KEYS,
-  scheduleStreakRiskReminder,
   maybeSendPriorityLevelUpNotification,
   maybeNotifyNewSpendingDnaReport,
   scheduleFutureSelfDelivery,
@@ -63,27 +62,6 @@ beforeEach(() => {
   (Notifications.scheduleNotificationAsync as jest.Mock).mockClear();
   (Notifications.cancelScheduledNotificationAsync as jest.Mock).mockClear();
   (Notifications.getAllScheduledNotificationsAsync as jest.Mock).mockResolvedValue([]);
-});
-
-describe('scheduleStreakRiskReminder', () => {
-  it('does not schedule when streak is zero', async () => {
-    await scheduleStreakRiskReminder({ streakDays: 0 });
-    expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
-  });
-
-  it('does not schedule when EOD already submitted today', async () => {
-    const today = new Date().toISOString();
-    await scheduleStreakRiskReminder({ streakDays: 5, lastEodDate: today });
-    expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
-  });
-
-  it('schedules a 21:00 repeating trigger when streak is live and EOD not yet submitted', async () => {
-    await scheduleStreakRiskReminder({ streakDays: 5, lastEodDate: null });
-    expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(1);
-    const call = (Notifications.scheduleNotificationAsync as jest.Mock).mock.calls[0][0];
-    expect(call.trigger).toEqual({ hour: 21, minute: 0, repeats: true });
-    expect(call.content.data.type).toBe('streak_risk');
-  });
 });
 
 describe('maybeSendPriorityLevelUpNotification', () => {
@@ -167,14 +145,6 @@ describe('push copy doctrine', () => {
   // practice push copy doesn't use them either.
   const emojiRegex = /[\u{1F300}-\u{1FAFF}\u{1F000}-\u{1F02F}\u{1F0A0}-\u{1F0FF}]/u;
 
-  it('streak risk notification has no emoji and reads quietly', async () => {
-    await scheduleStreakRiskReminder({ streakDays: 3, lastEodDate: null });
-    const call = (Notifications.scheduleNotificationAsync as jest.Mock).mock.calls[0][0];
-    expect(call.content.title).not.toMatch(emojiRegex);
-    expect(call.content.body).not.toMatch(emojiRegex);
-    expect(call.content.title).not.toMatch(/!|🔥|🎉/);
-  });
-
   it('priority level-up notification has no emoji', async () => {
     mockStore[STORAGE_KEYS.lastPriorityIndex] = '1';
     await maybeSendPriorityLevelUpNotification({ index: 2, title: 'Build 3-Month Emergency Fund' });
@@ -198,11 +168,11 @@ describe('handleEodSubmissionNotifications', () => {
       {
         newly_unlocked_milestones: [
           { key: 'cash_1k', title: 'Starter Pack Achieved' },
-          { key: 'streak_7', title: 'Week Warrior' },
+          { key: 'nw_1k', title: 'First Rung' },
         ],
         current_priority: { index: 0, title: 'Build $1,000 Cash Buffer' },
       },
-      { milestone_alerts: true, priority_levelup_alerts: true, streak_alerts_enabled: true },
+      { milestone_alerts: true, priority_levelup_alerts: true },
     );
     // Two milestone notifications + priority seed does NOT fire (no prior cache).
     expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(2);
@@ -214,7 +184,7 @@ describe('handleEodSubmissionNotifications', () => {
         newly_unlocked_milestones: [{ key: 'cash_1k', title: 'Starter Pack Achieved' }],
         current_priority: null,
       },
-      { milestone_alerts: false, priority_levelup_alerts: false, streak_alerts_enabled: false },
+      { milestone_alerts: false, priority_levelup_alerts: false },
     );
     expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
   });

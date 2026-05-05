@@ -10,11 +10,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card } from '../src/components/ui/Card';
 import { Button } from '../src/components/ui/Button';
 import { EmptyState } from '../src/components/ui/EmptyState';
-import { StreakBadge, VelocityBadge } from '../src/components/ui/Badge';
+import { MomentumIndicator } from '../src/components/ui/Badge';
 import { Colors, Typography, Spacing, BorderRadius } from '../src/theme/finance';
 import { useAuthStore } from '../src/stores/authStore';
 import { coachApi } from '../src/services/api';
 import api from '../src/services/api';
+import { errorMessage } from '../src/lib/errorMessage';
 
 // ── API helpers ───────────────────────────────────────────────────────────────
 const accountabilityApi = {
@@ -57,8 +58,8 @@ function StudentPartnerView() {
       const { data } = await accountabilityApi.getPartner();
       setPartner(data?.partner || null);
       setMessage(data?.message || '');
-    } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Failed to load accountability partner.');
+    } catch (err) {
+      Alert.alert('Error', errorMessage(err, 'Failed to load accountability partner.'));
     } finally {
       setLoading(false);
     }
@@ -91,8 +92,7 @@ function StudentPartnerView() {
               </View>
               <Text style={styles.partnerName}>{partner.name}</Text>
               <View style={styles.partnerBadges}>
-                <StreakBadge streak={partner.streak_days || 0} />
-                <VelocityBadge score={partner.wealth_velocity_score || 0} showScore />
+                <MomentumIndicator score={partner.wealth_velocity_score || 0} showScore />
               </View>
 
               <View style={styles.partnerStats}>
@@ -116,7 +116,7 @@ function StudentPartnerView() {
             </Card>
 
             <Text style={styles.infoText}>
-              Your accountability partner's name, streak, velocity score, and current priority level are
+              Your accountability partner's name, velocity score, and current priority level are
               visible. Balance details remain private.
             </Text>
           </>
@@ -151,8 +151,8 @@ function CoachPairView() {
       const { data } = await coachApi.getStudents();
       const list = Array.isArray(data) ? data : data?.students || [];
       setStudents(list);
-    } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Failed to load students.');
+    } catch (err) {
+      Alert.alert('Error', errorMessage(err, 'Failed to load students.'));
     } finally {
       setLoadingStudents(false);
     }
@@ -173,8 +173,8 @@ function CoachPairView() {
       Alert.alert('Paired', data?.message || 'Students have been paired as accountability partners.');
       setStudent1Id('');
       setStudent2Id('');
-    } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Failed to pair students.');
+    } catch (err) {
+      Alert.alert('Error', errorMessage(err, 'Failed to pair students.'));
     } finally {
       setPairing(false);
     }
@@ -236,7 +236,7 @@ function CoachPairView() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.coachSubtitle}>
           Pair two of your students as accountability partners. They'll be able to see each
-          other's streak, velocity score, and priority level (but not balances).
+          other's velocity score and priority level (but not balances).
         </Text>
 
         {loadingStudents ? (

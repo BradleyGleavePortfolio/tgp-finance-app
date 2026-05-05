@@ -1,8 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { FinancialProfile } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PushSenderService } from './push-sender.service';
 import { PushType } from './push.types';
+
+// Profile shape passed to per-type build callbacks. Must be the full
+// Prisma row (or an empty fallback) so callbacks can reach optional
+// fields like future_self_letter / last_eod_date safely.
+type ScheduledProfile = FinancialProfile | Partial<FinancialProfile>;
 
 // Each cron runs hourly in UTC; the handler filters to users whose local time
 // sits inside the per-type target window (±30 min). This lets a single cron
@@ -33,24 +39,8 @@ export class PushSchedulerService {
       if (this.loggedTodayLocal(profile, localNow)) return null;
       return {
         title: 'Time for your daily check-in',
-        body: 'Drop your balances before bed — streak day ' +
-          ((profile.streak_days ?? 0) + 1) +
-          ' is waiting.',
+        body: 'Drop your balances before bed.',
         data: { screen: 'EODFlow' },
-      };
-    });
-  }
-
-  // ── Streak at risk — target 19:00 user-local (±30 min) ─────────────────
-  @Cron(CronExpression.EVERY_HOUR)
-  async tickStreakAtRisk(): Promise<void> {
-    await this.runForType('streak_at_risk', 19, async (profile, _user, localNow) => {
-      if ((profile.streak_days ?? 0) < 3) return null;
-      if (this.loggedTodayLocal(profile, localNow)) return null;
-      return {
-        title: `${profile.streak_days}-day streak ends today.`,
-        body: 'Today’s check-in has not been logged. Two hours remain.',
-        data: { screen: 'EODFlow', streak_days: profile.streak_days },
       };
     });
   }
@@ -123,7 +113,7 @@ export class PushSchedulerService {
     type: PushType,
     targetHourLocal: number,
     build: (
-      profile: any,
+      profile: ScheduledProfile,
       user: { id: string; created_at: Date },
       localNow: Date,
     ) => Promise<{ title: string; body: string; data?: Record<string, unknown> } | null>,
@@ -133,7 +123,6 @@ export class PushSchedulerService {
       // All other types are scoped further in the per-user callbacks.
       const prefFieldByType: Record<string, string> = {
         eod_reminder: 'eod_reminder_enabled',
-        streak_at_risk: 'streak_alerts_enabled',
         future_self_letter: 'future_self_letter_enabled',
         spending_dna: 'spending_dna_alerts',
       };
@@ -163,7 +152,7 @@ export class PushSchedulerService {
         if (!user) continue;
 
         const localNow = this.localNow(c.timezone);
-        const payload = await build(profile ?? ({} as any), user, localNow);
+        const payload = await build(profile ?? {}, user, localNow);
         if (!payload) continue;
 
         await this.pushSender.send(c.user_id, type, payload);
@@ -218,7 +207,7 @@ export class PushSchedulerService {
    * `last_eod_date` is stored as a DATE — we treat the db-supplied Y/M/D as
    * the user's local day-of-record (matches how EOD writes it).
    */
-  private loggedTodayLocal(profile: any, localNow: Date): boolean {
+  private loggedTodayLocal(profile: ScheduledProfile, localNow: Date): boolean {
     if (!profile?.last_eod_date) return false;
     const last = new Date(profile.last_eod_date);
     return (

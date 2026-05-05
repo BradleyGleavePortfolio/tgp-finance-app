@@ -10,7 +10,7 @@ export class OnboardingController {
   constructor(private readonly onboardingService: OnboardingService) {}
 
   @Post('quiz')
-  async submitQuiz(@Body() body: any, @CurrentUser() user: any) {
+  async submitQuiz(@Body() body: unknown, @CurrentUser() user: CurrentUser) {
     const parsed = SubmitQuizSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException({
@@ -22,7 +22,7 @@ export class OnboardingController {
   }
 
   @Get('status')
-  async getStatus(@CurrentUser() user: any) {
+  async getStatus(@CurrentUser() user: CurrentUser) {
     return this.onboardingService.getStatus(user.id);
   }
 }

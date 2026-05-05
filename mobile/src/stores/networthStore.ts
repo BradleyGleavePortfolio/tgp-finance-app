@@ -4,15 +4,16 @@ import { networthApi } from '../services/api';
 import type { NetWorthHistory } from '../types';
 
 /** Safely extract an array from any API response shape */
-function safeArray<T>(data: any, key: string): T[] {
-  if (!data) return [];
-  if (Array.isArray(data)) return data;
-  if (data[key] && Array.isArray(data[key])) return data[key];
+function safeArray<T>(data: unknown, key: string): T[] {
+  if (!data || typeof data !== 'object') return [];
+  if (Array.isArray(data)) return data as T[];
+  const inner = (data as Record<string, unknown>)[key];
+  if (Array.isArray(inner)) return inner as T[];
   return [];
 }
 
 /** Safe number — never let NaN propagate */
-function safeNum(v: any, fallback = 0): number {
+function safeNum(v: unknown, fallback = 0): number {
   const n = Number(v);
   return isFinite(n) ? n : fallback;
 }

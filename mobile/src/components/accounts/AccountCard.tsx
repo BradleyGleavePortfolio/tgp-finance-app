@@ -26,7 +26,8 @@ export function AccountCard({ account, previousBalance, onPress }: AccountCardPr
     ? trend === 'down' ? Colors.profitGreen : trend === 'up' ? Colors.debtCrimson : Colors.slateGray
     : trend === 'up' ? Colors.profitGreen : trend === 'down' ? Colors.debtCrimson : Colors.slateGray;
 
-  const trendIcon = trend === 'up' ? 'trending-up' : trend === 'down' ? 'trending-down' : 'remove';
+  const trendIcon: React.ComponentProps<typeof Ionicons>['name'] =
+    trend === 'up' ? 'trending-up' : trend === 'down' ? 'trending-down' : 'remove';
 
   const handlePress = () => {
     try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { /* ignore */ }
@@ -52,7 +53,7 @@ export function AccountCard({ account, previousBalance, onPress }: AccountCardPr
             <Text style={styles.apr}>{formatAPR(account.apr_percent)}</Text>
           )}
           <View style={styles.trendRow}>
-            <Ionicons name={trendIcon as any} size={12} color={trendColor} />
+            <Ionicons name={trendIcon} size={12} color={trendColor} />
           </View>
         </View>
       </View>

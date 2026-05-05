@@ -1,6 +1,20 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { toN } from '../common/money';
+
+// Profile updates accept the same fields as Prisma's update input plus the
+// monthly/annual income mirroring the service applies inline. user_id is
+// taken from the authenticated request and must not arrive on the body.
+// Income values arrive as Prisma.Decimal because the Zod schema produces
+// Decimal via MoneyAmountPositive.
+export type ProfileUpdate = Omit<
+  Prisma.FinancialProfileUncheckedUpdateInput,
+  'user_id' | 'monthly_income_gross' | 'annual_income_gross'
+> & {
+  monthly_income_gross?: Prisma.Decimal;
+  annual_income_gross?: Prisma.Decimal;
+};
 
 @Injectable()
 export class ProfileService {
@@ -23,21 +37,25 @@ export class ProfileService {
     return profile;
   }
 
-  async updateProfile(userId: string, data: any) {
-    // Compute annual from monthly if only monthly provided
+  async updateProfile(userId: string, data: ProfileUpdate) {
+    // Compute annual from monthly if only monthly provided.
     if (data.monthly_income_gross && !data.annual_income_gross) {
-      data.annual_income_gross = data.monthly_income_gross * 12;
+      data.annual_income_gross = data.monthly_income_gross.mul(12);
     }
 
-    // Compute monthly from annual if only annual provided
+    // Compute monthly from annual if only annual provided. Round to two
+    // decimal places to match the DECIMAL(14,2) column.
     if (data.annual_income_gross && !data.monthly_income_gross) {
-      data.monthly_income_gross = Math.round(data.annual_income_gross / 12);
+      data.monthly_income_gross = data.annual_income_gross.div(12).toDecimalPlaces(2);
     }
 
     const profile = await this.prisma.financialProfile.upsert({
       where: { user_id: userId },
       update: { ...data, updated_at: new Date() },
-      create: { user_id: userId, ...data },
+      create: {
+        user_id: userId,
+        ...(data as Omit<Prisma.FinancialProfileUncheckedCreateInput, 'user_id'>),
+      },
     });
 
     return profile;

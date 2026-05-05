@@ -64,11 +64,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
         messages: [...state.messages, assistantMessage],
         isLoading: false,
       }));
-    } catch (error: any) {
+    } catch (error) {
+      const e = error as {
+        response?: { data?: { error?: unknown; message?: unknown } };
+        message?: unknown;
+      };
       const rawError =
-        error.response?.data?.error ||
-        error.response?.data?.message ||
-        error.message ||
+        (typeof e.response?.data?.error === 'string' && e.response.data.error) ||
+        (typeof e.response?.data?.message === 'string' && e.response.data.message) ||
+        (typeof e.message === 'string' && e.message) ||
         'Something went wrong. Try again.';
       // Never show raw HTTP exception class names to the user
       const errorMsg = rawError.includes('Exception') || rawError.includes('exception')

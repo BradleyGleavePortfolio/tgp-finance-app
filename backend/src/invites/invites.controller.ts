@@ -44,7 +44,7 @@ export class InvitesController {
    */
   @Post('attach')
   @UseGuards(JwtAuthGuard)
-  async attach(@Body() body: any, @CurrentUser() user: any) {
+  async attach(@Body() body: unknown, @CurrentUser() user: CurrentUser) {
     const parsed = AttachSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException({
@@ -62,7 +62,7 @@ export class InvitesController {
   @Get('my-code')
   @UseGuards(JwtAuthGuard, RoleGuard)
   @Roles('coach')
-  async myCode(@CurrentUser() user: any) {
+  async myCode(@CurrentUser() user: CurrentUser) {
     return this.invitesService.getMyInvite(user.id);
   }
 }

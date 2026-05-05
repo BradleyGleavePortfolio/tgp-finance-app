@@ -48,9 +48,31 @@ tests, operations.
 | `EXPO_PUBLIC_SUPABASE_URL` | yes | Same Supabase project URL the backend uses. The app throws on startup if missing — there is no hardcoded fallback. |
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | yes | Anon key — safe to ship to clients but required explicitly. |
 | `expoConfig.extra.apiUrl` | yes | Set in `app.json`. Defaults to `https://tgp-finance-api.fly.dev`. |
+| `EXPO_PUBLIC_SENTRY_DSN` | optional | Server-side DSN. When unset, `initSentry()` is a no-op and the app ships without telemetry. |
+| `EXPO_PUBLIC_ENVIRONMENT` | optional | `development` / `preview` / `production`. Tags every Sentry event so dashboards can filter. |
+| `SENTRY_AUTH_TOKEN` | EAS Secret only | Needed by the EAS build to upload source-maps to Sentry. Never commit. Create it once with `eas secret:create --scope project --name SENTRY_AUTH_TOKEN --value $TOKEN`. Generate the token at sentry.io → User Settings → Auth Tokens with `project:releases` and `project:write` scopes. When unset, the build skips the upload step rather than failing — production stack traces will be minified until the secret is added. |
+| `SENTRY_ORG` | optional EAS Secret | Override for the org slug declared in `app.json` `plugins.@sentry/react-native/expo.organization`. Set only if the EAS build needs to target a different org than the one pinned in source. |
+| `SENTRY_PROJECT` | optional EAS Secret | Same shape as `SENTRY_ORG` but for the project slug. |
 
 Put public env in `mobile/.env` or directly in the Expo config. Never
 ship the service-role key here.
+
+## Sentry source-maps
+
+Production stack traces stay readable because `metro.config.js` wraps
+Expo's default Metro config with `getSentryExpoConfig` from
+`@sentry/react-native/metro`, and `app.json` registers the
+`@sentry/react-native/expo` config plugin with the org and project
+slugs. EAS picks up `SENTRY_AUTH_TOKEN` from project secrets and
+runs the bundled `sentry-expo-upload-sourcemaps` step on every build.
+The release identifier the running app sends is
+`${expo.version}+${expo.ios.buildNumber || expo.android.versionCode}`
+(see `src/services/sentry.ts`), which is the same identifier the
+upload tags so dashboards can match traces to symbolicated frames.
+
+When `SENTRY_AUTH_TOKEN` is unset, the upload silently skips. The
+build still succeeds; Sentry just keeps showing minified frames
+until the secret is added.
 
 ## API client
 
@@ -124,6 +146,34 @@ endpoint and replace state in one shot.
 the app uses. Today the meaningful coverage is `notifications.spec.ts`
 (local notification scheduling). Component-level coverage is not yet
 in place; see the issue tracker.
+
+## Versioning
+
+Version metadata is owned by `mobile/app.json` and bumped manually in
+git before each EAS production build. `eas.json` `cli.appVersionSource`
+is set to `"local"` so EAS reads the values from source rather than
+auto-incrementing remotely — every change is visible in the commit
+history.
+
+| Field | Where | When to bump |
+|-------|-------|--------------|
+| `expo.version` | `app.json` | Every public release. Semantic-version style (`1.0.0` → `1.0.1` for fixes, `1.1.0` for features, `2.0.0` for store-listing-visible reshapes). |
+| `expo.ios.buildNumber` | `app.json` | Every TestFlight or App Store upload, including reuploads of the same `version`. Apple rejects duplicate `(version, buildNumber)` pairs. Monotonically increasing string (`"1"`, `"2"`, …). |
+| `expo.android.versionCode` | `app.json` | Every Play Console upload, including reuploads. Google rejects duplicate `versionCode`. Monotonically increasing integer (`1`, `2`, …). |
+
+`expo.ios.infoPlist.ITSAppUsesNonExemptEncryption` is set to `false`
+so TestFlight skips the export-compliance prompt on every upload. The
+app does not implement custom cryptography beyond the standard iOS
+TLS stack, which is exempt.
+
+Sentry's release identifier (see `src/services/sentry.ts`) is built
+from `expo.version` plus the platform-specific build number, so
+forgetting to bump the build number on an upload also collapses the
+Sentry release tag onto the previous one. Always bump both.
+
+This pattern matches the fitness mobile repo, which has the same
+`appVersionSource: "local"` policy. Keeping the two repos aligned
+means a single release runbook covers both apps.
 
 ## Operations
 

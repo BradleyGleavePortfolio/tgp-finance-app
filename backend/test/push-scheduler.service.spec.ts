@@ -20,7 +20,6 @@ type Candidate = {
   user_id: string;
   timezone: string;
   eod_reminder_enabled: boolean;
-  streak_alerts_enabled: boolean;
   future_self_letter_enabled: boolean;
   spending_dna_alerts: boolean;
 };
@@ -78,12 +77,11 @@ describe('PushSchedulerService timezone windows', () => {
           user_id: 'u1',
           timezone: 'America/Los_Angeles',
           eod_reminder_enabled: true,
-          streak_alerts_enabled: false,
           future_self_letter_enabled: false,
           spending_dna_alerts: false,
         },
       ],
-      profileByUser: { u1: { last_eod_date: null, streak_days: 4 } },
+      profileByUser: { u1: { last_eod_date: null } },
       userByUser: { u1: { id: 'u1', created_at: new Date('2025-01-01T00:00:00Z') } },
     });
 
@@ -105,7 +103,6 @@ describe('PushSchedulerService timezone windows', () => {
           user_id: 'u1',
           timezone: 'America/Los_Angeles',
           eod_reminder_enabled: true,
-          streak_alerts_enabled: false,
           future_self_letter_enabled: false,
           spending_dna_alerts: false,
         },
@@ -129,58 +126,18 @@ describe('PushSchedulerService timezone windows', () => {
           user_id: 'u1',
           timezone: 'America/Los_Angeles',
           eod_reminder_enabled: true,
-          streak_alerts_enabled: false,
           future_self_letter_enabled: false,
           spending_dna_alerts: false,
         },
       ],
       profileByUser: {
-        u1: { last_eod_date: new Date('2026-01-09T00:00:00Z'), streak_days: 4 },
+        u1: { last_eod_date: new Date('2026-01-09T00:00:00Z') },
       },
       userByUser: { u1: { id: 'u1', created_at: new Date('2025-01-01T00:00:00Z') } },
     });
 
     await svc.tickEodReminder();
     expect(pushSender.send).not.toHaveBeenCalled();
-  });
-
-  it('Streak at risk fires only when streak >=3 and no log today', async () => {
-    const base = {
-      nowFixedIso: '2026-01-10T02:30:00.000Z', // LA 18:30 = within 19:00 ±30
-      candidates: [
-        {
-          user_id: 'u1',
-          timezone: 'America/Los_Angeles',
-          eod_reminder_enabled: false,
-          streak_alerts_enabled: true,
-          future_self_letter_enabled: false,
-          spending_dna_alerts: false,
-        },
-      ],
-      userByUser: { u1: { id: 'u1', created_at: new Date('2025-01-01T00:00:00Z') } },
-    };
-    // streak < 3 → no push
-    {
-      const { svc, pushSender } = buildStub({
-        ...base,
-        profileByUser: { u1: { streak_days: 2, last_eod_date: null } },
-      });
-      await svc.tickStreakAtRisk();
-      expect(pushSender.send).not.toHaveBeenCalled();
-    }
-    // streak = 5 → push
-    {
-      const { svc, pushSender } = buildStub({
-        ...base,
-        profileByUser: { u1: { streak_days: 5, last_eod_date: null } },
-      });
-      await svc.tickStreakAtRisk();
-      expect(pushSender.send).toHaveBeenCalledWith(
-        'u1',
-        'streak_at_risk',
-        expect.objectContaining({ title: expect.stringContaining('streak ends today') }),
-      );
-    }
   });
 
   it('Future-self letter only fires after 90 days AND when letter exists', async () => {
@@ -191,7 +148,6 @@ describe('PushSchedulerService timezone windows', () => {
           user_id: 'u1',
           timezone: 'America/Los_Angeles',
           eod_reminder_enabled: false,
-          streak_alerts_enabled: false,
           future_self_letter_enabled: true,
           spending_dna_alerts: false,
         },

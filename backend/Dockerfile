@@ -14,8 +14,9 @@ FROM node:20-slim AS builder
 
 WORKDIR /app
 
-# OpenSSL is required by the Prisma engines on Debian slim.
-RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+# OpenSSL is required by the Prisma engines on Debian slim. ca-certificates is
+# required by sentry-cli (TLS to sentry.io) during the source-map upload below.
+RUN apt-get update -y && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Copy manifests + Prisma schema first so the layer caches across source edits.
 COPY package.json package-lock.json ./
@@ -32,11 +33,43 @@ RUN npx --no-install prisma generate
 COPY . .
 RUN npm run build
 
+# Upload sourcemaps to Sentry so production stack traces are readable.
+#
+# Inputs:
+#   RELEASE_VERSION (build arg)        commit SHA / tag — propagated to the
+#                                      runtime stage as ENV so instrument.ts
+#                                      reads the same release the maps were
+#                                      tagged with.
+#   SENTRY_AUTH_TOKEN (build secret)   internal-integration token, never baked
+#                                      into the image — exposed only to this RUN.
+#   SENTRY_DSN / SENTRY_ORG /
+#   SENTRY_PROJECT (build args)        Sentry routing.
+#
+# The script is a graceful no-op when any of the four secrets is unset, so
+# `docker build` works without Sentry credentials in dev / CI.
+ARG RELEASE_VERSION=""
+ARG SENTRY_DSN=""
+ARG SENTRY_ORG=""
+ARG SENTRY_PROJECT=""
+
+RUN --mount=type=secret,id=sentry_auth_token \
+    SENTRY_AUTH_TOKEN="$( [ -f /run/secrets/sentry_auth_token ] && cat /run/secrets/sentry_auth_token || echo '' )" \
+    SENTRY_DSN="$SENTRY_DSN" \
+    SENTRY_ORG="$SENTRY_ORG" \
+    SENTRY_PROJECT="$SENTRY_PROJECT" \
+    RELEASE_VERSION="$RELEASE_VERSION" \
+    bash ./scripts/sentry-upload-sourcemaps.sh dist
+
 # Stage 2: Production runtime
 FROM node:20-slim AS production
 
 WORKDIR /app
 
+# Persist RELEASE_VERSION into the runtime image so src/instrument.ts can tag
+# captured Sentry events with the same release the sourcemaps were uploaded
+# to in stage 1. Build args do not survive across stages without a re-declare.
+ARG RELEASE_VERSION=""
+ENV RELEASE_VERSION=$RELEASE_VERSION
 ENV NODE_ENV=production
 
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*

@@ -14,14 +14,14 @@ export class AccountabilityController {
   constructor(private readonly accountabilityService: AccountabilityService) {}
 
   @Get('partner')
-  async getPartner(@CurrentUser() user: any) {
+  async getPartner(@CurrentUser() user: CurrentUser) {
     return this.accountabilityService.getPartner(user.id);
   }
 
   @Post('pair')
   @UseGuards(RoleGuard)
   @Roles('coach')
-  async pairStudents(@Body() body: any, @CurrentUser() user: any) {
+  async pairStudents(@Body() body: unknown, @CurrentUser() user: CurrentUser) {
     const parsed = PairAccountabilitySchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException({

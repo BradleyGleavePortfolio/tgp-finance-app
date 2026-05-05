@@ -1,6 +1,17 @@
 import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { EODSubmission, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { toN } from '../common/money';
 import { scopeToCoach } from '../auth/scope';
+
+export interface CoachAlert {
+  student_id: string;
+  student_name: string;
+  alert_type: 'missed_checkin' | 'low_velocity';
+  message: string;
+  severity: 'low' | 'medium' | 'high';
+  days_since_last?: number | null;
+}
 
 @Injectable()
 export class CoachService {
@@ -10,7 +21,7 @@ export class CoachService {
     // OWNER sees every student across every coach; coach sees only their own.
     // scopeToCoach returns {} for owner, { coach_id: coachId } for coach.
     const scope = scopeToCoach({ id: coachId, role });
-    const where: any = { role: 'student', ...scope };
+    const where: Prisma.UserWhereInput = { role: 'student', ...scope };
 
     // Support email search (exact or partial)
     if (search && search.trim()) {
@@ -25,7 +36,6 @@ export class CoachService {
             net_worth_snapshot: true,
             total_debt: true,
             total_assets: true,
-            streak_days: true,
             wealth_velocity_score: true,
             current_priority_index: true,
             last_eod_date: true,
@@ -46,7 +56,6 @@ export class CoachService {
       return {
         user: { id: s.id, email: s.email, name: s.name },
         profile: {
-          streak_days: profile?.streak_days ?? 0,
           wealth_velocity_score: profile?.wealth_velocity_score ?? 0,
           net_worth_snapshot: profile?.net_worth_snapshot ?? 0,
           current_priority_index: profile?.current_priority_index ?? 0,
@@ -119,7 +128,7 @@ export class CoachService {
    *   - identity + profile basics
    *   - account roll-ups (debt/asset/cash totals)
    *   - last 14 EOD submissions (net worth trajectory)
-   *   - last 14 days of habit logs (streak signals)
+   *   - last 14 days of habit logs
    *   - any active milestones
    *
    * Owner bypass is honored via the role parameter (route-level guard already
@@ -161,8 +170,8 @@ export class CoachService {
     }
 
     const accountTotals = (client.accounts ?? []).reduce(
-      (acc: any, a: any) => {
-        const bal = Number(a.balance ?? 0);
+      (acc, a) => {
+        const bal = toN(a.balance);
         if (a.is_debt) acc.debt += bal;
         else acc.assets += bal;
         if (['checking', 'savings'].includes(a.account_type) && !a.is_debt) acc.cash += bal;
@@ -264,10 +273,10 @@ export class CoachService {
     };
   }
 
-  private computeWeeklyRollups(submissions: any[]) {
+  private computeWeeklyRollups(submissions: EODSubmission[]) {
     if (submissions.length === 0) return [];
 
-    const weeks: Map<string, any[]> = new Map();
+    const weeks = new Map<string, EODSubmission[]>();
     for (const sub of submissions) {
       const date = new Date(sub.submission_date);
       const weekStart = new Date(date);
@@ -280,9 +289,9 @@ export class CoachService {
     return Array.from(weeks.entries()).map(([weekOf, subs]) => ({
       week_of: weekOf,
       submissions_count: subs.length,
-      avg_net_worth: Math.round(subs.reduce((s, e) => s + e.net_worth_computed, 0) / subs.length),
-      avg_debt: Math.round(subs.reduce((s, e) => s + e.total_debt_computed, 0) / subs.length),
-      avg_assets: Math.round(subs.reduce((s, e) => s + e.total_assets_computed, 0) / subs.length),
+      avg_net_worth: Math.round(subs.reduce((s, e) => s + toN(e.net_worth_computed), 0) / subs.length),
+      avg_debt: Math.round(subs.reduce((s, e) => s + toN(e.total_debt_computed), 0) / subs.length),
+      avg_assets: Math.round(subs.reduce((s, e) => s + toN(e.total_assets_computed), 0) / subs.length),
     }));
   }
 
@@ -290,11 +299,11 @@ export class CoachService {
     const students = await this.prisma.user.findMany({
       where: { role: 'student', coach_id: coachId },
       include: {
-        profile: { select: { last_eod_date: true, streak_days: true, wealth_velocity_score: true } },
+        profile: { select: { last_eod_date: true, wealth_velocity_score: true } },
       },
     });
 
-    const alerts: any[] = [];
+    const alerts: CoachAlert[] = [];
     const now = new Date();
 
     for (const student of students) {
@@ -384,7 +393,10 @@ export class CoachService {
     });
   }
 
-  async createTemplate(coachId: string, data: any) {
+  async createTemplate(
+    coachId: string,
+    data: Omit<Prisma.ProgramTemplateUncheckedCreateInput, 'coach_id'>,
+  ) {
     return this.prisma.programTemplate.create({
       data: { coach_id: coachId, ...data },
     });
@@ -400,8 +412,9 @@ export class CoachService {
     // priority index or attaching a coach note.
     await this.assertCoachOwnsStudent(coachId, studentId);
 
-    const phases = template.phases as any[];
-    if (phases && phases.length > 0) {
+    interface TemplatePhase { priority_index?: number }
+    const phases = (Array.isArray(template.phases) ? template.phases : []) as TemplatePhase[];
+    if (phases.length > 0) {
       const firstPhase = phases[0];
       await this.prisma.financialProfile.updateMany({
         where: { user_id: studentId },

@@ -84,7 +84,7 @@ export class AdminFederationService {
    * Client (student) finance summary, looked up by email.
    *
    * The shape is deliberately compact — netWorth + debt + asset roll-up,
-   * streak, last-EOD timestamp, and a coach pointer when one exists. No
+   * last-EOD timestamp, and a coach pointer when one exists. No
    * per-account balances, no individual EOD submissions, no AI insight
    * text. This is what an admin needs to answer "is this person actually
    * using the product?"; it is not a coach console replacement.
@@ -146,7 +146,6 @@ export class AdminFederationService {
         total_assets: numberOrNull(profile?.total_assets),
         total_debt: numberOrNull(profile?.total_debt),
         total_cash: numberOrNull(profile?.total_cash),
-        streak_days: profile?.streak_days ?? 0,
         wealth_velocity_score: profile?.wealth_velocity_score ?? null,
         last_eod_date: profile?.last_eod_date?.toISOString() ?? null,
         current_priority_index: profile?.current_priority_index ?? 0,

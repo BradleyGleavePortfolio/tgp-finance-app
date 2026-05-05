@@ -55,47 +55,6 @@ export default function CommunityScreen() {
     setRefreshing(false);
   }, [loadFeed]);
 
-  const handleReact = useCallback(
-    async (winId: string, kind: 'fire' | 'clap') => {
-      // Optimistic update
-      setWins((prev) =>
-        prev.map((w) => {
-          if (w.id !== winId) return w;
-          const wasActive = w.myReactions[kind];
-          return {
-            ...w,
-            reactions: {
-              ...w.reactions,
-              [kind]: w.reactions[kind] + (wasActive ? -1 : 1),
-            },
-            myReactions: { ...w.myReactions, [kind]: !wasActive },
-          };
-        }),
-      );
-      track('community_win_reacted', { win_id: winId, kind });
-      try {
-        await communityApi.react(winId, kind);
-      } catch {
-        // Revert on failure
-        setWins((prev) =>
-          prev.map((w) => {
-            if (w.id !== winId) return w;
-            const isActive = w.myReactions[kind];
-            return {
-              ...w,
-              reactions: {
-                ...w.reactions,
-                [kind]: w.reactions[kind] + (isActive ? -1 : 1),
-              },
-              myReactions: { ...w.myReactions, [kind]: !isActive },
-            };
-          }),
-        );
-      }
-    },
-    [],
-  );
-
   const handlePost = useCallback(async () => {
     if (action.trim().length < 3) return;
     setPosting(true);
@@ -198,7 +157,7 @@ export default function CommunityScreen() {
             </View>
           ) : (
             wins.map((win) => (
-              <CommunityWinCard key={win.id} win={win} onReact={handleReact} />
+              <CommunityWinCard key={win.id} win={win} />
             ))
           )}
         </ScrollView>

@@ -11,6 +11,7 @@ import { Colors, Typography, Spacing, BorderRadius } from '../src/theme/finance'
 import { useAccountsStore } from '../src/stores/accountsStore';
 import { paydayApi } from '../src/services/api';
 import { formatCurrency } from '../src/utils/formatters';
+import { errorMessage } from '../src/lib/errorMessage';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Allocation {
@@ -83,8 +84,8 @@ export default function PaydayScreen() {
     try {
       const { data } = await paydayApi.deploy(paycheck, activeAllocations);
       setReceipt(data);
-    } catch (err: any) {
-      Alert.alert('Deploy Failed', err?.message || 'Failed to deploy paycheck. Please try again.');
+    } catch (err) {
+      Alert.alert('Deploy Failed', errorMessage(err, 'Failed to deploy paycheck. Please try again.'));
     } finally {
       setDeploying(false);
     }

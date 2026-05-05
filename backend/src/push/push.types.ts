@@ -3,7 +3,6 @@
 
 export type PushType =
   | 'eod_reminder'
-  | 'streak_at_risk'
   | 'net_worth_milestone'
   | 'priority_levelup'
   | 'future_self_letter'
@@ -23,7 +22,6 @@ export interface PushSendResult {
 // Types that dedupe per calendar day per user (one send per UTC day).
 export const DAILY_DEDUPE_TYPES: ReadonlyArray<PushType> = [
   'eod_reminder',
-  'streak_at_risk',
   'future_self_letter',
   'spending_dna',
 ];
@@ -41,7 +39,6 @@ export const EVENT_DEDUPE_KEYS: Readonly<Partial<Record<PushType, string>>> = {
 // hatch).
 export const PREF_FIELD_BY_TYPE: Readonly<Record<PushType, string | null>> = {
   eod_reminder: 'eod_reminder_enabled',
-  streak_at_risk: 'streak_alerts_enabled',
   net_worth_milestone: 'milestone_alerts',
   priority_levelup: 'priority_levelup_alerts',
   future_self_letter: 'future_self_letter_enabled',

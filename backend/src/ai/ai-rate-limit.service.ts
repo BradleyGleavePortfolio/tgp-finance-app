@@ -1,8 +1,16 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
+interface RateLimitErrorBody {
+  error: string;
+  code: 'RATE_LIMITED';
+  limit: number;
+  window_seconds: number;
+  reset_at: string;
+}
+
 class TooManyRequestsException extends HttpException {
-  constructor(response: any) {
+  constructor(response: RateLimitErrorBody) {
     super(response, HttpStatus.TOO_MANY_REQUESTS);
   }
 }

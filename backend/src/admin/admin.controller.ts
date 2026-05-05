@@ -35,7 +35,7 @@ export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
   @Post('promote')
-  async promote(@Body() body: any) {
+  async promote(@Body() body: unknown) {
     const parsed = PromoteSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException({

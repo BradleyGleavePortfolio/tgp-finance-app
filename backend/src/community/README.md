@@ -1,17 +1,14 @@
 # Community
 
-The "contribution loops" feed — anonymized wins from the user base,
-plus reactions. The feed is a mix of synthesized canned wins (derived
-from each user's profile + accounts) and user-posted wins; reactions
-are unique per (`win_id`, `user_id`, `kind`).
+The "contribution loops" feed — anonymized wins from the user base.
+The feed is a mix of synthesized canned wins (derived from each
+user's profile + accounts) and user-posted wins. The doctrine forbids
+reactions, badges, and streaks on the feed.
 
 ## Files
 
-- `community.controller.ts` — `/community/feed`,
-  `/community/wins`, `/community/wins/:id/react`,
-  `/users/me/badges`.
-- `community.service.ts` — synthesizer + feed assembly + reaction
-  upsert.
+- `community.controller.ts` — `/community/feed`, `/community/wins`.
+- `community.service.ts` — synthesizer + feed assembly.
 - `community.module.ts`.
 
 ## Models
@@ -19,17 +16,18 @@ are unique per (`win_id`, `user_id`, `kind`).
 - `CommunityWin` — `{ id, user_id, action, visibility, created_at }`.
   `visibility` is `circle` (only your inner circle) or `public`
   (full feed).
-- `WinReaction` — `{ id, win_id, user_id, kind, created_at }`.
-  `kind` is `fire` or `clap`.
+
+The earlier `WinReaction` model and `ReactionKind` enum were dropped
+in migration `20260429000000_remove_streak_reaction_doctrine_drift`.
+The doctrine forbids reaction chrome on the feed.
 
 ## Synthesizer
 
 `synthesizeWin(user, profile, accounts)` produces a canned win from
-the user's current state — "paid off X% of their debt this month",
-"hit a savings milestone of $Y", "maintained an N-day streak". The
-choice is deterministic on `user.id` so a user sees a stable
-synthetic identity across page loads. Names are anonymized
-"FirstName L." (last initial only).
+the user's current state — "paid off X% of their debt this month"
+or "hit a savings milestone of $Y". The choice is deterministic on
+`user.id` so a user sees a stable synthetic identity across page
+loads. Names are anonymized "FirstName L." (last initial only).
 
 The synthetic feed is the *floor*: when there are not enough real
 posted wins, the assembler tops up with synthesized rows so the feed
@@ -42,15 +40,11 @@ returned payload via a non-persistent `synthesized: true` flag.
 |--------|------|-------|
 | GET | `/community/feed` | The feed (mix of real + synthesized). |
 | POST | `/community/wins` | `{ action, visibility }` — post a win. |
-| POST | `/community/wins/:id/react` | `{ kind: 'fire' \| 'clap' }` — toggle a reaction. Idempotent via the unique index. |
-| GET | `/users/me/badges` | The current user's earned badges (driven by milestone + streak counts). |
 
 ## Security & tenancy
 
 - Posting a win attributes it to `request.user.id`; the body cannot
   spoof another user.
-- Reactions are unique on `(win_id, user_id, kind)` — duplicates are
-  silent no-ops.
 - Anonymization happens at the service layer (`anonymiseName`), not
   in the column store. Future product changes that want to surface
   full names need a deliberate change here, not a query rewrite.

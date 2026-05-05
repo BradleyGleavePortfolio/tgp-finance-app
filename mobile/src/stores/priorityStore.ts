@@ -2,6 +2,50 @@ import { create } from 'zustand';
 import { priorityApi } from '../services/api';
 import { Priority } from '../types';
 
+// Loose envelope for what the backend returns from /priorities. Both the
+// camelCase and snake_case variants are read for legacy compatibility.
+interface RawPriority {
+  index?: number;
+  title?: string;
+  description?: string;
+  actionItems?: string[];
+  action_items?: string[];
+  target?: number;
+  current?: number;
+  isComplete?: boolean;
+  complete?: boolean;
+  estimatedCompletionDate?: string;
+  estimated_completion?: string;
+  progressPercent?: number;
+  progress?: number;
+}
+
+function normalizePriority(raw: RawPriority): Priority {
+  return {
+    index: raw.index ?? 0,
+    title: raw.title || '',
+    description: raw.description || '',
+    actionItems: raw.actionItems || raw.action_items || [],
+    target: raw.target,
+    current: raw.current,
+    isComplete: raw.isComplete ?? raw.complete ?? false,
+    estimatedCompletionDate: raw.estimatedCompletionDate || raw.estimated_completion || undefined,
+    progressPercent:
+      raw.progressPercent ??
+      (typeof raw.progress === 'number' ? Math.round(raw.progress * 100) : 0),
+  };
+}
+
+function pickMessage(error: unknown, fallback: string): string {
+  if (error && typeof error === 'object') {
+    const e = error as { response?: { data?: { message?: unknown } }; message?: unknown };
+    const fromResp = e.response?.data?.message;
+    if (typeof fromResp === 'string') return fromResp;
+    if (typeof e.message === 'string') return e.message;
+  }
+  return fallback;
+}
+
 interface PriorityState {
   currentPriority: Priority | null;
   allPriorities: Priority[];
@@ -29,22 +73,13 @@ export const usePriorityStore = create<PriorityState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const { data } = await priorityApi.getCurrent();
-      const raw = data.current || data.priority || data;
-      const priority: Priority = {
-        index: raw.index ?? 0,
-        title: raw.title || '',
-        description: raw.description || '',
-        actionItems: raw.actionItems || raw.action_items || [],
-        target: raw.target,
-        current: raw.current,
-        isComplete: raw.isComplete ?? raw.complete ?? false,
-        estimatedCompletionDate: raw.estimatedCompletionDate || raw.estimated_completion || undefined,
-        progressPercent: raw.progressPercent ?? (typeof raw.progress === 'number' ? Math.round(raw.progress * 100) : 0),
-      };
+      const envelope = (data ?? {}) as { current?: RawPriority; priority?: RawPriority } & RawPriority;
+      const raw: RawPriority = envelope.current ?? envelope.priority ?? envelope;
+      const priority = normalizePriority(raw);
       set({ currentPriority: priority, currentIndex: priority.index, isLoading: false });
-    } catch (error: any) {
+    } catch (error) {
       set({
-        error: error.response?.data?.message || 'Failed to fetch priority',
+        error: pickMessage(error, 'Failed to fetch priority'),
         isLoading: false,
       });
     }
@@ -54,22 +89,17 @@ export const usePriorityStore = create<PriorityState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const { data } = await priorityApi.getAll();
-      const rawPriorities = data.priorities || data;
-      const allPriorities = Array.isArray(rawPriorities) ? rawPriorities.map((raw: any) => ({
-        index: raw.index ?? 0,
-        title: raw.title || '',
-        description: raw.description || '',
-        actionItems: raw.actionItems || raw.action_items || [],
-        target: raw.target,
-        current: raw.current,
-        isComplete: raw.isComplete ?? raw.complete ?? false,
-        estimatedCompletionDate: raw.estimatedCompletionDate || raw.estimated_completion || undefined,
-        progressPercent: raw.progressPercent ?? (typeof raw.progress === 'number' ? Math.round(raw.progress * 100) : 0),
-      })) : [];
+      const envelope = (data ?? {}) as { priorities?: RawPriority[] };
+      const rawPriorities: RawPriority[] = Array.isArray(envelope.priorities)
+        ? envelope.priorities
+        : Array.isArray(data)
+          ? (data as RawPriority[])
+          : [];
+      const allPriorities = rawPriorities.map(normalizePriority);
       set({ allPriorities, isLoading: false });
-    } catch (error: any) {
+    } catch (error) {
       set({
-        error: error.response?.data?.message || 'Failed to fetch priorities',
+        error: pickMessage(error, 'Failed to fetch priorities'),
         isLoading: false,
       });
     }

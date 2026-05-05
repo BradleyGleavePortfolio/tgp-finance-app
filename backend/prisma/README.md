@@ -48,13 +48,14 @@ generated client directly.
   fast-check daily and event dedupe windows.
 - **`SpendingDnaReport`** — generated monthly per-user; unique on
   `(user_id, month)` so regeneration is an upsert.
-- **`CommunityWin` / `WinReaction`** — anonymized contribution-loop feed.
+- **`CommunityWin`** — anonymized contribution-loop feed (read-only;
+  no per-user reaction tally surface).
 - **`UserPreferences`** — UI personalization (home modules, tone,
   cadence, currency, first-day-of-week).
 
 Enums (`Role`, `AccountType`, `RiskTolerance`, `MotivationStyle`,
-`LogSource`, `ScenarioType`, `WinVisibility`, `ReactionKind`) are fixed in
-the schema and mirrored as TypeScript unions where the client uses them.
+`LogSource`, `ScenarioType`, `WinVisibility`) are fixed in the schema
+and mirrored as TypeScript unions where the client uses them.
 
 ## Migration history
 
