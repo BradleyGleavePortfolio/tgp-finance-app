@@ -5,6 +5,16 @@
 jest.mock('expo-notifications', () => ({
   setNotificationHandler: jest.fn(),
   AndroidImportance: { MAX: 5, HIGH: 4 },
+  // SDK 53 requires explicit trigger.type — mirror the real enum so production
+  // code paths (notifications.ts) resolve at test time.
+  SchedulableTriggerInputTypes: {
+    CALENDAR: 'calendar',
+    DATE: 'date',
+    DAILY: 'daily',
+    WEEKLY: 'weekly',
+    YEARLY: 'yearly',
+    TIME_INTERVAL: 'timeInterval',
+  },
   setNotificationChannelAsync: jest.fn(),
   getPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
   requestPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),

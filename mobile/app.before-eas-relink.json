@@ -13,19 +13,14 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.tgp.finance",
-      "buildNumber": "6",
-      "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
-      }
+      "bundleIdentifier": "com.tgp.finance"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F5EFE4"
       },
-      "package": "com.tgp.finance",
-      "versionCode": 6
+      "package": "com.tgp.finance"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -43,15 +38,7 @@
       ],
       "expo-secure-store",
       "expo-font",
-      "expo-localization",
-      [
-        "@sentry/react-native/expo",
-        {
-          "organization": "tgp",
-          "project": "tgp-finance-mobile",
-          "url": "https://sentry.io/"
-        }
-      ]
+      "expo-localization"
     ],
     "scheme": "tgp-finance",
     "experiments": {
@@ -63,9 +50,9 @@
         "origin": false
       },
       "eas": {
-        "projectId": "8a6095dc-77b8-4b43-8258-47e1e76283e6"
+        "projectId": "6d6503e0-9088-40e6-b77d-c1fbd06a6cd5"
       }
     },
-    "owner": "the-growth-project"
+    "owner": "peach1bomb"
   }
 }
