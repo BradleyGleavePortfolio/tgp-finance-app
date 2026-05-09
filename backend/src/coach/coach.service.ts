@@ -57,6 +57,28 @@ export function threadKey(a: string, b: string): string {
   return [a, b].sort().join(':');
 }
 
+/**
+ * Sprint A audit fix coach #5 — opaque base64-encoded cursor for
+ * roster pagination. The body is just the row id; the encoding makes
+ * the value opaque to clients so they treat it as an opaque token
+ * rather than a row primary key.
+ */
+export function encodeRosterCursor(id: string): string {
+  return Buffer.from(`v1:${id}`, 'utf8').toString('base64url');
+}
+
+export function decodeRosterCursor(cursor: string | undefined): string | null {
+  if (!cursor) return null;
+  try {
+    const decoded = Buffer.from(cursor, 'base64url').toString('utf8');
+    if (!decoded.startsWith('v1:')) return null;
+    const id = decoded.slice('v1:'.length);
+    return id.length > 0 ? id : null;
+  } catch {
+    return null;
+  }
+}
+
 @Injectable()
 export class CoachService {
   constructor(private readonly prisma: PrismaService) {}
@@ -612,6 +634,33 @@ export class CoachService {
    * roster of <500 clients this is fine; we can move to a materialized
    * roster_summary table once the typical tenant exceeds that.
    */
+  /**
+   * Sprint A audit fix coach #5 — DB-layer pagination + status WHERE
+   * + sort orderBy. The previous implementation pulled every roster
+   * row, post-filtered + post-sorted in JS, and returned the whole
+   * list with no `take`. On a coach with 100+ clients (which the
+   * canonical positioning explicitly claims to support) this was a
+   * memory-bound full-table scan per request.
+   *
+   * Status is derived from last_eod_date + eod_submissions count and
+   * pushed down to the WHERE clause:
+   *   - onboarding: profile.last_eod_date IS NULL (no EOD yet)
+   *   - active:     last_eod_date within ACTIVE_DAYS
+   *   - at_risk:    last_eod_date in (ACTIVE_DAYS, AT_RISK_DAYS]
+   *   - inactive:   last_eod_date older than AT_RISK_DAYS
+   *
+   * Sort is mapped to a Prisma orderBy on the underlying column, so
+   * Prisma's existing index on profile rows + the (coach_id, name)
+   * index on User can serve the query without a sort phase.
+   *
+   * Cursor: opaque base64-encoded `id` of the last row in the
+   * previous page. Prisma's `cursor + skip: 1` semantics give stable
+   * pagination as long as the orderBy is total — we always include
+   * `{ id: 'asc' }` as the tiebreaker.
+   *
+   * Limit: clamped to [1, MAX_TAKE]. Returns next_cursor when the
+   * page was full.
+   */
   async getCoachClients(
     coachId: string,
     opts: {
@@ -619,8 +668,16 @@ export class CoachService {
       status?: 'all' | 'active' | 'at_risk' | 'onboarding' | 'inactive';
       sort?: 'name' | 'last_activity' | 'net_worth' | 'savings_rate';
       role?: string;
+      limit?: number;
+      cursor?: string;
     } = {},
   ) {
+    const MAX_TAKE = 50;
+    const DEFAULT_TAKE = 25;
+    const ACTIVE_DAYS = 3;
+    const AT_RISK_DAYS = 14;
+
+    const limit = Math.min(Math.max(opts.limit ?? DEFAULT_TAKE, 1), MAX_TAKE);
     const scope = scopeToCoach({ id: coachId, role: opts.role ?? 'coach' });
     const where: Prisma.UserWhereInput = { role: 'student', ...scope };
 
@@ -632,6 +689,69 @@ export class CoachService {
       ];
     }
 
+    // Status -> WHERE on profile.last_eod_date.
+    if (opts.status && opts.status !== 'all') {
+      const now = new Date();
+      const activeFloor = new Date(now.getTime() - ACTIVE_DAYS * 24 * 60 * 60 * 1000);
+      const atRiskFloor = new Date(now.getTime() - AT_RISK_DAYS * 24 * 60 * 60 * 1000);
+      switch (opts.status) {
+        case 'onboarding':
+          where.profile = { is: { last_eod_date: null } };
+          break;
+        case 'active':
+          where.profile = { is: { last_eod_date: { gte: activeFloor } } };
+          break;
+        case 'at_risk':
+          where.profile = {
+            is: { last_eod_date: { gte: atRiskFloor, lt: activeFloor } },
+          };
+          break;
+        case 'inactive':
+          // last_eod_date is set (so not onboarding) AND older than AT_RISK_DAYS.
+          where.profile = { is: { last_eod_date: { lt: atRiskFloor } } };
+          break;
+        default:
+          break;
+      }
+    }
+
+    // Map sort key -> Prisma orderBy. We always append `{ id: 'asc' }`
+    // as the tiebreaker so cursor pagination is stable.
+    const sortKey = opts.sort ?? 'last_activity';
+    let orderBy: Prisma.UserOrderByWithRelationInput[] = [{ id: 'asc' }];
+    switch (sortKey) {
+      case 'name':
+        orderBy = [{ name: 'asc' }, { id: 'asc' }];
+        break;
+      case 'net_worth':
+        orderBy = [
+          { profile: { net_worth_snapshot: 'desc' } },
+          { id: 'asc' },
+        ];
+        break;
+      case 'savings_rate':
+        orderBy = [
+          { profile: { wealth_velocity_score: 'desc' } },
+          { id: 'asc' },
+        ];
+        break;
+      case 'last_activity':
+      default:
+        // last_activity = most recent EOD first. NULLs (clients who
+        // never logged) sort to the end.
+        orderBy = [
+          { profile: { last_eod_date: { sort: 'desc', nulls: 'last' } } },
+          { id: 'asc' },
+        ];
+        break;
+    }
+
+    const decodedCursor = decodeRosterCursor(opts.cursor);
+    const cursor = decodedCursor ? { id: decodedCursor } : undefined;
+    const skip = cursor ? 1 : 0;
+
+    // Fetch limit + 1 so we can compute next_cursor without an extra
+    // round trip.
     const students = await this.prisma.user.findMany({
       where,
       include: {
@@ -648,17 +768,36 @@ export class CoachService {
         },
         _count: { select: { eod_submissions: true } },
       },
+      orderBy,
+      take: limit + 1,
+      ...(cursor ? { cursor, skip } : {}),
     });
 
+    const hasMore = students.length > limit;
+    const page = hasMore ? students.slice(0, limit) : students;
+    const nextCursor = hasMore && page.length > 0
+      ? encodeRosterCursor(page[page.length - 1].id)
+      : null;
+
     const now = Date.now();
-    const enriched = students.map((s) => {
-      const lastEod = s.profile?.last_eod_date ? new Date(s.profile.last_eod_date).getTime() : null;
-      const daysSince = lastEod ? Math.floor((now - lastEod) / (24 * 60 * 60 * 1000)) : null;
+    const clients = page.map((s) => {
+      const lastEod = s.profile?.last_eod_date
+        ? new Date(s.profile.last_eod_date).getTime()
+        : null;
+      const daysSince = lastEod
+        ? Math.floor((now - lastEod) / (24 * 60 * 60 * 1000))
+        : null;
+      const eodCount = s._count?.eod_submissions ?? 0;
       let status: 'active' | 'at_risk' | 'onboarding' | 'inactive';
-      if ((s._count?.eod_submissions ?? 0) === 0) status = 'onboarding';
-      else if (daysSince !== null && daysSince <= 3) status = 'active';
-      else if (daysSince !== null && daysSince <= 14) status = 'at_risk';
-      else status = 'inactive';
+      if (eodCount === 0 || lastEod === null) {
+        status = 'onboarding';
+      } else if (daysSince !== null && daysSince <= ACTIVE_DAYS) {
+        status = 'active';
+      } else if (daysSince !== null && daysSince <= AT_RISK_DAYS) {
+        status = 'at_risk';
+      } else {
+        status = 'inactive';
+      }
 
       return {
         id: s.id,
@@ -671,37 +810,21 @@ export class CoachService {
         wealth_velocity_score: s.profile?.wealth_velocity_score ?? 0,
         primary_goal: s.profile?.primary_goal ?? null,
         days_since_last_checkin: daysSince,
-        eod_submission_count: s._count?.eod_submissions ?? 0,
+        eod_submission_count: eodCount,
         priority_index: s.profile?.current_priority_index ?? 0,
         joined_at: s.created_at,
       };
     });
 
-    const filtered =
-      opts.status && opts.status !== 'all'
-        ? enriched.filter((c) => c.status === opts.status)
-        : enriched;
-
-    const sortKey = opts.sort ?? 'last_activity';
-    filtered.sort((a, b) => {
-      switch (sortKey) {
-        case 'name':
-          return a.name.localeCompare(b.name);
-        case 'net_worth':
-          return b.net_worth - a.net_worth;
-        case 'savings_rate':
-          // Proxy: velocity score is the project's normalized savings-rate-ish metric.
-          return (b.wealth_velocity_score ?? 0) - (a.wealth_velocity_score ?? 0);
-        case 'last_activity':
-        default: {
-          const ad = a.days_since_last_checkin ?? Number.POSITIVE_INFINITY;
-          const bd = b.days_since_last_checkin ?? Number.POSITIVE_INFINITY;
-          return ad - bd;
-        }
-      }
-    });
-
-    return { clients: filtered, total: filtered.length };
+    return {
+      clients,
+      next_cursor: nextCursor,
+      // Kept for back-compat with the existing mobile clients which
+      // read `total` from the response. With cursor pagination this
+      // is the page size, not the global count — the mobile UI can
+      // migrate to next_cursor.
+      total: clients.length,
+    };
   }
 
   /** Combined accounts/goals/cashflow snapshot used by ClientDetail tabs. */

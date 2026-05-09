@@ -193,3 +193,63 @@ The release script handles these via baseline-recovery; if it still fails, the s
 - `mobile/DESIGN.md` — editorial register and brand doctrine
 - `EAS-BUILD.md` — mobile production build commands
 - `ONBOARDING.md` — new-engineer codebase tour
+
+## Coach promotion audit retention (Sprint A audit fix coach #7)
+
+Every coach-promote attempt — success or fail — writes a row to
+`coach_promotion_audits`. The endpoint is rate-limited (5/min/IP) so
+spam is bounded, but the table needs scheduled cleanup so an attacker
+with persistence cannot grow it unbounded over time.
+
+### Retention policy
+
+| Outcome | Retention | Why |
+|---|---|---|
+| `success` | indefinite | Compliance / audit trail. Never pruned. |
+| `already_coach` | 365 days | Idempotent re-promote noise. One-year window covers ops debugging. |
+| `invalid_token`, `invalid_role`, `rate_limited`, anything else | 90 days | Failure-mode signal value decays fast; 90 days covers any incident replay window. |
+
+### Job
+
+`backend/src/auth/coach-promotion-audit.scheduler.ts` runs nightly at
+03:15 UTC via NestJS Schedule. Reads the policy above and issues two
+`deleteMany` calls (non-success and already_coach buckets). Idempotent
+— pruning the same window twice is a no-op.
+
+### Manual invocation
+
+If a one-off cleanup is needed (eg. after an incident floods the
+table), call `prune()` directly via a `nest run` script or attach a
+debug `ts-node` shell. The job logs counts on every run; check Fly
+logs for `coach_promotion_audits retention sweep` lines.
+
+### Schema
+
+The table lives in the same Postgres database as the rest of the
+finance backend. No separate retention store. The `(outcome,
+created_at desc)` index defined in `backend/prisma/schema.prisma`
+serves the prune query directly.
+
+## Federation token preflight (Sprint A audit fix coach #13)
+
+On boot, `FederationTokenSelfCheck` (in `backend/src/system/`) logs
+the configuration state of the cross-pillar federation. This was
+added to surface the silent-degrade failure mode the audit flagged:
+when `FEDERATION_SERVICE_TOKEN` is unset or wrong, federation calls
+return 503 / auth_unconfigured but the coach UX shows a generic
+error.
+
+Look for these lines in Fly logs after a deploy:
+
+- `federation token configured` — token is set and at least 32
+  characters. This is the normal path.
+- `FEDERATION_SERVICE_TOKEN is unset — federation will return 503` —
+  the variable is not set on this app. Set with `fly secrets set
+  FEDERATION_SERVICE_TOKEN=$(openssl rand -hex 32)` and deploy.
+- `FEDERATION_SERVICE_TOKEN is too short` — fewer than 32
+  characters. Rotate.
+
+Both backends (fitness `growth-project-backend` and finance
+`tgp-finance-app/backend`) must agree on the same secret value. The
+fitness side reads it as `FINANCE_SERVICE_TOKEN`; this is the same
+token, just a different env-var name on each side. Keep them in sync.

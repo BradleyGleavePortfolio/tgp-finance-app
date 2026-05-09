@@ -306,13 +306,90 @@ export interface EODWriteInput {
 
 // EOD API
 export const eodApi = {
-  submitToday: (data: EODWriteInput) => api.post('/api/eod', data),
-  getToday: () => api.get('/api/eod/today'),
+  submitToday: (data: EODWriteInput) => api.post<EODSubmissionResponse>('/api/eod', data),
+  getToday: () => api.get<EODSubmissionResponse>('/api/eod/today'),
   getHistory: (days?: number) =>
     api.get('/api/eod', { params: { days } }),
   getHistoryByLimit: (limit?: number) =>
     api.get('/api/eod/history', { params: { limit } }),
-  update: (id: string, data: Partial<EODWriteInput>) => api.put(`/api/eod/${id}`, data),
+  update: (id: string, data: Partial<EODWriteInput>) =>
+    api.put<EODSubmissionResponse>(`/api/eod/${id}`, data),
+};
+
+// Sprint A audit fix H-3 — typed shape for the EOD submit response.
+// The store + screen previously consumed the result as `any`. The
+// finance backend's eod.service.ts returns the saved submission row
+// inline plus computed totals (total_assets, total_debt,
+// net_worth_computed) and an optional ai_insight. The `submission`
+// envelope shape exists on some legacy paths so we accept both.
+// Optional fields stay optional so a degraded AI provider does not
+// break the screen.
+export interface EODSubmissionResponse {
+  submission?: EODSubmissionRow;
+  id?: string;
+  user_id?: string;
+  submission_date?: string;
+  mood?: number | null;
+  notes?: string | null;
+  account_snapshots?: AccountSnapshot[];
+  habits?: HabitEntry[];
+  habits_checked?: string[];
+  total_assets?: number;
+  total_debt?: number;
+  net_worth_computed?: number;
+  previous_net_worth?: number;
+  ai_insight?: string;
+  submitted_at?: string;
+  created_at?: string;
+  // Side channels surfaced opportunistically by the server. The
+  // notifications side effect at handleEodSubmissionNotifications
+  // reads both; the post-submit screen ignores them.
+  newly_unlocked_milestones?: Array<{ key?: string; title?: string }>;
+  current_priority?: { index: number; title: string } | null;
+}
+
+export interface EODSubmissionRow {
+  id: string;
+  user_id: string;
+  submission_date: string;
+  mood: number | null;
+  notes: string | null;
+  account_snapshots: AccountSnapshot[];
+  habits: HabitEntry[];
+  total_assets: number;
+  total_debt: number;
+  net_worth_computed: number;
+  previous_net_worth?: number;
+  ai_insight?: string;
+  submitted_at: string;
+}
+
+// Sprint A audit fix CR-3 — client-side messages.
+// Backend mounts at /api/messages. Pagination cursor is the oldest
+// `created_at` ISO string from the previous page; pass it back as
+// `before` to walk further into the past.
+export interface ClientMessage {
+  id: string;
+  body: string;
+  from_coach: boolean;
+  read_at: string | null;
+  created_at: string;
+}
+
+export interface ClientMessageThreadResponse {
+  thread_key: string | null;
+  has_coach: boolean;
+  coach_name: string | null;
+  messages: ClientMessage[];
+  next_cursor: string | null;
+}
+
+export const messagesApi = {
+  getThread: (params?: { limit?: number; before?: string }) =>
+    api.get<ClientMessageThreadResponse>('/api/messages', { params }),
+  unreadCount: () => api.get<{ count: number }>('/api/messages/unread-count'),
+  send: (body: string) => api.post<ClientMessage>('/api/messages', { body }),
+  markRead: () => api.post<{ marked: number }>('/api/messages/read'),
 };
 
 // Onboarding API

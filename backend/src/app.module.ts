@@ -30,6 +30,8 @@ import { SystemModule } from './system/system.module';
 import { CommunityModule } from './community/community.module';
 // UX Psychology Report #4: Preference-Controlled Personalization
 import { PreferencesModule } from './preferences/preferences.module';
+// Sprint A audit fix CR-3 — client-side coach-message read surface.
+import { MessagesModule } from './messages/messages.module';
 
 import { HealthController } from './health/health.controller';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -89,6 +91,8 @@ import { InvitesModule } from './invites/invites.module';
     PreferencesModule,
     AdminModule,
     InvitesModule,
+    // Sprint A audit fix CR-3 — client-side messages module.
+    MessagesModule,
   ],
   controllers: [HealthController],
   providers: [

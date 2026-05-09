@@ -5,6 +5,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
+// Sprint A audit fix coach #7 — coach_promotion_audits retention.
+import { CoachPromotionAuditScheduler } from './coach-promotion-audit.scheduler';
 
 @Module({
   imports: [
@@ -31,7 +33,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, CoachPromotionAuditScheduler],
   exports: [AuthService, JwtModule, PassportModule],
 })
 export class AuthModule {}

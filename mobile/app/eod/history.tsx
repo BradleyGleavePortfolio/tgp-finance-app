@@ -61,7 +61,28 @@ function EditForm({ entry, onSave, onCancel }: {
         habits_checked: DAILY_HABITS.filter(h => habits[h.key]).map(h => h.key),
       });
       Alert.alert('Saved', 'Your check-in has been updated.');
-      onSave(data?.submission ?? { ...entry, mood, notes, habits_checked: Object.keys(habits).filter(k => habits[k]) });
+      // Sprint A audit fix H-3 follow-up: server returns
+      // mood: number | null; the local EODEntry shape uses
+      // mood?: number. Normalise null -> undefined here so the
+      // typed EODSubmissionRow flows into the local type cleanly.
+      const row = data?.submission;
+      const normalized: EODEntry = row
+        ? {
+            id: row.id,
+            submission_date: row.submission_date,
+            mood: row.mood ?? undefined,
+            notes: row.notes ?? undefined,
+            habits_checked: row.habits.filter((h) => h.completed).map((h) => h.habit_key),
+            account_snapshots: row.account_snapshots,
+            net_worth_computed: row.net_worth_computed,
+          }
+        : {
+            ...entry,
+            mood,
+            notes,
+            habits_checked: Object.keys(habits).filter((k) => habits[k]),
+          };
+      onSave(normalized);
     } catch (err) {
       Alert.alert('Error', errorMessage(err, 'Failed to save changes.'));
     } finally {
