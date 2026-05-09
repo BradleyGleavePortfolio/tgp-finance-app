@@ -44,12 +44,21 @@ export class CoachController {
     @Query('search') search?: string,
     @Query('status') status?: 'all' | 'active' | 'at_risk' | 'onboarding' | 'inactive',
     @Query('sort') sort?: 'name' | 'last_activity' | 'net_worth' | 'savings_rate',
+    // Sprint A audit fix coach #5: cursor + limit. The previous
+    // implementation pulled every roster row, which the canonical
+    // positioning explicitly claims to support but the prior query
+    // could not.
+    @Query('limit') limitRaw?: string,
+    @Query('cursor') cursor?: string,
   ) {
+    const limit = limitRaw ? Number(limitRaw) : undefined;
     return this.coachService.getCoachClients(user.id, {
       search,
       status,
       sort,
       role: user.role,
+      limit: Number.isFinite(limit) ? (limit as number) : undefined,
+      cursor,
     });
   }
 
