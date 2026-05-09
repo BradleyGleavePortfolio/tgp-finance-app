@@ -113,8 +113,22 @@ export default function ClientsListScreen() {
   const headerComponent = useMemo(
     () => (
       <View style={styles.headerWrap}>
-        <Text style={styles.eyebrow}>YOUR ROSTER</Text>
-        <Text style={styles.headline}>Clients.</Text>
+        <View style={styles.headerTopRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.eyebrow}>YOUR ROSTER</Text>
+            <Text style={styles.headline}>Clients.</Text>
+          </View>
+          <Pressable
+            onPress={() => router.push('/coach/invite-codes')}
+            style={({ pressed }) => [styles.inviteCta, pressed && { opacity: 0.7 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Manage invite codes"
+            hitSlop={8}
+          >
+            <Ionicons name="key-outline" size={16} color={colors.oxblood} />
+            <Text style={styles.inviteCtaText}>Invite codes</Text>
+          </Pressable>
+        </View>
         <View style={{ marginTop: spacing.lg }}>
           <CoachSearchBar
             value={search}
@@ -219,6 +233,10 @@ export default function ClientsListScreen() {
                   ? 'Send an invite code to your first client and they will appear here.'
                   : 'Try widening the filter, or clearing the search.'
               }
+              actionLabel={status === 'all' ? 'Create invite code' : undefined}
+              onAction={
+                status === 'all' ? () => router.push('/coach/invite-codes') : undefined
+              }
             />
           )
         }
@@ -264,6 +282,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xl,
     paddingBottom: spacing.md,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  inviteCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 0.5,
+    borderColor: colors.oxblood,
+    borderRadius: radius.pill,
+  },
+  inviteCtaText: {
+    fontFamily: typography.families.medium,
+    fontSize: 12,
+    color: colors.oxblood,
   },
   eyebrow: {
     ...typography.scale.eyebrow,

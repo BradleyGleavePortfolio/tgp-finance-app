@@ -51,6 +51,15 @@ export const SelectRoleSchema = z.object({
   coach_access_code: z.string().optional(),
 });
 
+// Sprint A — production-safe coach promotion. The mobile client sends
+// a signed token assembled from a server-issued COACH_SIGNUP_SECRET;
+// AuthService.coachPromote verifies the HMAC + freshness before
+// flipping the role. Replaces the dev-only `coach_access_code` flow on
+// /select-role which 403s in production.
+export const CoachPromoteSchema = z.object({
+  signup_token: z.string().min(16).max(512),
+});
+
 export const VerifyEmailSchema = z.object({
   token: z.string().min(1),
   type: z.string().optional(),

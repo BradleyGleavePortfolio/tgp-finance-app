@@ -125,6 +125,9 @@ model User {
   coach_messages_sent     CoachMessage[]     @relation("CoachMessagesSent")
   coach_messages_received CoachMessage[]     @relation("CoachMessagesReceived")
   community_posts         CommunityPost[]    @relation("CommunityPostsAuthored")
+  // Sprint A — multi-code invite flow (parity with fitness backend).
+  invite_codes_issued     InviteCode[]       @relation("InviteCodesByCoach")
+  coach_promotion_audits  CoachPromotionAudit[]
 
   @@map("users")
 }
@@ -544,4 +547,47 @@ model CommunityPost {
 
   @@index([author_id, status, published_at(sort: Desc)])
   @@map("community_posts")
+}
+
+// Sprint A — multi-code invite flow.
+//
+// CoachProfile.invite_code is the coach's single default share link.
+// InviteCode lets coaches mint additional, capped, time-bounded codes
+// (e.g. for cohorts, paid-program windows, or one-shot reactivation
+// links). Mirrors the fitness backend's contract so the mobile screen
+// is portable across both products.
+model InviteCode {
+  id          String    @id @default(uuid())
+  code        String    @unique
+  coach_id    String
+  coach       User      @relation("InviteCodesByCoach", fields: [coach_id], references: [id], onDelete: Cascade)
+  expires_at  DateTime?
+  max_uses    Int?
+  used_count  Int       @default(0)
+  revoked     Boolean   @default(false)
+  created_at  DateTime  @default(now())
+
+  @@index([coach_id, created_at(sort: Desc)])
+  @@map("invite_codes")
+}
+
+// Sprint A — coach promotion audit trail.
+//
+// Every successful or failed coach self-promotion attempt via the
+// signed-token endpoint logs here. Lets ops detect leaked secrets,
+// chargeback fraud, and downstream support tickets without
+// reconstructing intent from raw access logs.
+model CoachPromotionAudit {
+  id          String   @id @default(uuid())
+  user_id    String
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  outcome    String   // success | invalid_token | already_coach | rate_limited | invalid_role
+  reason     String?
+  ip         String?
+  user_agent String?
+  created_at DateTime @default(now())
+
+  @@index([user_id, created_at(sort: Desc)])
+  @@index([outcome, created_at(sort: Desc)])
+  @@map("coach_promotion_audits")
 }

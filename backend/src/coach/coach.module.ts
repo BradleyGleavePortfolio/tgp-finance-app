@@ -7,12 +7,15 @@ import { OwnsStudentGuard } from '../auth/guards/owns-student.guard';
 // declared practice type so federated search can surface it.
 import { PracticeTypeController } from './practice-type/practice-type.controller';
 import { PracticeTypeService } from './practice-type/practice-type.service';
+// Sprint A — multi-code invite flow (parity with fitness backend).
+import { InviteCodesController } from './invite-codes/invite-codes.controller';
+import { InviteCodesService } from './invite-codes/invite-codes.service';
 
 @Module({
-  controllers: [CoachController, PracticeTypeController],
+  controllers: [CoachController, PracticeTypeController, InviteCodesController],
   // OwnsStudentGuard is route-scoped (applied via @UseGuards on coach
   // student-scoped routes). Provided here so NestJS DI can resolve it.
-  providers: [CoachService, OwnsStudentGuard, PracticeTypeService],
-  exports: [CoachService],
+  providers: [CoachService, OwnsStudentGuard, PracticeTypeService, InviteCodesService],
+  exports: [CoachService, InviteCodesService],
 })
 export class CoachModule {}

@@ -3,11 +3,14 @@ import {
   Post,
   Get,
   Body,
+  Req,
   UseGuards,
   HttpCode,
   HttpStatus,
   BadRequestException,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
+import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -17,6 +20,7 @@ import {
   LoginSchema,
   GoogleAuthSchema,
   SelectRoleSchema,
+  CoachPromoteSchema,
   VerifyEmailSchema,
 } from '../common/validators/schemas';
 
@@ -86,6 +90,36 @@ export class AuthController {
       });
     }
     return this.authService.selectRole(user.id, parsed.data.role, parsed.data.coach_access_code);
+  }
+
+  /**
+   * Sprint A — production-safe coach self-promotion. Replaces the
+   * dev-backdoor path on /select-role for the "I'm a Coach" mobile
+   * card. Throttled (5/min/IP) to make brute-forcing the HMAC space
+   * uninteresting; AuthService also audit-logs every attempt.
+   */
+  @Post('coach-promote')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  async coachPromote(
+    @Body() body: unknown,
+    @CurrentUser() user: CurrentUser,
+    @Req() req: Request,
+  ) {
+    const parsed = CoachPromoteSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        error: parsed.error.errors.map((e) => e.message).join(', '),
+        code: 'VALIDATION_ERROR',
+      });
+    }
+    const ip = req.ip ?? req.headers['x-forwarded-for']?.toString() ?? null;
+    const userAgent = req.headers['user-agent']?.toString() ?? null;
+    return this.authService.coachPromote(user.id, parsed.data.signup_token, {
+      ip,
+      userAgent,
+    });
   }
 
   @Post('logout')
