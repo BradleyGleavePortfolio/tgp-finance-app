@@ -20,6 +20,17 @@ type QuizAnswers = {
 export class OnboardingService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Persist the quiz payload onto the user's FinancialProfile row.
+   *
+   * Stage-1 fix history: the original implementation hard-coded a switch
+   * on display strings (`'Under $50k'`) that never matched the snake-case
+   * keys mobile actually sent (`'under_50k'`). Every user's annual income
+   * landed on the `default → 75 000` branch. The mappers below now accept
+   * BOTH the original display strings AND the snake-case keys so legacy
+   * mobile builds still work, AND prefer `monthly_take_home` when the new
+   * mobile sends it (the gross-up branch — take_home / 0.75 → gross).
+   */
   async submitQuiz(userId: string, answers: QuizAnswers) {
     const riskTolerance = this.mapRiskTolerance(answers.risk_tolerance);
     const goalTimelineMonths = this.mapInvestmentHorizon(answers.investment_horizon);
@@ -49,7 +60,7 @@ export class OnboardingService {
       where: { user_id: userId },
       update: {
         risk_tolerance: riskTolerance,
-        primary_goal: answers.financial_goal,
+        primary_goal: this.normalizeGoal(answers.financial_goal),
         annual_income_gross: annualFinal,
         monthly_income_gross: monthlyIncomeGross,
         goal_timeline_months: goalTimelineMonths,
@@ -62,7 +73,7 @@ export class OnboardingService {
       create: {
         user_id: userId,
         risk_tolerance: riskTolerance,
-        primary_goal: answers.financial_goal,
+        primary_goal: this.normalizeGoal(answers.financial_goal),
         annual_income_gross: annualFinal,
         monthly_income_gross: monthlyIncomeGross,
         goal_timeline_months: goalTimelineMonths,
@@ -88,13 +99,19 @@ export class OnboardingService {
   }
 
   private mapRiskTolerance(value: string): RiskTolerance {
+    // Accept title-case (current mobile contract) and lowercase (Prisma
+    // enum spelling) so a future mobile change to send the canonical
+    // lowercase value does not silently flip everyone to default.
     switch (value) {
       case 'Conservative':
+      case 'conservative':
         return RiskTolerance.conservative;
       case 'Moderate':
+      case 'moderate':
         return RiskTolerance.moderate;
       case 'Aggressive':
       case 'Very Aggressive':
+      case 'aggressive':
         return RiskTolerance.aggressive;
       default:
         return RiskTolerance.moderate;
@@ -117,17 +134,39 @@ export class OnboardingService {
   }
 
   private mapIncomeRange(value: string): number {
+    // Stage-1 fix: accept both the original display strings AND the
+    // snake-case keys legacy mobile builds sent. Any future bucket label
+    // must land here AND in `mobile/src/types/onboarding.ts` —
+    // `onboarding.contract.test.ts` pins both ends.
     switch (value) {
       case 'Under $50k':
+      case 'under_50k':
         return 35000;
       case '$50k-$100k':
+      case '$50k - $100k':
+      case '50k_100k':
         return 75000;
       case '$100k-$200k':
+      case '$100k - $200k':
+      case '100k_200k':
         return 150000;
       case '$200k+':
+      case 'over_100k':
+      case 'over_200k':
         return 250000;
       default:
         return 75000;
     }
+  }
+
+  /**
+   * Normalize the persisted goal string. The mobile quiz emits lowercase
+   * phrases (`'debt payoff'`, `'save more'`, `'build wealth'`); identity-
+   * title resolution and the goal-deadline milestone do substring matches
+   * (`includes('debt')`, `includes('sav')`), so lowercase is intentional.
+   * Trim defensively in case a custom string slips through Zod.
+   */
+  private normalizeGoal(value: string): string {
+    return (value ?? '').trim().toLowerCase();
   }
 }

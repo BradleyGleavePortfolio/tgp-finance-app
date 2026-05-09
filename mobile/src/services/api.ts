@@ -253,8 +253,17 @@ export const eodApi = {
 };
 
 // Onboarding API
+//
+// The wire payload is pinned to `SubmitQuizAnswers` to prevent the bucket-
+// string drift we shipped in Stage-0 (mobile sent `'under_50k'`, backend
+// switch expected `'Under $50k'`, every user fell through to default
+// 75 000/yr). Any change to the union strings must land in lockstep with
+// `backend/src/onboarding/onboarding.service.ts`. The contract test in
+// `src/lib/__tests__/onboarding.contract.test.ts` enforces parity.
+import type { SubmitQuizAnswers } from '../types/onboarding';
+
 export const onboardingApi = {
-  submitQuiz: (answers: Record<string, unknown>) =>
+  submitQuiz: (answers: SubmitQuizAnswers) =>
     api.post('/api/onboarding/quiz', { answers }),
   getStatus: () => api.get('/api/onboarding/status'),
 };

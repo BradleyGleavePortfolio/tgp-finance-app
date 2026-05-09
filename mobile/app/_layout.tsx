@@ -242,6 +242,7 @@ function RootLayout() {
         <Stack.Screen name="spending-dna" />
         <Stack.Screen name="milestones" />
         <Stack.Screen name="future-letter" />
+        <Stack.Screen name="edit-financial-profile" />
         <Stack.Screen name="coach/student/[id]" />
         <Stack.Screen name="settings/notifications" />
         <Stack.Screen name="settings/security" />

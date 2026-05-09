@@ -158,6 +158,9 @@ export default function ProfileScreen() {
   const totalAccounts = safeAccounts.length;
 
   const settingsItems = [
+    // Stage-1: financial profile is editable post-onboarding. Quiz answers
+    // (income, goal, risk, horizon) used to be write-once.
+    { icon: 'create-outline', label: 'Edit financial profile', route: '/edit-financial-profile' },
     // UX Psychology Report #4: Preference-Controlled Personalization
     { icon: 'color-palette-outline', label: 'Personalization', route: '/preferences' },
     { icon: 'notifications-outline', label: 'Notification Preferences', route: '/settings/notifications' },

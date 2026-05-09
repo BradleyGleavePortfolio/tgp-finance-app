@@ -171,6 +171,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           isAuthenticated: true,
           isLoading: false,
         });
+
+        // Stage-1 onboarding reconciler: if the backend doesn't show
+        // onboarding_complete but the device has stored quiz answers (the
+        // celebration POST failed last time), retry the POST and pull the
+        // updated profile. Best-effort — failure here just leaves the
+        // user at their existing state, no UX block.
+        try {
+          const { reconcileOnboarding } = await import('../lib/onboardingReconcile');
+          const result = await reconcileOnboarding({
+            backendOnboardingComplete: onboardingComplete,
+          });
+          if (result.resubmitted) {
+            const { data: raw2 } = await authApi.me();
+            const next = extractMe(raw2);
+            set({
+              user: next.user,
+              profile: next.profile,
+              hasCompletedOnboarding: next.onboardingComplete,
+            });
+          }
+        } catch {
+          // Reconciler is best-effort — never break the auth bootstrap.
+        }
       } else {
         set({ isLoading: false });
       }

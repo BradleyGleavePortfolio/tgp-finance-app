@@ -1,6 +1,19 @@
-// Lean 3-question onboarding — UX Psychology Report #1: Activation-First Dopamine
-// Compresses new-user time-to-first-win to <60 s.
-// Original multi-step quiz is preserved; this file routes AROUND it for new users.
+// Lean onboarding quiz — Stage-1 fix.
+//
+// Stage-0 shipped a 3-question flow that:
+//   - sent income-bucket strings ('under_50k', etc.) that didn't match the
+//     backend switch — every user got default 75 000/yr.
+//   - hard-coded `risk_tolerance: 'Moderate'` and `investment_horizon:
+//     '3-5 years'` in the submit handler — UI never asked.
+//   - skipped without calling submitQuiz, leaving the user with no
+//     FinancialProfile row.
+//
+// Stage-1 captures monthly take-home directly (backend already grosses up
+// from take-home/0.75), adds explicit risk + horizon screens, and routes
+// the skip path through submitQuiz with `SKIP_DEFAULTS` so every user has
+// a profile row from minute one. The wire payload is pinned to
+// `SubmitQuizAnswers` — see `mobile/src/types/onboarding.ts`.
+
 import React, { useState } from 'react';
 import {
   View,
@@ -9,6 +22,9 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -22,41 +38,63 @@ import { Colors, Typography, Spacing } from '../../src/theme/finance';
 import { errorMessage } from '../../src/lib/errorMessage';
 import { FirstWinCelebration } from '../../src/components/onboarding/FirstWinCelebration';
 import { track } from '../../src/lib/analytics';
+import type {
+  FinancialGoalWire,
+  IncomeRangeWire,
+  InvestmentHorizonWire,
+  RiskToleranceWire,
+  SubmitQuizAnswers,
+} from '../../src/types/onboarding';
+import { SKIP_DEFAULTS } from '../../src/types/onboarding';
 
 // ---------------------------------------------------------------------------
 // Q1 — Primary financial goal
 // ---------------------------------------------------------------------------
-const GOAL_OPTIONS = [
-  {
-    id: 'debt',
-    label: 'Pay Off Debt',
-    subtitle: 'Out of debt by year three.',
-    primaryGoal: 'debt payoff',
-  },
-  {
-    id: 'save',
-    label: 'Save More',
-    subtitle: 'Build a cushion and emergency fund.',
-    primaryGoal: 'save more',
-  },
-  {
-    id: 'invest',
-    label: 'Build Wealth',
-    subtitle: 'Invest and grow long-term.',
-    primaryGoal: 'build wealth',
-  },
+const GOAL_OPTIONS: {
+  id: 'debt' | 'save' | 'invest';
+  label: string;
+  subtitle: string;
+  primaryGoal: FinancialGoalWire;
+}[] = [
+  { id: 'debt',   label: 'Pay Off Debt', subtitle: 'Out of debt by year three.',          primaryGoal: 'debt payoff' },
+  { id: 'save',   label: 'Save More',    subtitle: 'Build a cushion and emergency fund.', primaryGoal: 'save more' },
+  { id: 'invest', label: 'Build Wealth', subtitle: 'Invest and grow long-term.',          primaryGoal: 'build wealth' },
 ];
 
 // ---------------------------------------------------------------------------
-// Q2 — Income range
+// Q2 — Risk tolerance (Stage-1: previously hard-coded to 'Moderate')
 // ---------------------------------------------------------------------------
-const INCOME_OPTIONS = [
-  { id: 'under50k', label: 'Under $50k', value: 'under_50k' },
-  { id: '50to100k', label: '$50k – $100k', value: '50k_100k' },
-  { id: 'over100k', label: '$100k+', value: 'over_100k' },
+const RISK_OPTIONS: { id: RiskToleranceWire; label: string; subtitle: string }[] = [
+  { id: 'Conservative', label: 'Conservative', subtitle: 'Protect what I have. Slow and steady.' },
+  { id: 'Moderate',     label: 'Moderate',     subtitle: 'Balanced — some growth, some safety.' },
+  { id: 'Aggressive',   label: 'Aggressive',   subtitle: 'Long horizon. Comfortable with swings.' },
 ];
 
-type Step = 'goal' | 'income' | 'bank' | 'celebration';
+// ---------------------------------------------------------------------------
+// Q3 — Investment horizon (Stage-1: previously hard-coded to '3-5 years')
+// ---------------------------------------------------------------------------
+const HORIZON_OPTIONS: { id: InvestmentHorizonWire; label: string; subtitle: string }[] = [
+  { id: 'Less than 1 year', label: 'Under a year',  subtitle: 'Short term. Cash is the goal.' },
+  { id: '1-3 years',        label: '1 — 3 years',   subtitle: 'Near-term goal. Down payment, debt payoff.' },
+  { id: '3-5 years',        label: '3 — 5 years',   subtitle: 'Medium horizon. Building.' },
+  { id: '5+ years',         label: '5 years or more', subtitle: 'Long horizon. Compounding.' },
+];
+
+// Quick-pick chips next to the take-home input — derived from the backend's
+// IncomeRangeWire buckets so the chip values map cleanly when the user
+// declines to type a number.
+const INCOME_QUICK_PICKS: { label: string; bucket: IncomeRangeWire; impliedTakeHome: string }[] = [
+  { label: 'Under $50k',  bucket: 'Under $50k',   impliedTakeHome: '2200' },
+  { label: '$50–100k',    bucket: '$50k-$100k',   impliedTakeHome: '4700' },
+  { label: '$100–200k',   bucket: '$100k-$200k',  impliedTakeHome: '9400' },
+  { label: '$200k+',      bucket: '$200k+',       impliedTakeHome: '15600' },
+];
+
+// Step ordering — five screens, one decision each.
+type Step = 'goal' | 'income' | 'risk' | 'horizon' | 'bank' | 'celebration';
+
+// Total visible steps in the dotted progress bar (celebration is not counted).
+const TOTAL_STEPS = 5;
 
 export default function QuizScreen() {
   const router = useRouter();
@@ -66,8 +104,12 @@ export default function QuizScreen() {
 
   // Track onboarding start once on mount
   React.useEffect(() => { track('onboarding_started'); }, []);
+
   const [selectedGoal, setSelectedGoal] = useState<(typeof GOAL_OPTIONS)[number] | null>(null);
-  const [selectedIncome, setSelectedIncome] = useState<string | null>(null);
+  const [takeHomeInput, setTakeHomeInput] = useState('');
+  const [incomeBucket, setIncomeBucket] = useState<IncomeRangeWire>('$50k-$100k');
+  const [risk, setRisk] = useState<RiskToleranceWire | null>(null);
+  const [horizon, setHorizon] = useState<InvestmentHorizonWire | null>(null);
   const [bankConnected, setBankConnected] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,21 +121,50 @@ export default function QuizScreen() {
     try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { /* ignore */ }
     setSelectedGoal(goal);
     track('onboarding_step_completed', { step: 'goal', goal: goal.id });
-    // Auto-advance after brief pause so the selection registers visually
     setTimeout(() => setStep('income'), 200);
   };
 
-  // ── Q2: Income selection ──────────────────────────────────────────────────
-  const handleIncomeSelect = (value: string) => {
+  // ── Q2: Income (numeric take-home) ────────────────────────────────────────
+  const onTakeHomeChange = (raw: string) => {
+    // Allow digits + at most one decimal point. Strip everything else so a
+    // pasted "$5,200.00" still becomes "5200.00".
+    const cleaned = raw.replace(/[^\d.]/g, '');
+    const parts = cleaned.split('.');
+    const normalised =
+      parts.length <= 1 ? cleaned : `${parts[0]}.${parts.slice(1).join('').slice(0, 2)}`;
+    setTakeHomeInput(normalised);
+  };
+
+  const handleIncomeContinue = () => {
     try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { /* ignore */ }
-    setSelectedIncome(value);
     track('onboarding_step_completed', { step: 'income' });
+    setStep('risk');
+  };
+
+  const handleIncomeQuickPick = (qp: (typeof INCOME_QUICK_PICKS)[number]) => {
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { /* ignore */ }
+    setTakeHomeInput(qp.impliedTakeHome);
+    setIncomeBucket(qp.bucket);
+  };
+
+  // ── Q3: Risk tolerance ────────────────────────────────────────────────────
+  const handleRiskSelect = (value: RiskToleranceWire) => {
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { /* ignore */ }
+    setRisk(value);
+    track('onboarding_step_completed', { step: 'risk', risk: value });
+    setTimeout(() => setStep('horizon'), 200);
+  };
+
+  // ── Q4: Investment horizon ───────────────────────────────────────────────
+  const handleHorizonSelect = (value: InvestmentHorizonWire) => {
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { /* ignore */ }
+    setHorizon(value);
+    track('onboarding_step_completed', { step: 'horizon', horizon: value });
     setTimeout(() => setStep('bank'), 200);
   };
 
-  // ── Q3: Bank step ─────────────────────────────────────────────────────────
+  // ── Q5: Bank step ─────────────────────────────────────────────────────────
   const handleConnectBank = () => {
-    // Route into the existing add-account flow; return will re-enter here via deep-link guard
     setBankConnected(true);
     router.push('/accounts/add');
   };
@@ -114,30 +185,47 @@ export default function QuizScreen() {
     return 'Money Architect';
   }
 
+  /**
+   * Build the typed `SubmitQuizAnswers` payload from current state. Only
+   * sends `monthly_take_home` when the user actually entered a number — the
+   * backend service prefers it over the bucket string and runs the gross-up
+   * math (take_home / 0.75 → monthly_income_gross). When the field is
+   * blank, the bucket the user picked (or the `$50k-$100k` default) drives
+   * the backend mapper.
+   */
+  const buildAnswers = (connected: boolean): SubmitQuizAnswers => {
+    const takeHomeNum = parseFloat(takeHomeInput);
+    const hasTakeHome = Number.isFinite(takeHomeNum) && takeHomeNum > 0;
+    return {
+      financial_goal: selectedGoal?.primaryGoal ?? 'save more',
+      income_range: incomeBucket,
+      risk_tolerance: risk ?? 'Moderate',
+      investment_horizon: horizon ?? '3-5 years',
+      bank_connected: connected ? 'yes' : 'no',
+      ...(hasTakeHome ? { monthly_take_home: takeHomeNum.toFixed(2) } : {}),
+    };
+  };
+
   // ── Submit to backend + show celebration ─────────────────────────────────
   const submitAndCelebrate = async (connected: boolean) => {
     setIsSubmitting(true);
     setError(null);
 
-    const answers: Record<string, string> = {
-      financial_goal: selectedGoal?.primaryGoal ?? '',
-      income_range: selectedIncome ?? '',
-      bank_connected: connected ? 'yes' : 'no',
-      // Map to existing backend fields so downstream features still work
-      risk_tolerance: 'Moderate',
-      investment_horizon: '3-5 years',
-    };
+    const answers = buildAnswers(connected);
 
     try {
       await AsyncStorage.setItem('quiz_answers', JSON.stringify(answers));
       await AsyncStorage.setItem('hasOnboarded', 'true');
 
-      // Backend submit (best-effort — never block the celebration)
+      // Backend submit (best-effort — never block the celebration). The
+      // reconciler in `src/lib/onboardingReconcile.ts` retries on next app
+      // open if this throws, so a flaky network does not strand the user.
       try {
         await onboardingApi.submitQuiz(answers);
         await refreshUser();
       } catch {
-        // Keep going — the local flags are the source of truth for routing
+        // Swallow — the local flag is the source of truth for routing,
+        // and the reconciler will retry the POST on next open.
       }
 
       // Schedule future-self letter (idempotent)
@@ -151,17 +239,17 @@ export default function QuizScreen() {
         // best-effort
       }
 
-      // Resolve the identity title based on chosen goal
       const title = resolveTitle(selectedGoal);
       setIdentityTitle(title);
 
-      // Track onboarding completion
       track('onboarding_completed', {
         goal: selectedGoal?.id,
         bank_connected: connected,
+        risk: answers.risk_tolerance,
+        horizon: answers.investment_horizon,
+        captured_take_home: !!answers.monthly_take_home,
       });
 
-      // Celebration!
       try {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch { /* ignore */ }
@@ -176,7 +264,6 @@ export default function QuizScreen() {
 
   // ── After celebration dismiss ────────────────────────────────────────────
   const handleCelebrationDismiss = async () => {
-    // Mark first-win done so the celebration never fires again
     try {
       await AsyncStorage.setItem('firstWinDone', 'true');
     } catch { /* ignore */ }
@@ -184,19 +271,40 @@ export default function QuizScreen() {
     router.replace('/(tabs)');
   };
 
-  // ── Skip entire onboarding ───────────────────────────────────────────────
+  /**
+   * Skip-all path. Stage-1 fix: previously this only flipped the local
+   * `hasOnboarded` flag and walked away — every skip-cohort user ended up
+   * without a `FinancialProfile` row and with `monthly_income_gross || 5000`
+   * fallbacks for the rest of their session. Now we POST `SKIP_DEFAULTS`
+   * (sane backend-mapped values, `skipped: true` flag for analytics) so
+   * every user has a profile from minute one, and the reconciler can
+   * detect the skip flag to re-prompt.
+   */
   const handleSkipAll = async () => {
     track('onboarding_skipped', { at_step: step });
+    setIsSubmitting(true);
     try {
+      const answers: SubmitQuizAnswers = { ...SKIP_DEFAULTS };
+      await AsyncStorage.setItem('quiz_answers', JSON.stringify(answers));
       await AsyncStorage.setItem('hasOnboarded', 'true');
-      await AsyncStorage.setItem('quiz_answers', JSON.stringify({ skipped: 'true' }));
-    } catch { /* ignore */ }
-    router.replace('/(tabs)');
+      try {
+        await onboardingApi.submitQuiz(answers);
+        await refreshUser();
+      } catch {
+        // best-effort — reconciler will retry on next open
+      }
+    } catch { /* ignore */ } finally {
+      setIsSubmitting(false);
+      router.replace('/(tabs)');
+    }
   };
 
-  // ── Progress indicator ────────────────────────────────────────────────────
-  const stepIndex = step === 'goal' ? 0 : step === 'income' ? 1 : 2;
-  const totalSteps = 3;
+  const stepIndex =
+    step === 'goal' ? 0 :
+    step === 'income' ? 1 :
+    step === 'risk' ? 2 :
+    step === 'horizon' ? 3 :
+    4;
 
   if (showCelebration) {
     return (
@@ -209,165 +317,282 @@ export default function QuizScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.inner}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>A few questions.</Text>
-        <Text style={styles.subtitle}>Three questions. Two minutes.</Text>
-      </View>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: Colors.backgroundDeepNavy }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView style={styles.container} contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>A few questions.</Text>
+          <Text style={styles.subtitle}>Five questions. Two minutes.</Text>
+        </View>
 
-      {/* Progress dots */}
-      <View style={styles.dotsRow}>
-        {Array.from({ length: totalSteps }).map((_, i) => (
-          <View
-            key={i}
-            style={[
-              styles.dot,
-              i <= stepIndex && styles.dotActive,
-              i < stepIndex && styles.dotCompleted,
-            ]}
-          />
-        ))}
-      </View>
-
-      {/* Skip all */}
-      <TouchableOpacity
-        style={styles.skipAll}
-        onPress={handleSkipAll}
-        accessibilityRole="button"
-        accessibilityLabel="Skip onboarding and explore"
-      >
-        <Text style={styles.skipAllText}>Skip — I'll explore</Text>
-      </TouchableOpacity>
-
-      {/* ── Q1: Primary goal ─────────────────────────────────────────────── */}
-      {step === 'goal' && (
-        <View style={styles.questionContainer}>
-          <Text style={styles.stepLabel}>STEP 1 OF 3</Text>
-          <Text style={styles.question}>What is your primary financial goal?</Text>
-          {GOAL_OPTIONS.map((opt) => (
-            <TouchableOpacity
-              key={opt.id}
+        {/* Progress dots */}
+        <View style={styles.dotsRow}>
+          {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
+            <View
+              key={i}
               style={[
-                styles.option,
-                selectedGoal?.id === opt.id && styles.selectedOption,
+                styles.dot,
+                i <= stepIndex && styles.dotActive,
+                i < stepIndex && styles.dotCompleted,
               ]}
-              onPress={() => handleGoalSelect(opt)}
-              accessibilityRole="radio"
-              accessibilityLabel={opt.label}
-              accessibilityState={{ selected: selectedGoal?.id === opt.id }}
-              activeOpacity={0.8}
-            >
-              <View style={styles.optionIcon}>
-                <Ionicons name="arrow-forward" size={18} color={Colors.slateGray} />
-              </View>
-              <View style={styles.optionTextGroup}>
-                <Text
-                  style={[
-                    styles.optionLabel,
-                    selectedGoal?.id === opt.id && styles.selectedOptionLabel,
-                  ]}
-                >
-                  {opt.label}
-                </Text>
-                <Text style={styles.optionSubtitle}>{opt.subtitle}</Text>
-              </View>
-            </TouchableOpacity>
+            />
           ))}
         </View>
-      )}
 
-      {/* ── Q2: Income range ─────────────────────────────────────────────── */}
-      {step === 'income' && (
-        <View style={styles.questionContainer}>
-          <Text style={styles.stepLabel}>STEP 2 OF 3</Text>
-          <Text style={styles.question}>What's your annual income range?</Text>
-          <Text style={styles.questionHint}>Used to personalise your plan — never shared.</Text>
-          {INCOME_OPTIONS.map((opt) => (
-            <TouchableOpacity
-              key={opt.id}
-              style={[
-                styles.option,
-                selectedIncome === opt.value && styles.selectedOption,
-              ]}
-              onPress={() => handleIncomeSelect(opt.value)}
-              accessibilityRole="radio"
-              accessibilityLabel={opt.label}
-              accessibilityState={{ selected: selectedIncome === opt.value }}
-              activeOpacity={0.8}
-            >
-              <Text
+        {/* Skip all */}
+        <TouchableOpacity
+          style={styles.skipAll}
+          onPress={handleSkipAll}
+          disabled={isSubmitting}
+          accessibilityRole="button"
+          accessibilityLabel="Skip onboarding and explore"
+        >
+          <Text style={styles.skipAllText}>Skip — I'll explore</Text>
+        </TouchableOpacity>
+
+        {/* ── Q1: Primary goal ─────────────────────────────────────────────── */}
+        {step === 'goal' && (
+          <View style={styles.questionContainer}>
+            <Text style={styles.stepLabel}>STEP 1 OF {TOTAL_STEPS}</Text>
+            <Text style={styles.question}>What is your primary financial goal?</Text>
+            {GOAL_OPTIONS.map((opt) => (
+              <TouchableOpacity
+                key={opt.id}
                 style={[
-                  styles.optionLabelLarge,
-                  selectedIncome === opt.value && styles.selectedOptionLabel,
+                  styles.option,
+                  selectedGoal?.id === opt.id && styles.selectedOption,
                 ]}
+                onPress={() => handleGoalSelect(opt)}
+                accessibilityRole="radio"
+                accessibilityLabel={opt.label}
+                accessibilityState={{ selected: selectedGoal?.id === opt.id }}
+                activeOpacity={0.8}
               >
-                {opt.label}
-              </Text>
+                <View style={styles.optionIcon}>
+                  <Ionicons name="arrow-forward" size={18} color={Colors.slateGray} />
+                </View>
+                <View style={styles.optionTextGroup}>
+                  <Text
+                    style={[
+                      styles.optionLabel,
+                      selectedGoal?.id === opt.id && styles.selectedOptionLabel,
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                  <Text style={styles.optionSubtitle}>{opt.subtitle}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {/* ── Q2: Monthly take-home (numeric, with quick-pick fallback) ───── */}
+        {step === 'income' && (
+          <View style={styles.questionContainer}>
+            <Text style={styles.stepLabel}>STEP 2 OF {TOTAL_STEPS}</Text>
+            <Text style={styles.question}>What's your take-home each month?</Text>
+            <Text style={styles.questionHint}>
+              After taxes — what hits the account. We'll convert this to your
+              annual figure for projections. Never shared.
+            </Text>
+
+            <View style={styles.amountInputRow}>
+              <Text style={styles.amountInputPrefix}>$</Text>
+              <TextInput
+                value={takeHomeInput}
+                onChangeText={onTakeHomeChange}
+                placeholder="5,200"
+                placeholderTextColor={Colors.slateGray}
+                keyboardType="decimal-pad"
+                maxLength={9}
+                style={styles.amountInput}
+                accessibilityLabel="Monthly take-home pay in dollars"
+              />
+              <Text style={styles.amountInputSuffix}>/ mo</Text>
+            </View>
+
+            <Text style={styles.quickPickLabel}>Or pick a range</Text>
+            <View style={styles.quickPickRow}>
+              {INCOME_QUICK_PICKS.map((qp) => (
+                <TouchableOpacity
+                  key={qp.bucket}
+                  style={[
+                    styles.quickPickChip,
+                    incomeBucket === qp.bucket && styles.quickPickChipSelected,
+                  ]}
+                  onPress={() => handleIncomeQuickPick(qp)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Annual income range ${qp.label}`}
+                >
+                  <Text
+                    style={[
+                      styles.quickPickText,
+                      incomeBucket === qp.bucket && styles.quickPickTextSelected,
+                    ]}
+                  >
+                    {qp.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={styles.continueBtn}
+              onPress={handleIncomeContinue}
+              disabled={isSubmitting}
+              accessibilityRole="button"
+              accessibilityLabel="Continue"
+              activeOpacity={0.85}
+            >
+              <Text style={styles.continueBtnText}>Continue</Text>
             </TouchableOpacity>
-          ))}
 
-          {/* Back */}
-          <TouchableOpacity
-            style={styles.backLink}
-            onPress={() => setStep('goal')}
-            accessibilityRole="button"
-            accessibilityLabel="Go back to previous question"
-          >
-            <Ionicons name="chevron-back" size={16} color={Colors.slateGray} />
-            <Text style={styles.backLinkText}>Back</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+            <TouchableOpacity
+              style={styles.backLink}
+              onPress={() => setStep('goal')}
+              accessibilityRole="button"
+              accessibilityLabel="Go back to previous question"
+            >
+              <Ionicons name="chevron-back" size={16} color={Colors.slateGray} />
+              <Text style={styles.backLinkText}>Back</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
-      {/* ── Q3: Connect bank ─────────────────────────────────────────────── */}
-      {step === 'bank' && (
-        <View style={styles.questionContainer}>
-          <Text style={styles.stepLabel}>STEP 3 OF 3</Text>
-          <Text style={styles.question}>Connect your bank?</Text>
-          <Text style={styles.questionHint}>
-            Read-only access. The picture follows.
-          </Text>
+        {/* ── Q3: Risk tolerance ───────────────────────────────────────────── */}
+        {step === 'risk' && (
+          <View style={styles.questionContainer}>
+            <Text style={styles.stepLabel}>STEP 3 OF {TOTAL_STEPS}</Text>
+            <Text style={styles.question}>How do you feel about risk?</Text>
+            <Text style={styles.questionHint}>Shapes how aggressive your projections will be.</Text>
+            {RISK_OPTIONS.map((opt) => (
+              <TouchableOpacity
+                key={opt.id}
+                style={[styles.option, risk === opt.id && styles.selectedOption]}
+                onPress={() => handleRiskSelect(opt.id)}
+                accessibilityRole="radio"
+                accessibilityLabel={opt.label}
+                accessibilityState={{ selected: risk === opt.id }}
+                activeOpacity={0.8}
+              >
+                <View style={styles.optionTextGroup}>
+                  <Text
+                    style={[
+                      styles.optionLabel,
+                      risk === opt.id && styles.selectedOptionLabel,
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                  <Text style={styles.optionSubtitle}>{opt.subtitle}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              style={styles.backLink}
+              onPress={() => setStep('income')}
+              accessibilityRole="button"
+              accessibilityLabel="Go back to previous question"
+            >
+              <Ionicons name="chevron-back" size={16} color={Colors.slateGray} />
+              <Text style={styles.backLinkText}>Back</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
-          <TouchableOpacity
-            style={styles.connectButton}
-            onPress={handleConnectBank}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel="Connect bank account"
-          >
-            <Text style={styles.connectButtonText}>Connect</Text>
-          </TouchableOpacity>
+        {/* ── Q4: Investment horizon ───────────────────────────────────────── */}
+        {step === 'horizon' && (
+          <View style={styles.questionContainer}>
+            <Text style={styles.stepLabel}>STEP 4 OF {TOTAL_STEPS}</Text>
+            <Text style={styles.question}>How far out is your goal?</Text>
+            <Text style={styles.questionHint}>Sets the timeline for milestones and projections.</Text>
+            {HORIZON_OPTIONS.map((opt) => (
+              <TouchableOpacity
+                key={opt.id}
+                style={[styles.option, horizon === opt.id && styles.selectedOption]}
+                onPress={() => handleHorizonSelect(opt.id)}
+                accessibilityRole="radio"
+                accessibilityLabel={opt.label}
+                accessibilityState={{ selected: horizon === opt.id }}
+                activeOpacity={0.8}
+              >
+                <View style={styles.optionTextGroup}>
+                  <Text
+                    style={[
+                      styles.optionLabel,
+                      horizon === opt.id && styles.selectedOptionLabel,
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                  <Text style={styles.optionSubtitle}>{opt.subtitle}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              style={styles.backLink}
+              onPress={() => setStep('risk')}
+              accessibilityRole="button"
+              accessibilityLabel="Go back to previous question"
+            >
+              <Ionicons name="chevron-back" size={16} color={Colors.slateGray} />
+              <Text style={styles.backLinkText}>Back</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
-          <TouchableOpacity
-            style={styles.skipLink}
-            onPress={handleSkipBank}
-            disabled={isSubmitting}
-            accessibilityRole="button"
-            accessibilityLabel="Skip bank connection and explore app"
-          >
-            {isSubmitting ? (
-              <ActivityIndicator color={Colors.slateGray} size="small" />
-            ) : (
-              <Text style={styles.skipText}>Skip — I'll explore</Text>
-            )}
-          </TouchableOpacity>
+        {/* ── Q5: Connect bank ─────────────────────────────────────────────── */}
+        {step === 'bank' && (
+          <View style={styles.questionContainer}>
+            <Text style={styles.stepLabel}>STEP 5 OF {TOTAL_STEPS}</Text>
+            <Text style={styles.question}>Connect your bank?</Text>
+            <Text style={styles.questionHint}>
+              Read-only access. The picture follows.
+            </Text>
 
-          {/* Back */}
-          <TouchableOpacity
-            style={styles.backLink}
-            onPress={() => setStep('income')}
-            accessibilityRole="button"
-            accessibilityLabel="Go back to previous question"
-          >
-            <Ionicons name="chevron-back" size={16} color={Colors.slateGray} />
-            <Text style={styles.backLinkText}>Back</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+            <TouchableOpacity
+              style={styles.connectButton}
+              onPress={handleConnectBank}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Connect bank account"
+            >
+              <Text style={styles.connectButtonText}>Connect</Text>
+            </TouchableOpacity>
 
-      {error && <Text style={styles.error}>{error}</Text>}
-    </ScrollView>
+            <TouchableOpacity
+              style={styles.skipLink}
+              onPress={handleSkipBank}
+              disabled={isSubmitting}
+              accessibilityRole="button"
+              accessibilityLabel="Skip bank connection and explore app"
+            >
+              {isSubmitting ? (
+                <ActivityIndicator color={Colors.slateGray} size="small" />
+              ) : (
+                <Text style={styles.skipText}>Skip — I'll explore</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.backLink}
+              onPress={() => setStep('horizon')}
+              accessibilityRole="button"
+              accessibilityLabel="Go back to previous question"
+            >
+              <Ionicons name="chevron-back" size={16} color={Colors.slateGray} />
+              <Text style={styles.backLinkText}>Back</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {error && <Text style={styles.error}>{error}</Text>}
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -451,7 +676,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: Spacing.base,
-    borderRadius: 4, // radius.lg
+    borderRadius: 4,
     borderWidth: 1.5,
     borderColor: Colors.graphiteBorder,
     marginBottom: Spacing.sm,
@@ -475,12 +700,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.bodyMedium,
     color: Colors.frostWhite,
   },
-  optionLabelLarge: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: Typography.titleSmall,
-    color: Colors.frostWhite,
-    textAlign: 'center',
-  },
   selectedOptionLabel: {
     color: Colors.accentGold,
   },
@@ -490,10 +709,81 @@ const styles = StyleSheet.create({
     color: Colors.slateGray,
     marginTop: 2,
   },
+  amountInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: Colors.graphiteBorder,
+    backgroundColor: Colors.cardSurfaceNavy,
+    paddingHorizontal: Spacing.base,
+    paddingVertical: Spacing.md,
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
+  },
+  amountInputPrefix: {
+    fontFamily: 'JetBrainsMono_700Bold',
+    fontSize: Typography.titleSmall,
+    color: Colors.accentGold,
+  },
+  amountInput: {
+    flex: 1,
+    fontFamily: 'JetBrainsMono_700Bold',
+    fontSize: Typography.titleSmall,
+    color: Colors.frostWhite,
+    padding: 0,
+  },
+  amountInputSuffix: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: Typography.bodySmall,
+    color: Colors.slateGray,
+  },
+  quickPickLabel: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: Typography.microLabel,
+    color: Colors.slateGray,
+    letterSpacing: 1.5,
+    marginBottom: Spacing.sm,
+  },
+  quickPickRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
+  },
+  quickPickChip: {
+    paddingHorizontal: Spacing.base,
+    paddingVertical: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.graphiteBorder,
+    backgroundColor: Colors.cardSurfaceNavy,
+  },
+  quickPickChipSelected: {
+    borderColor: Colors.accentGold,
+    backgroundColor: 'rgba(249,199,79,0.10)',
+  },
+  quickPickText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: Typography.bodySmall,
+    color: Colors.frostWhite,
+  },
+  quickPickTextSelected: {
+    color: Colors.accentGold,
+  },
+  continueBtn: {
+    backgroundColor: Colors.accentGold,
+    paddingVertical: Spacing.base,
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  continueBtnText: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: Typography.titleSmall,
+    color: Colors.backgroundDeepNavy,
+  },
   connectButton: {
     backgroundColor: Colors.accentGold,
     padding: Spacing.base,
-    borderRadius: 0, // radius.sm — primary CTA button
+    borderRadius: 0,
     alignItems: 'center',
     marginBottom: Spacing.sm,
   },
