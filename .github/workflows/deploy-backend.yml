@@ -113,7 +113,15 @@ jobs:
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
         run: |
+          # --release-command-timeout 15m: Fly's default is 5min, which has
+          # been tripping consistently since 2026-05-09 even though the
+          # migrations themselves complete in seconds. The wait-for-destroyed
+          # transition on the release_command machine is what blows past 5min;
+          # 15min gives Fly's control plane breathing room without hiding a
+          # genuinely stuck migration (a real hang will still be obvious at
+          # 15min and we will see it in the log before flyctl gives up).
           flyctl deploy --remote-only --config fly.toml --strategy rolling \
+            --release-command-timeout 15m \
             --build-arg RELEASE_VERSION="${GITHUB_SHA}" \
             --build-arg SENTRY_DSN="${SENTRY_DSN}" \
             --build-arg SENTRY_ORG="${SENTRY_ORG}" \

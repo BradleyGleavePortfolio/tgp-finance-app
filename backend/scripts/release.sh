@@ -13,14 +13,42 @@
 #
 # Invoked as `bash ./scripts/release.sh` from fly.toml — bash ships with the
 # node:20-slim base image, so no extra packages are required.
+#
+# Each Prisma step is wrapped in `timeout` so a stuck advisory lock (left
+# behind by a previous release_command machine that hit Fly's wait-for-
+# destroyed timeout) fails the deploy with a useful error within minutes
+# instead of letting the release_command VM hang silently to the outer
+# flyctl release-command-timeout. If you see the timeout fire, a human
+# needs to clear the stale lock — see RUNBOOK.md.
 set -euo pipefail
 
-echo "[release] attempting prisma migrate deploy..."
+# `timeout` is provided by coreutils on the node:20-slim base image. Each
+# step gets enough headroom to handle a slow remote DB without ever sitting
+# longer than the outer flyctl release-command-timeout (15m).
+MIGRATE_TIMEOUT="${MIGRATE_TIMEOUT:-8m}"
+PUSH_TIMEOUT="${PUSH_TIMEOUT:-5m}"
+RESOLVE_TIMEOUT="${RESOLVE_TIMEOUT:-1m}"
+
+echo "[release] attempting prisma migrate deploy (timeout: ${MIGRATE_TIMEOUT})..."
 
 LOG=/tmp/prisma_migrate.log
-if npx prisma migrate deploy 2>&1 | tee "$LOG"; then
+set +e
+timeout --preserve-status "${MIGRATE_TIMEOUT}" npx prisma migrate deploy 2>&1 | tee "$LOG"
+MIGRATE_EXIT=${PIPESTATUS[0]}
+set -e
+
+if [ "${MIGRATE_EXIT}" -eq 0 ]; then
   echo "[release] migrate deploy succeeded"
   exit 0
+fi
+
+# `timeout` exits 124 on timeout, 137 on SIGKILL. Surface both clearly so the
+# human reading the deploy log knows it was a hang, not a Prisma error.
+if [ "${MIGRATE_EXIT}" -eq 124 ] || [ "${MIGRATE_EXIT}" -eq 137 ]; then
+  echo "[release] FATAL: prisma migrate deploy exceeded ${MIGRATE_TIMEOUT}." >&2
+  echo "[release] Likely a stale advisory lock from a prior aborted release_command." >&2
+  echo "[release] See RUNBOOK.md > 'Stuck Fly release_command' for remediation." >&2
+  exit 1
 fi
 
 if grep -qE "P3005|P3018|P3009|database schema is not empty|is not managed by Prisma Migrate|No migration found in prisma/migrations|already exists|migrate found failed migrations" "$LOG"; then
@@ -31,11 +59,22 @@ if grep -qE "P3005|P3018|P3009|database schema is not empty|is not managed by Pr
   FAILED=$(grep -oE "[0-9]{14}_[a-zA-Z0-9_]+" "$LOG" | sort -u)
   for m in $FAILED; do
     echo "[release] marking failed migration $m as rolled-back"
-    npx prisma migrate resolve --rolled-back "$m" || true
+    timeout --preserve-status "${RESOLVE_TIMEOUT}" npx prisma migrate resolve --rolled-back "$m" || true
   done
 
-  echo "[release] forward-syncing schema with db push --accept-data-loss"
-  npx prisma db push --accept-data-loss --skip-generate
+  echo "[release] forward-syncing schema with db push --accept-data-loss (timeout: ${PUSH_TIMEOUT})"
+  set +e
+  timeout --preserve-status "${PUSH_TIMEOUT}" npx prisma db push --accept-data-loss --skip-generate
+  PUSH_EXIT=$?
+  set -e
+  if [ "${PUSH_EXIT}" -ne 0 ]; then
+    if [ "${PUSH_EXIT}" -eq 124 ] || [ "${PUSH_EXIT}" -eq 137 ]; then
+      echo "[release] FATAL: prisma db push exceeded ${PUSH_TIMEOUT} — likely stuck advisory lock." >&2
+    else
+      echo "[release] FATAL: prisma db push failed (exit ${PUSH_EXIT})." >&2
+    fi
+    exit 1
+  fi
   echo "[release] schema pushed; consider reconciling _prisma_migrations baseline next release"
   exit 0
 fi
