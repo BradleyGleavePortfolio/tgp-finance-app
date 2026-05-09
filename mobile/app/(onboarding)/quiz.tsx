@@ -13,6 +13,7 @@ import {
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
+import { Ionicons } from '@expo/vector-icons';
 import { onboardingApi } from '../../src/services/api';
 import { useAuthStore } from '../../src/stores/authStore';
 import { scheduleFutureSelfDelivery } from '../../src/services/notifications';
@@ -29,22 +30,19 @@ const GOAL_OPTIONS = [
   {
     id: 'debt',
     label: 'Pay Off Debt',
-    icon: '→',
     subtitle: 'Out of debt by year three.',
     primaryGoal: 'debt payoff',
   },
   {
     id: 'save',
     label: 'Save More',
-    icon: '→',
-    subtitle: 'Build a cushion and emergency fund',
+    subtitle: 'Build a cushion and emergency fund.',
     primaryGoal: 'save more',
   },
   {
     id: 'invest',
     label: 'Build Wealth',
-    icon: '→',
-    subtitle: 'Invest and grow long-term',
+    subtitle: 'Invest and grow long-term.',
     primaryGoal: 'build wealth',
   },
 ];
@@ -260,7 +258,9 @@ export default function QuizScreen() {
               accessibilityState={{ selected: selectedGoal?.id === opt.id }}
               activeOpacity={0.8}
             >
-              <Text style={styles.optionIcon}>{opt.icon}</Text>
+              <View style={styles.optionIcon}>
+                <Ionicons name="arrow-forward" size={18} color={Colors.slateGray} />
+              </View>
               <View style={styles.optionTextGroup}>
                 <Text
                   style={[
@@ -314,7 +314,8 @@ export default function QuizScreen() {
             accessibilityRole="button"
             accessibilityLabel="Go back to previous question"
           >
-            <Text style={styles.backLinkText}>← Back</Text>
+            <Ionicons name="chevron-back" size={16} color={Colors.slateGray} />
+            <Text style={styles.backLinkText}>Back</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -335,7 +336,7 @@ export default function QuizScreen() {
             accessibilityRole="button"
             accessibilityLabel="Connect bank account"
           >
-            <Text style={styles.connectButtonText}>Connect →</Text>
+            <Text style={styles.connectButtonText}>Connect</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -359,7 +360,8 @@ export default function QuizScreen() {
             accessibilityRole="button"
             accessibilityLabel="Go back to previous question"
           >
-            <Text style={styles.backLinkText}>← Back</Text>
+            <Ionicons name="chevron-back" size={16} color={Colors.slateGray} />
+            <Text style={styles.backLinkText}>Back</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -461,9 +463,9 @@ const styles = StyleSheet.create({
     borderColor: Colors.accentGold,
   },
   optionIcon: {
-    fontSize: 28,
     width: 36,
-    textAlign: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   optionTextGroup: {
     flex: 1,
@@ -512,7 +514,10 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   backLink: {
-    alignItems: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 4,
     marginTop: Spacing.sm,
   },
   backLinkText: {

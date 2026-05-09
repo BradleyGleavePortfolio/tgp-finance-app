@@ -2,12 +2,32 @@
 // Standard: original gifted-charts presentation (bone/cream context)
 // Luxury: single 1.5pt oxblood stroke on navy, no fill, no grid, no axis labels,
 //         start/end annotations in stone, 700ms decel entry animation
-import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Dimensions, Animated } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Dimensions, Animated, AccessibilityInfo } from 'react-native';
 import Svg, { Path, Line } from 'react-native-svg';
 import { colors, typography } from '../../theme/tokens';
 import { formatCurrency } from '../../utils/formatters';
 import type { NetWorthHistory } from '../../types';
+
+/** Track Reduce Motion accessibility setting; updates on system change. */
+function useReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    let mounted = true;
+    AccessibilityInfo.isReduceMotionEnabled().then((v) => {
+      if (mounted) setReduced(v);
+    });
+    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', (v) => {
+      if (mounted) setReduced(!!v);
+    });
+    return () => {
+      mounted = false;
+      // RN >=0.65 returns an object with remove(); older returned void.
+      if (sub && typeof (sub as any).remove === 'function') (sub as any).remove();
+    };
+  }, []);
+  return reduced;
+}
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
@@ -49,14 +69,20 @@ function LuxuryChart({ history, height }: LuxuryChartProps) {
   const last = values[values.length - 1];
 
   const pathD = buildPath(values, width, height);
+  const reduceMotion = useReducedMotion();
 
   // 700ms decel stroke animation: animate a clip-rect translateX from -width to 0
   // We use an Animated.Value controlling opacity of a masking overlay that slides away
   // (react-native-svg doesn't support SVG animateMotion directly, so we overlay a
   //  solid-navy rectangle that slides right to reveal the line beneath)
-  const revealAnim = useRef(new Animated.Value(0)).current;
+  // When Reduce Motion is enabled, jump straight to the final state.
+  const revealAnim = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
 
   useEffect(() => {
+    if (reduceMotion) {
+      revealAnim.setValue(1);
+      return;
+    }
     // Reset then animate
     revealAnim.setValue(0);
     Animated.timing(revealAnim, {
@@ -66,7 +92,7 @@ function LuxuryChart({ history, height }: LuxuryChartProps) {
       easing: (t: number) => 1 - Math.pow(1 - t, 4), // approx expo-out
       useNativeDriver: true,
     }).start();
-  }, [history.length]);
+  }, [history.length, reduceMotion]);
 
   // The overlay slides from x=0 to x=width (left → right), revealing the path
   const overlayTranslateX = revealAnim.interpolate({
@@ -85,7 +111,12 @@ function LuxuryChart({ history, height }: LuxuryChartProps) {
   };
 
   return (
-    <View style={{ width, height }}>
+    <View
+      style={{ width, height }}
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={`Net worth chart, ${formatCurrency(first)} to ${formatCurrency(last)}`}
+    >
       {/* SVG line — no fill, no grid, no axis */}
       <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
         {pathD ? (

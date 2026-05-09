@@ -10,6 +10,7 @@ import { DebtRace } from '../../src/components/accounts/DebtRace';
 import { EmptyState } from '../../src/components/ui/EmptyState';
 import { Button } from '../../src/components/ui/Button';
 import { Colors, Typography, Spacing, BorderRadius } from '../../src/theme/finance';
+import { colors } from '../../src/theme/tokens';
 import { useAccountsStore } from '../../src/stores/accountsStore';
 import { formatCurrency } from '../../src/utils/formatters';
 import type { FinancialAccount } from '../../src/types';
@@ -94,7 +95,7 @@ export default function AccountsScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accentGold} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.stone} />}
       >
         {accounts.length === 0 && !isLoading ? (
           <EmptyState

@@ -198,7 +198,7 @@ export default function EODScreen() {
               <TextInput
                 value={notes}
                 onChangeText={setNotes}
-                placeholder="Any big expenses, income, or important financial events today..."
+                placeholder="A note on today's spending or a money decision."
                 placeholderTextColor={Colors.slateGray}
                 style={styles.notesInput}
                 multiline

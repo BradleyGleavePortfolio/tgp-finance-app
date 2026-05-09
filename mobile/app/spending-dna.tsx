@@ -3,12 +3,13 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../src/components/ui/Card';
 import { Button } from '../src/components/ui/Button';
 import { EmptyState } from '../src/components/ui/EmptyState';
-import { Colors, Typography, Spacing } from '../src/theme/finance';
+import { colors, typography, spacing } from '../src/theme/tokens';
 import { aiApi } from '../src/services/api';
-import { formatCurrency, formatPercent } from '../src/utils/formatters';
+import { formatCurrency } from '../src/utils/formatters';
 
 interface DNAReport {
   month: string;
@@ -54,11 +55,17 @@ export default function SpendingDNAScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back">
-          <Text style={styles.back}>← Back</Text>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          style={styles.backBtn}
+          hitSlop={8}
+        >
+          <Ionicons name="chevron-back" size={20} color={colors.ink} />
         </TouchableOpacity>
         <Text style={styles.title}>Spending DNA</Text>
-        <View style={{ width: 60 }} />
+        <View style={{ width: 32 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -118,20 +125,20 @@ export default function SpendingDNAScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.backgroundDeepNavy },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Spacing.base },
-  back: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodySmall, color: Colors.accentGold },
-  title: { fontFamily: 'Inter_700Bold', fontSize: Typography.bodyMedium, color: Colors.frostWhite },
-  content: { padding: Spacing.base, paddingBottom: 100 },
-  subtitle: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodyMedium, color: Colors.slateGray, marginBottom: Spacing.xl },
-  genBtn: { marginBottom: Spacing.xl },
-  reportCard: { padding: Spacing.base, marginBottom: Spacing.base, gap: Spacing.md },
-  reportMonth: { fontFamily: 'Inter_700Bold', fontSize: Typography.titleSmall, color: Colors.accentGold },
-  statsRow: { flexDirection: 'row', gap: Spacing.xl },
+  container: { flex: 1, backgroundColor: colors.bone },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.base },
+  backBtn: { width: 32, alignItems: 'flex-start' },
+  title: { fontFamily: typography.families.medium, ...typography.scale.bodyMd, color: colors.ink },
+  content: { padding: spacing.base, paddingBottom: 100 },
+  subtitle: { fontFamily: typography.families.regular, ...typography.scale.body, color: colors.stone, marginBottom: spacing.xl },
+  genBtn: { marginBottom: spacing.xl },
+  reportCard: { padding: spacing.base, marginBottom: spacing.base, gap: spacing.md },
+  reportMonth: { fontFamily: typography.families.medium, ...typography.scale.bodyMd, color: colors.oxblood },
+  statsRow: { flexDirection: 'row', gap: spacing.xl },
   stat: { gap: 2 },
-  statValue: { fontFamily: 'JetBrainsMono_700Bold', fontSize: Typography.bodyMedium, color: Colors.frostWhite },
-  statLabel: { fontFamily: 'Inter_400Regular', fontSize: Typography.microLabel, color: Colors.slateGray },
-  paragraph: { gap: Spacing.xs },
-  paragraphTitle: { fontFamily: 'Inter_600SemiBold', fontSize: Typography.bodySmall, color: Colors.accentGold },
-  paragraphText: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodySmall, color: Colors.frostWhite, lineHeight: 20 },
+  statValue: { fontFamily: typography.families.mono, fontSize: 16, lineHeight: 22, color: colors.ink },
+  statLabel: { fontFamily: typography.families.regular, ...typography.scale.caption, color: colors.stone },
+  paragraph: { gap: spacing.xs },
+  paragraphTitle: { fontFamily: typography.families.medium, ...typography.scale.eyebrow, color: colors.oxblood },
+  paragraphText: { fontFamily: typography.families.regular, ...typography.scale.bodySmall, color: colors.ink, lineHeight: 20 },
 });

@@ -30,7 +30,7 @@ import {
   CormorantGaramond_500Medium,
 } from '@expo-google-fonts/cormorant-garamond';
 import { useAuthStore } from '../src/stores/authStore';
-import { colors } from '../src/theme/tokens';
+import { colors, typography } from '../src/theme/tokens';
 import { ThemeProvider } from '../src/theme/ThemeProvider';
 import { authEvents } from '../src/utils/authEvents';
 import { signOut } from '../src/lib/signOut';
@@ -62,9 +62,9 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
   render() {
     if (this.state.hasError) {
       return (
-        <View style={{ flex: 1, backgroundColor: '#F5EFE4', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
-          <Text style={{ color: '#4A0404', fontSize: 20, fontWeight: 'bold', marginBottom: 12 }}>Something went wrong</Text>
-          <Text style={{ color: '#B1A89F', fontSize: 14, textAlign: 'center' }}>{this.state.error}</Text>
+        <View style={{ flex: 1, backgroundColor: colors.bone, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+          <Text style={{ fontFamily: typography.families.medium, ...typography.scale.bodyMd, color: colors.oxblood, marginBottom: 12 }}>Something went wrong</Text>
+          <Text style={{ fontFamily: typography.families.regular, ...typography.scale.bodySmall, color: colors.stone, textAlign: 'center' }}>{this.state.error}</Text>
         </View>
       );
     }
