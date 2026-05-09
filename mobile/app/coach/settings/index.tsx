@@ -1,11 +1,14 @@
 /**
- * CoachSettingsScreen — coach profile, branding, billing entry points.
+ * CoachSettingsScreen — coach profile, billing entry points.
  *
- * Stage 2 ships read-only access to the coach's existing /api/users/me data
- * with deep links into the existing settings stack (notifications, security,
- * trust center). Branding, payment links, and calendar integration are
- * explicit "coming soon" rows so coaches see the surface even though the
- * implementation lands in Stage 3.
+ * Sprint A audit fix CR-5: the previous version rendered five rows
+ * labelled "Coming in Stage 3" — Display name & bio, Branding &
+ * avatar, Public coach link, Payment links (Stripe), Calendar
+ * integration. Stage 3 has shipped (Sprint A merged) and none of
+ * those features have a real destination on the finance side yet, so
+ * the rows have been removed rather than left as disabled
+ * placeholders. They land back on this screen when the underlying
+ * flows ship.
  */
 import React from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
@@ -46,24 +49,6 @@ export default function CoachSettingsScreen() {
           <View style={{ marginTop: spacing.sm, flexDirection: 'row' }}>
             <CoachStatusPill label={user?.role ?? 'unknown'} tone="good" />
           </View>
-        </View>
-
-        <Text style={styles.sectionTitle}>PROFILE</Text>
-        <View style={styles.list}>
-          <Row icon="person-outline" label="Display name & bio" hint="Coming in Stage 3" disabled />
-          <Row icon="image-outline" label="Branding & avatar" hint="Coming in Stage 3" disabled />
-          <Row
-            icon="link-outline"
-            label="Public coach link"
-            hint="Coming in Stage 3"
-            disabled
-          />
-        </View>
-
-        <Text style={styles.sectionTitle}>PAYMENTS & SCHEDULING</Text>
-        <View style={styles.list}>
-          <Row icon="card-outline" label="Payment links (Stripe)" hint="Coming in Stage 3" disabled />
-          <Row icon="calendar-outline" label="Calendar integration" hint="Coming in Stage 3" disabled />
         </View>
 
         <Text style={styles.sectionTitle}>APP</Text>

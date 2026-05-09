@@ -59,6 +59,7 @@
     },
     "extra": {
       "apiUrl": "https://tgp-finance-api.fly.dev",
+      "fitnessApiUrl": "https://backend-spring-lake-3890.fly.dev",
       "router": {
         "origin": false
       },
