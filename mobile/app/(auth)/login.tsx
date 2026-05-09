@@ -76,11 +76,15 @@ export default function LoginScreen() {
       setFieldErrors({ ...fieldErrors, email: 'Enter your email to reset password' });
       return;
     }
+    // Sprint A audit fix M-4: surface the error inline under the email
+    // input rather than via Alert.alert, matching the rest of the auth
+    // surface. The success path already uses an inline banner.
+    setFieldErrors({ ...fieldErrors, email: '' });
     try {
       await sendPasswordResetEmail(email);
       setResetSent(true);
     } catch (err) {
-      Alert.alert('Password reset', safeAuthError(err));
+      setFieldErrors({ ...fieldErrors, email: safeAuthError(err) });
     }
   };
 

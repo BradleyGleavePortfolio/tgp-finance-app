@@ -173,9 +173,21 @@ function RootLayout() {
   }, [router]);
 
   // Handle deep links (tgp-finance://auth/callback) from email verification
+  // and tgp-finance://auth/reset-password from password-recovery emails.
+  // Sprint A audit fix CR-2: a recovery link must open a screen that
+  // can attach the recovery session and let the user set a new password.
+  // Without this branch, the app opened on the recovery link but no route
+  // handled it, so the user was silently dropped on the foreground screen.
   useEffect(() => {
     const handleDeepLink = async (event: { url: string }) => {
       const { url } = event;
+      if (url && url.includes('auth/reset-password')) {
+        // Forward the original URL (fragment included) into the screen
+        // so it can parse access_token + refresh_token. expo-router's
+        // searchParams encoder preserves the literal string round-trip.
+        router.replace({ pathname: '/auth/reset-password', params: { url } });
+        return;
+      }
       if (url && url.includes('auth/callback') && pendingVerification) {
         // User returned from verification email — trigger verification check
         const verified = await checkVerification();
