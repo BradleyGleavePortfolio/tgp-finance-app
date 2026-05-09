@@ -68,9 +68,19 @@ export default function RoleSelectScreen() {
       await authApi.coachPromote(token);
       // Refresh user so the role is current before navigating.
       await refreshUser();
-      router.replace('/(onboarding)/quiz');
+      // Sprint A — newly-promoted coaches go to the practice picker
+      // first. This is the cross-pillar gate the audit flagged: the
+      // value must be set on both backends before the coach reaches
+      // CoachHome, otherwise the fitness app's cross-pillar surface
+      // 403s with PRACTICE_NOT_SELECTED.
+      router.replace('/coach/practice');
     } catch (err) {
-      setCoachError(errorMessage(err, 'Could not enable coach mode. Please try again.'));
+      setCoachError(
+        errorMessage(
+          err,
+          "We couldn't promote your account. Contact support@trygrowthproject.com if this keeps happening.",
+        ),
+      );
     } finally {
       setCoachSubmitting(false);
     }
@@ -85,7 +95,9 @@ export default function RoleSelectScreen() {
     setShowDevModal(false);
     try {
       await selectRole('coach', devCode);
-      router.replace('/(onboarding)/quiz');
+      // Same first-run gate as the production token path — coaches
+      // must select a practice before reaching CoachHome.
+      router.replace('/coach/practice');
     } catch (err) {
       setDevCodeError(errorMessage(err, 'Invalid access code'));
       setShowDevModal(true);
