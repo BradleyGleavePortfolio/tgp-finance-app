@@ -184,12 +184,55 @@ export const authApi = {
   me: () => api.get('/api/auth/me'),
   selectRole: (role: string, coach_access_code?: string) =>
     api.post('/api/auth/select-role', { role, ...(coach_access_code ? { coach_access_code } : {}) }),
+  // Sprint A — production-safe coach promotion. Replaces the dev-backdoor
+  // coach_access_code path on /select-role. The mobile client mints a
+  // signed token (see lib/coachSignupToken.ts) and posts it here.
+  coachPromote: (signupToken: string) =>
+    api.post<{ role: string; message: string }>('/api/auth/coach-promote', {
+      signup_token: signupToken,
+    }),
   logout: () => api.post('/api/auth/logout'),
   // Trade Google OAuth tokens (returned by Supabase implicit flow) for our
   // own backend-issued JWT. Backend verifies via supabase.auth.signInWithIdToken
   // and either creates or returns an existing user record.
   googleLogin: (params: { access_token: string; id_token?: string }) =>
     api.post('/api/auth/google', params),
+};
+
+// Sprint A — coach-issued invite codes (multi-code flow on top of the
+// existing CoachProfile.invite_code default link). Mirrors the fitness
+// /coach/invite-codes contract so the mobile screen ports cleanly.
+export interface CoachInviteCode {
+  id: string;
+  code: string;
+  expires_at: string | null;
+  max_uses: number | null;
+  used_count: number;
+  revoked: boolean;
+  created_at?: string;
+}
+
+export const coachInviteCodesApi = {
+  list: () => api.get<CoachInviteCode[]>('/api/coach/invite-codes'),
+  create: (data: { expires_at?: string | null; max_uses?: number | null }) =>
+    api.post<CoachInviteCode>('/api/coach/invite-codes', data),
+  revoke: (id: string) =>
+    api.delete<CoachInviteCode>(`/api/coach/invite-codes/${id}`),
+};
+
+// Sprint A — coach practice type (already shipped backend in Stage 3).
+// Surfaces here so the symmetric dual-write from the fitness app can
+// also be invoked locally when a coach picks their practice from
+// inside the finance app.
+export type CoachPracticeType = 'fitness_only' | 'finance_only' | 'both';
+
+export const coachPracticeApi = {
+  get: () =>
+    api.get<{ practice_type: CoachPracticeType | null }>('/api/coach/practice'),
+  set: (practice_type: CoachPracticeType) =>
+    api.put<{ practice_type: CoachPracticeType }>('/api/coach/practice', {
+      practice_type,
+    }),
 };
 
 // Body shape accepted by create/update routes — a partial of the public

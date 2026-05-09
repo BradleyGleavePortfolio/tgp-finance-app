@@ -127,6 +127,11 @@ export default function CoachHomeScreen() {
             onPress={() => router.push('/coach/clients')}
           />
           <ActionRow
+            icon="key-outline"
+            label="Invite a new client"
+            onPress={() => router.push('/coach/invite-codes')}
+          />
+          <ActionRow
             icon="chatbubble-ellipses-outline"
             label="Review messages"
             onPress={() => router.push('/coach/messages')}

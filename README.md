@@ -391,3 +391,65 @@ This app provides financial education and tracking tools for
 informational purposes only. Nothing in this app constitutes
 financial, tax, or investment advice. Consult a licensed financial
 professional before making financial decisions.
+
+---
+
+## Workflows (May 9 verification)
+
+| Workflow | Purpose |
+|---|---|
+| `.github/workflows/ci.yml` — backend | `npm ci`, lint, `tsc --noEmit`, `npm run build`, `npm test` |
+| `.github/workflows/ci.yml` — mobile | `npm ci`, `tsc --noEmit`, `npm test` |
+| Dependabot | Weekly grouped minor / patch update PRs for `backend/`, `mobile/`, and the workflows themselves |
+| Fly release pipeline | `release_command = bash ./scripts/release.sh` runs `prisma migrate deploy` with baseline-recovery fallback in a release-VM before traffic flips |
+| EAS build (mobile) | `eas build --platform <ios|android> --profile production` — see `EAS-BUILD.md` |
+
+## Architecture
+
+```
+Mobile (Expo) -- HTTPS --> Fly.io edge --> NestJS app (tgp-finance-api)
+                                                |
+                                                +-- Prisma 5 --> Supabase Postgres
+                                                +-- Supabase Auth JWKS (token verify)
+                                                +-- Perplexity sonar-pro (AI coach, DB-backed sliding-window rate limit)
+                                                +-- Federation surface (/api/admin/federation/*)
+                                                       gated by FEDERATION_SERVICE_TOKEN
+                                                +-- USDA / Numbeo (cost of living fallback bundled)
+
+Fitness backend (backend-spring-lake-3890)
+    | presents Bearer FEDERATION_SERVICE_TOKEN
+    +-- /api/admin/federation/* on tgp-finance-api
+            (email-based identity mapping today;
+             shared_identity_id is the long-term plan)
+```
+
+## Known issues (May 9 — open audit findings)
+
+| ID | Issue | Severity | Status |
+|---|---|---|---|
+| 1 | No coach-side invite-code screen — coaches cannot add their first client | Stop-the-press | Sprint A Fix 1 in flight |
+| 2 | "I'm a Coach" returns 403 in production due to the dev-backdoor gate | Stop-the-press | Sprint A Fix 2 in flight (deep-link token flow) |
+| 3 | `PracticeSelectionScreen` invisible plus asymmetric write across pillars | Stop-the-press | Sprint A Fix 3 in flight (first-run gate plus symmetric dual write) |
+| 4 | `flyctl deploy --remote-only` known-degraded — see RUNBOOK.md for diagnostic steps | High | Tracked; manual `--local-only` works |
+
+## Roadmap
+
+| Item | T-shirt | Notes |
+|---|---|---|
+| Sprint A — three stop-the-press fixes plus signup polish | M | Branch `feat/sprint-a-stop-the-press` |
+| Cross-pillar `shared_identity_id` (replaces email-based identity mapping fallback) | L | Coordinated with fitness backend |
+| Concierge data-controls inbox automation | L | Currently `SUPPORT_CONTACT_EMAIL` only — no automated export / deletion pipeline yet |
+| Demote-coach endpoint plus client-roster reassignment | M | Currently a manual DB operation |
+| Stripe billing for finance pillar | L | Not yet wired (fitness pillar handles SaaS billing today) |
+| Reverse-migration audit across recent waves | S | Confirm down-migrations exist for Stage 3 schema |
+
+## Contribution guide
+
+- Branch naming: `feat/<scope>-<topic>`, `fix/<scope>-<topic>`, `docs/<topic>`. Sprints use `feat/sprint-<letter>-<theme>`.
+- Conventional commits: `feat(scope): subject`, `fix(scope): subject`. No emoji. No exclamation points. (House style. The pre-existing copy in this README does not yet conform — fold into a future cleanup sweep, not into unrelated PRs.)
+- Strict TypeScript — no `any`, no `@ts-ignore`. CI rejects either.
+- Theme tokens only on the mobile side. Bone, ink, and oxblood per `mobile/DESIGN.md`. Cormorant Garamond for display, Inter for body.
+- Every PR updates the matching README or module README. Module-level READMEs share the same shape: purpose, key files, endpoints, data flow, security / tenancy, env vars, failure modes, tests, operations.
+- Endpoints touching coach role require rate limiting plus audit logging.
+- AI prompts are pinned by `backend/test/ai-prompt-doctrine.spec.ts`. Trust Center capability flags are pinned by `backend/test/system-trust-meta.spec.ts` — flipping a flag without shipping the feature is a regression.
+- Bradley merges. Do not self-merge.

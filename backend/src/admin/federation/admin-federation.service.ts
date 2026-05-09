@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import type { CoachPracticeType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 /**
@@ -336,6 +337,55 @@ export class AdminFederationService {
         coach_notes_total: coachNotesAll,
         milestones_unlocked_total: milestonesAll,
       },
+    };
+  }
+
+  /**
+   * Sprint A — set coach practice type by email.
+   *
+   * The fitness backend forwards a coach's practice selection here so the
+   * value lands on both backends in a single user action. Email is the
+   * federated identity key (same convention as the lookup endpoints).
+   * Refuses to auto-create — if the email maps to a non-coach (or no
+   * user at all), 404 with a descriptive code.
+   */
+  async setCoachPracticeByEmail(email: string, practiceType: CoachPracticeType) {
+    const log = new Logger('AdminFederationService.setCoachPracticeByEmail');
+    const normalized = (email ?? '').trim();
+    if (!normalized) {
+      throw new NotFoundException({
+        error: 'Email is required',
+        code: 'FEDERATION_BAD_REQUEST',
+      });
+    }
+    const user = await this.prisma.user.findFirst({
+      where: { email: { equals: normalized, mode: 'insensitive' } },
+      select: { id: true, email: true, role: true },
+    });
+    if (!user) {
+      throw new NotFoundException({
+        error: 'No finance account found for that email',
+        code: 'FEDERATION_USER_NOT_FOUND',
+      });
+    }
+    if (user.role !== 'coach' && user.role !== 'owner') {
+      throw new NotFoundException({
+        error: 'User exists but is not a coach or owner',
+        code: 'FEDERATION_NOT_A_COACH',
+      });
+    }
+    const updated = await this.prisma.user.update({
+      where: { id: user.id },
+      data: { coach_practice_type: practiceType },
+      select: { coach_practice_type: true },
+    });
+    log.log(
+      `Practice type for coach ${user.email} set to ${practiceType} via federation`,
+    );
+    return {
+      identityMapping: 'email',
+      user: { email: user.email, role: user.role },
+      practice_type: updated.coach_practice_type,
     };
   }
 }

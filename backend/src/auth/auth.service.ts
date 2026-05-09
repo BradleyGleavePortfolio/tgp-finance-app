@@ -8,8 +8,51 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createHmac, timingSafeEqual } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { AnalyticsService } from '../analytics/analytics.service';
+
+// Sprint A — production-safe coach promotion.
+//
+// The mobile "I'm a Coach" card POSTs a signed token instead of the dev
+// backdoor's plaintext access code. The token is assembled by the
+// mobile client as `<userId>.<expiresAt>.<hmac>` where `hmac` is
+// HMAC-SHA256(COACH_SIGNUP_SECRET, `${userId}.${expiresAt}`).
+//
+// COACH_SIGNUP_SECRET is rotated like any other production secret; the
+// mobile app reads it via `EXPO_PUBLIC_COACH_SIGNUP_SECRET`. Yes,
+// embedding it in the client means a determined attacker can mint a
+// token — that's why every promotion is rate-limited, audit-logged,
+// and idempotent (a second promotion is a no-op). The audit trail lets
+// ops detect leak-fanout and rotate the secret without code changes.
+const SIGNUP_TOKEN_TTL_MS = 5 * 60 * 1000;
+
+interface ParsedSignupToken {
+  tokenUserId: string;
+  expiresAt: number;
+  signature: string;
+}
+
+function parseSignupToken(raw: string): ParsedSignupToken | null {
+  if (typeof raw !== 'string') return null;
+  const parts = raw.split('.');
+  if (parts.length !== 3) return null;
+  const [tokenUserId, expiresAtStr, signature] = parts;
+  if (!tokenUserId || !expiresAtStr || !signature) return null;
+  const expiresAt = Number(expiresAtStr);
+  if (!Number.isFinite(expiresAt) || expiresAt <= 0) return null;
+  if (!/^[a-f0-9]{64}$/i.test(signature)) return null;
+  return { tokenUserId, expiresAt, signature };
+}
+
+function safeEqualHex(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  try {
+    return timingSafeEqual(Buffer.from(a, 'hex'), Buffer.from(b, 'hex'));
+  } catch {
+    return false;
+  }
+}
 
 // Cleanup (round 5): dropped `bcrypt` import and `BCRYPT_SALT_ROUNDS` constant.
 // Password hashing is handled entirely by Supabase Auth (see `register` / `login`
@@ -315,6 +358,130 @@ export class AuthService {
     });
 
     return { role: updatedUser.role, message: `Role set to ${role}` };
+  }
+
+  /**
+   * Sprint A — production-safe coach self-promotion.
+   *
+   * Replaces the dev-backdoor path on /select-role that 403s in
+   * production with COACH_SELF_REGISTRATION_DISABLED. The mobile client
+   * mints `<userId>.<expiresAt>.<hmac>` and posts it; we verify
+   * timing-safely against COACH_SIGNUP_SECRET, freshness, and that the
+   * embedded user matches the authenticated caller, then flip the
+   * role. Every attempt — successful or not — is audit-logged.
+   */
+  async coachPromote(
+    userId: string,
+    signupToken: string,
+    auditCtx: { ip?: string | null; userAgent?: string | null } = {},
+  ) {
+    const ip = auditCtx.ip ?? null;
+    const user_agent = auditCtx.userAgent ?? null;
+
+    const secret = this.config.get<string>('COACH_SIGNUP_SECRET');
+    if (!secret || secret.length < 32) {
+      // Fail closed — same external shape as a bad token so ops fix
+      // config without leaking that it was misconfigured.
+      this.logger.error('COACH_SIGNUP_SECRET is missing or too short');
+      await this.recordPromotionAudit(userId, 'invalid_token', 'secret_missing', ip, user_agent);
+      throw new ForbiddenException({
+        error: 'Coach signup is not currently available. Contact support.',
+        code: 'COACH_SIGNUP_UNAVAILABLE',
+      });
+    }
+
+    const parsed = parseSignupToken(signupToken);
+    if (!parsed) {
+      await this.recordPromotionAudit(userId, 'invalid_token', 'shape', ip, user_agent);
+      throw new ForbiddenException({
+        error: 'Invalid coach signup token.',
+        code: 'INVALID_SIGNUP_TOKEN',
+      });
+    }
+    const { tokenUserId, expiresAt, signature } = parsed;
+
+    if (Date.now() > expiresAt) {
+      await this.recordPromotionAudit(userId, 'invalid_token', 'expired', ip, user_agent);
+      throw new ForbiddenException({
+        error: 'Coach signup token has expired. Try again.',
+        code: 'SIGNUP_TOKEN_EXPIRED',
+      });
+    }
+
+    if (tokenUserId !== userId) {
+      // Token must be bound to the authenticated caller — otherwise a
+      // leaked token from one device could promote a different account.
+      await this.recordPromotionAudit(userId, 'invalid_token', 'subject_mismatch', ip, user_agent);
+      throw new ForbiddenException({
+        error: 'Coach signup token is not valid for this account.',
+        code: 'INVALID_SIGNUP_TOKEN',
+      });
+    }
+
+    const expected = createHmac('sha256', secret)
+      .update(`${tokenUserId}.${expiresAt}`)
+      .digest('hex');
+    if (!safeEqualHex(expected, signature)) {
+      await this.recordPromotionAudit(userId, 'invalid_token', 'signature', ip, user_agent);
+      throw new ForbiddenException({
+        error: 'Invalid coach signup token.',
+        code: 'INVALID_SIGNUP_TOKEN',
+      });
+    }
+
+    const me = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true },
+    });
+    if (!me) {
+      await this.recordPromotionAudit(userId, 'invalid_role', 'user_missing', ip, user_agent);
+      throw new UnauthorizedException({
+        error: 'User not found',
+        code: 'USER_NOT_FOUND',
+      });
+    }
+    // Idempotent: a second promotion is a no-op success rather than a
+    // 4xx the mobile UI has to special-case.
+    if (me.role === 'coach' || me.role === 'owner') {
+      await this.recordPromotionAudit(userId, 'already_coach', null, ip, user_agent);
+      return { role: me.role, message: 'Already a coach.' };
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { role: 'coach' },
+      select: { role: true },
+    });
+    await this.recordPromotionAudit(userId, 'success', null, ip, user_agent);
+    try {
+      this.analytics.capture(userId, 'coach_promoted', { source: 'mobile_token' });
+    } catch {
+      // best-effort analytics
+    }
+    this.logger.log(`User ${userId} promoted to coach via signed token`);
+    return { role: updated.role, message: 'Promoted to coach.' };
+  }
+
+  private async recordPromotionAudit(
+    userId: string,
+    outcome: string,
+    reason: string | null,
+    ip: string | null,
+    userAgent: string | null,
+  ): Promise<void> {
+    try {
+      await this.prisma.coachPromotionAudit.create({
+        data: {
+          user_id: userId,
+          outcome,
+          reason,
+          ip,
+          user_agent: userAgent,
+        },
+      });
+    } catch (err) {
+      this.logger.error(`Failed to record coach promotion audit: ${(err as Error).message}`);
+    }
   }
 
   async logout(userId: string) {
