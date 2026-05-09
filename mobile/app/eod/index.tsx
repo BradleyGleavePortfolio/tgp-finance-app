@@ -19,7 +19,7 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { useNetWorthStore } from '../../src/stores/networthStore';
 import { DAILY_HABITS } from '../../src/utils/constants';
 import { handleEodSubmissionNotifications } from '../../src/services/notifications';
-import { notificationsApi } from '../../src/services/api';
+import { notificationsApi, type EODSubmissionResponse } from '../../src/services/api';
 import type { AccountSnapshot } from '../../src/types';
 
 type Step = 'accounts' | 'mood' | 'notes' | 'habits' | 'result';
@@ -38,7 +38,11 @@ export default function EODScreen() {
   const [mood, setMood] = useState<number | undefined>(undefined);
   const [notes, setNotes] = useState('');
   const [habits, setHabits] = useState<Record<string, boolean>>({});
-  const [result, setResult] = useState<any>(null);
+  // Sprint A audit fix H-3: typed EOD submission result. The previous
+  // `useState<any>` slipped past the lint config because `any` was a
+  // type annotation, not a value. EODSubmissionResponse models the
+  // wire shape (submission row, computed totals, optional ai_insight).
+  const [result, setResult] = useState<EODSubmissionResponse | null>(null);
 
   const activeAccounts = accounts.filter(a => a.is_active);
   const totalAccounts = activeAccounts.length;

@@ -318,10 +318,12 @@ export const eodApi = {
 
 // Sprint A audit fix H-3 — typed shape for the EOD submit response.
 // The store + screen previously consumed the result as `any`. The
-// server returns the saved submission row plus the computed net-worth
-// delta (`previous_net_worth` -> `new_net_worth`) and an optional AI
-// insight. Optional fields stay optional so a degraded AI provider
-// does not break the screen.
+// finance backend's eod.service.ts returns the saved submission row
+// inline plus computed totals (total_assets, total_debt,
+// net_worth_computed) and an optional ai_insight. The `submission`
+// envelope shape exists on some legacy paths so we accept both.
+// Optional fields stay optional so a degraded AI provider does not
+// break the screen.
 export interface EODSubmissionResponse {
   submission?: EODSubmissionRow;
   id?: string;
@@ -334,9 +336,8 @@ export interface EODSubmissionResponse {
   habits_checked?: string[];
   total_assets?: number;
   total_debt?: number;
-  net_worth?: number;
+  net_worth_computed?: number;
   previous_net_worth?: number;
-  new_net_worth?: number;
   ai_insight?: string;
   submitted_at?: string;
   created_at?: string;
@@ -352,9 +353,8 @@ export interface EODSubmissionRow {
   habits: HabitEntry[];
   total_assets: number;
   total_debt: number;
-  net_worth: number;
+  net_worth_computed: number;
   previous_net_worth?: number;
-  new_net_worth?: number;
   ai_insight?: string;
   submitted_at: string;
 }
