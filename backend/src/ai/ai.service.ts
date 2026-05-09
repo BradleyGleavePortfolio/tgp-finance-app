@@ -5,6 +5,8 @@ import OpenAI from 'openai';
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { PrismaService } from '../prisma/prisma.service';
 import { AIRateLimitService } from './ai-rate-limit.service';
+import { AICircuitBreakerService } from './ai-circuit-breaker.service';
+import { AIResponseCacheService } from './ai-response-cache.service';
 import { toN } from '../common/money';
 
 // Conversation history forwarded from the client. We pass it through to the
@@ -116,6 +118,17 @@ full. This is general information, not personalised investment advice.
 `;
 }
 
+/**
+ * Round `value` down to the nearest multiple of `size`. Used to coarsen the
+ * dollar-amount inputs to the response-cache hash so two near-identical EOD
+ * submissions or DNA reports collide on the same cache row — otherwise the
+ * cache is essentially never hit because exact balances change every day.
+ */
+function bucket(value: number, size: number): number {
+  if (!Number.isFinite(value) || size <= 0) return 0;
+  return Math.floor(value / size) * size;
+}
+
 @Injectable()
 export class AIService {
   private readonly logger = new Logger(AIService.name);
@@ -125,6 +138,8 @@ export class AIService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly rateLimit: AIRateLimitService,
+    private readonly breaker: AICircuitBreakerService,
+    private readonly cache: AIResponseCacheService,
   ) {
     // main.ts asserts PERPLEXITY_API_KEY is present at boot. The empty-string
     // fallback here exists only so unit tests that construct the service
@@ -154,25 +169,32 @@ export class AIService {
       { role: 'user', content: message },
     ];
 
-    try {
+    // Cache key for chat: the latest user message plus the tail of the
+    // conversation. Full history would never repeat verbatim, so hashing the
+    // last user turn alone gives the best chance of an exact-hit replay if
+    // the breaker is OPEN. We deliberately don't hash userId or balances —
+    // the cache is intent-scoped, not user-scoped, and an OPEN-state replay
+    // for two users asking the same factual question is acceptable.
+    const lastTurn = conversationHistory[conversationHistory.length - 1];
+    const contextHash = this.cache.hashContext({
+      intent: 'chat',
+      message: message.trim(),
+      last_role: lastTurn?.role ?? null,
+      last_content: lastTurn?.content?.slice(0, 500) ?? null,
+    });
+
+    const result = await this.breaker.execute('chat', contextHash, async () => {
       const response = await this.perplexity.chat.completions.create({
         model: 'sonar-pro',
         messages,
         temperature: 0.6, // Slightly lower for financial precision
         max_tokens: 600,
       });
+      const text = response.choices[0]?.message?.content || 'Unable to generate response.';
+      return { text, model: 'sonar-pro' };
+    });
 
-      const reply = response.choices[0]?.message?.content || 'Unable to generate response.';
-      return { reply, model: 'sonar-pro' };
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      this.logger.error(`AI chat error: ${msg}`);
-      // Graceful degradation — return an error message rather than crashing
-      throw new BadRequestException({
-        error: 'AI service temporarily unavailable. Please try again.',
-        code: 'AI_ERROR',
-      });
-    }
+    return { reply: result.reply, model: result.model, source: result.source };
   }
 
   async buildUserContext(userId: string) {
@@ -359,7 +381,19 @@ User mood: ${submission.mood || 'not recorded'}/5
 User goal: ${userContext.profile?.primary_goal || 'reduce debt'}
 Twenty words or fewer. Declarative. End in a period. No hype, no emoji, no exclamation marks.`;
 
-    try {
+    // Bucket the numbers when computing the cache key so two near-identical
+    // EODs hash to the same row. Exact dollar amounts as cache keys would
+    // mean the cache is essentially never hit — the buckets here are wide
+    // enough that a fallback replay still reads as plausible commentary.
+    const contextHash = this.cache.hashContext({
+      intent: 'eod_insight',
+      net_worth_bucket: bucket(toN(submission.net_worth_computed), 5000),
+      debt_bucket: bucket(toN(submission.total_debt_computed), 5000),
+      mood: submission.mood ?? null,
+      goal: userContext.profile?.primary_goal ?? null,
+    });
+
+    const result = await this.breaker.execute('eod_insight', contextHash, async () => {
       const response = await this.perplexity.chat.completions.create({
         model: 'sonar-pro',
         messages: [
@@ -369,24 +403,25 @@ Twenty words or fewer. Declarative. End in a period. No hype, no emoji, no excla
         temperature: 0.7,
         max_tokens: 100,
       });
+      const text = response.choices[0]?.message?.content || '';
+      return { text, model: 'sonar-pro' };
+    });
 
-      const insight = response.choices[0]?.message?.content || null;
+    const insight = result.reply || null;
 
-      // Update submission with AI insight — use updateMany with user_id filter so we can never
-      // overwrite a different user's submission even if findFirst above somehow returned one.
-      if (insight) {
-        await this.prisma.eODSubmission.updateMany({
-          where: { id: eodSubmissionId, user_id: userId },
-          data: { ai_insight: insight },
-        });
-      }
-
-      return { insight };
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      this.logger.error(`EOD insight error: ${msg}`);
-      return { insight: null };
+    // Persist the insight regardless of whether it came from upstream, cache,
+    // or the static fallback — the user's record should always carry a string
+    // they can see in the timeline. We do not persist the empty-string case
+    // (no upstream content + no cache + no fallback registered) which is
+    // structurally impossible today but worth defending.
+    if (insight) {
+      await this.prisma.eODSubmission.updateMany({
+        where: { id: eodSubmissionId, user_id: userId },
+        data: { ai_insight: insight },
+      });
     }
+
+    return { insight, source: result.source };
   }
 
   async generateSpendingDNA(userId: string, month: string) {
@@ -435,7 +470,15 @@ User data for ${month}:
 - Estimated savings rate: ~${avgSavingsRate}%
 - Primary goal: ${profile?.primary_goal || 'reduce debt'}`;
 
-    try {
+    const contextHash = this.cache.hashContext({
+      intent: 'spending_dna',
+      month,
+      savings_rate_bucket: bucket(parseFloat(avgSavingsRate), 5),
+      debt_bucket: bucket(avgDebt, 5000),
+      net_worth_change_bucket: bucket(netWorthChange, 1000),
+    });
+
+    const result = await this.breaker.execute('spending_dna', contextHash, async () => {
       const response = await this.perplexity.chat.completions.create({
         model: 'sonar-pro',
         messages: [
@@ -445,32 +488,34 @@ User data for ${month}:
         temperature: 0.7,
         max_tokens: 400,
       });
+      const text = response.choices[0]?.message?.content || 'Report unavailable.';
+      return { text, model: 'sonar-pro' };
+    });
 
-      const report_text = response.choices[0]?.message?.content || 'Report unavailable.';
+    const report_text = result.reply;
 
-      // Save to DB
-      const saved = await this.prisma.spendingDnaReport.upsert({
-        where: { user_id_month: { user_id: userId, month } },
-        update: { report_text },
-        create: {
-          user_id: userId,
-          month,
-          report_text,
-          key_metrics: {
-            days_tracked: submissions.length,
-            net_worth_change: Math.round(netWorthChange),
-            avg_savings_rate_pct: parseFloat(avgSavingsRate),
-            avg_debt: Math.round(avgDebt),
-          },
+    // Save to DB. Even fallback / cached responses are persisted so the user
+    // always has a row for the month — the next successful upstream call will
+    // upsert over it. Adding `source` to key_metrics gives ops a way to spot
+    // months where every replica was serving fallback.
+    const saved = await this.prisma.spendingDnaReport.upsert({
+      where: { user_id_month: { user_id: userId, month } },
+      update: { report_text },
+      create: {
+        user_id: userId,
+        month,
+        report_text,
+        key_metrics: {
+          days_tracked: submissions.length,
+          net_worth_change: Math.round(netWorthChange),
+          avg_savings_rate_pct: parseFloat(avgSavingsRate),
+          avg_debt: Math.round(avgDebt),
+          source: result.source,
         },
-      });
+      },
+    });
 
-      return saved;
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Spending DNA error: ${msg}`);
-      throw new BadRequestException({ error: 'Could not generate spending DNA report', code: 'AI_ERROR' });
-    }
+    return saved;
   }
 
   // Returns metadata for the most recently generated Spending DNA report.

@@ -387,3 +387,22 @@ model AIRequestLog {
   @@index([user_id, created_at])
   @@map("ai_request_logs")
 }
+
+// Server-side last-known-good cache used by AICircuitBreakerService when the
+// upstream Perplexity gateway trips OPEN. Every row is a successful upstream
+// response captured by the breaker on the happy path; reads never block the
+// upstream call. See prisma/migrations/20260508000000_ai_response_cache for
+// the read-path strategy and index rationale.
+model AiResponseCache {
+  id            String   @id @default(uuid())
+  intent        String // 'chat' | 'eod_insight' | 'spending_dna'
+  context_hash  String // sha256 of the canonicalised input — see ai-response-cache.service.ts
+  response_text String
+  model         String // model that produced the response, e.g. 'sonar-pro'
+  created_at    DateTime @default(now())
+  last_used_at  DateTime @default(now())
+
+  @@unique([intent, context_hash])
+  @@index([intent, last_used_at(sort: Desc)])
+  @@map("ai_response_cache")
+}

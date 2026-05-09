@@ -2,6 +2,7 @@ import { Controller, Get, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from '../common/decorators/public.decorator';
 import { PrismaService } from '../prisma/prisma.service';
+import { AICircuitBreakerService } from '../ai/ai-circuit-breaker.service';
 
 /**
  * /health        — cheap liveness probe (Fly + load balancers hit this).
@@ -12,13 +13,19 @@ import { PrismaService } from '../prisma/prisma.service';
  *                  the deep variant explicitly.
  *
  * Status values (mirrors the fitness backend pattern):
- *   ok       — all dependencies responding
- *   degraded — primary dependency (DB) is down; app process is still up
+ *   ok       — all dependencies responding, AI gateway breaker CLOSED
+ *   degraded — either the DB is down or the AI gateway breaker is OPEN /
+ *              HALF_OPEN. The process is still up and core money paths
+ *              (EOD save, networth compute, balance updates) are unaffected
+ *              by an AI outage — hence degraded, not unhealthy.
  */
 @ApiTags('health')
 @Controller('health')
 export class HealthController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly aiBreaker: AICircuitBreakerService,
+  ) {}
 
   @Public()
   @Get()
@@ -41,7 +48,10 @@ export class HealthController {
       example: {
         status: 'ok',
         timestamp: '2026-04-27T19:08:00.000Z',
-        checks: { database: { ok: true, latency_ms: 4, error: null } },
+        checks: {
+          database: { ok: true, latency_ms: 4, error: null },
+          ai_gateway: { state: 'closed', intents: [] },
+        },
       },
     },
   })
@@ -56,14 +66,28 @@ export class HealthController {
       dbError = (err as Error).message?.slice(0, 200) ?? 'unknown';
     }
 
+    const aiState = this.aiBreaker.worstState();
+    const aiOk = aiState === 'closed';
+    const status = dbOk && aiOk ? 'ok' : 'degraded';
+
     return {
-      status: dbOk ? 'ok' : 'degraded',
+      status,
       timestamp: new Date().toISOString(),
       checks: {
         database: {
           ok: dbOk,
           latency_ms: Date.now() - startedAt,
           error: dbError,
+        },
+        ai_gateway: {
+          state: aiState,
+          ok: aiOk,
+          intents: this.aiBreaker.statusAll().map((s) => ({
+            intent: s.intent,
+            state: s.state,
+            failures_in_window: s.failures_in_window,
+            next_probe_at: s.next_probe_at,
+          })),
         },
       },
     };
