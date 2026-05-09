@@ -18,14 +18,28 @@ import { errorMessage } from '../../src/lib/errorMessage';
 
 export default function CoachScreen() {
   const { user } = useAuthStore();
+  const router = useRouter();
   const isCoach = user?.role === 'coach';
 
-  return isCoach ? <CoachDashboard /> : <StudentAIChat />;
+  // Stage 2: coaches land on the new Coach OS at /coach/. The legacy
+  // dashboard stays mounted below for back-compat and as a fallback while
+  // we ship the new screens to TestFlight; we surface a single ribbon at
+  // the top of the legacy screen so coaches can jump into the new stack
+  // explicitly without auto-redirecting (which would break their muscle
+  // memory mid-session).
+  if (isCoach) {
+    return <CoachDashboard openCoachOS={() => router.push('/coach')} />;
+  }
+  return <StudentAIChat />;
 }
 
 // ─── Coach Dashboard ──────────────────────────────────────────────────────────
-function CoachDashboard() {
+function CoachDashboard({ openCoachOS }: { openCoachOS: () => void }) {
   const router = useRouter();
+  // Surface a single ribbon for coaches to jump into the Stage 2 module.
+  // Mounted below the existing dashboard via the JSX below.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _stage2 = openCoachOS;
   const { students, alerts, fetchStudents, fetchAlerts, isLoading } = useCoachStore();
   const [search, setSearch] = useState('');
   const [emailSearch, setEmailSearch] = useState('');
@@ -137,6 +151,26 @@ function CoachDashboard() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Stage 2 — entry ribbon into the new Coach OS module. The legacy
+            dashboard remains here as a fallback while the new module
+            stabilises. Tapping pushes /coach which renders the new
+            CoachHome screen. */}
+        <TouchableOpacity
+          onPress={_stage2}
+          style={stage2Styles.ribbon}
+          accessibilityRole="button"
+          accessibilityLabel="Open the new Coach OS"
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={stage2Styles.ribbonEyebrow}>NEW · COACH OS</Text>
+            <Text style={stage2Styles.ribbonTitle}>Open the new dashboard</Text>
+            <Text style={stage2Styles.ribbonHint}>
+              Clients, messages, assignments, community, analytics.
+            </Text>
+          </View>
+          <Text style={stage2Styles.ribbonArrow}>›</Text>
+        </TouchableOpacity>
+
         <Text style={styles.title}>Coach Dashboard</Text>
 
         {/* Weekly Digest Card */}
@@ -534,4 +568,43 @@ const styles = StyleSheet.create({
   pickerRow: { paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.graphiteBorder, gap: 2 },
   pickerName: { fontFamily: 'Inter_600SemiBold', fontSize: Typography.bodyMedium, color: Colors.frostWhite },
   pickerEmail: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodySmall, color: Colors.slateGray },
+});
+
+// Stage 2 ribbon styles — kept in a separate StyleSheet so the legacy
+// dashboard's styles object stays untouched.
+const stage2Styles = StyleSheet.create({
+  ribbon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1A1A18', // colors.ink
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 4,
+    marginBottom: 16,
+    gap: 8,
+  },
+  ribbonEyebrow: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 11,
+    letterSpacing: 1.98,
+    color: '#C5A253', // mutedGold
+  },
+  ribbonTitle: {
+    fontFamily: 'CormorantGaramond_400Regular',
+    fontSize: 22,
+    color: '#F5EFE4', // bone
+    marginTop: 2,
+  },
+  ribbonHint: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: 'rgba(245,239,228,0.72)',
+    marginTop: 2,
+  },
+  ribbonArrow: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 36,
+    color: '#F5EFE4',
+    paddingHorizontal: 4,
+  },
 });

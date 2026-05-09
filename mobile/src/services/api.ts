@@ -15,6 +15,26 @@ import type {
   ScenarioType,
   WhatIfScenario,
 } from '../types';
+import type {
+  CoachDashboardResponse,
+  CoachClientRow,
+  CoachClientSummary,
+  CoachClientAccountRow,
+  CoachClientCashflow,
+  CoachClientGoals,
+  CoachNoteRow,
+  ClientAssignmentRow,
+  CreateAssignmentBody,
+  UpdateAssignmentBody,
+  CoachMessageRow,
+  CoachMessageThread,
+  CoachMessageThreadRow,
+  CommunityPostRow,
+  CreateCommunityPostBody,
+  PracticeAnalytics,
+  ClientStatus,
+  ClientSortKey,
+} from '../types/coach';
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl || 'https://tgp-finance-api.fly.dev';
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
@@ -312,6 +332,55 @@ export const coachApi = {
     api.post('/api/coach/templates', data),
   applyTemplate: (templateId: string, studentId: string) =>
     api.post(`/api/coach/templates/${templateId}/apply/${studentId}`),
+
+  // ── Stage 2 — Coach OS ────────────────────────────────────────────────
+  getDashboard: () => api.get<CoachDashboardResponse>('/api/coach/dashboard'),
+  getClients: (params: {
+    search?: string;
+    status?: ClientStatus | 'all';
+    sort?: ClientSortKey;
+  } = {}) =>
+    api.get<{ clients: CoachClientRow[]; total: number }>('/api/coach/clients', { params }),
+  getClientSummary: (id: string) =>
+    api.get<CoachClientSummary>(`/api/coach/clients/${id}/summary`),
+  getClientAccounts: (id: string) =>
+    api.get<CoachClientAccountRow[]>(`/api/coach/clients/${id}/accounts`),
+  getClientCashflow: (id: string) =>
+    api.get<CoachClientCashflow>(`/api/coach/clients/${id}/cashflow`),
+  getClientGoals: (id: string) =>
+    api.get<CoachClientGoals>(`/api/coach/clients/${id}/goals`),
+  // Notes
+  listClientNotes: (id: string) =>
+    api.get<CoachNoteRow[]>(`/api/coach/clients/${id}/notes`),
+  patchNote: (noteId: string, data: { note?: string; is_private?: boolean }) =>
+    api.patch<CoachNoteRow>(`/api/coach/notes/${noteId}`, data),
+  deleteNote: (noteId: string) => api.delete(`/api/coach/notes/${noteId}`),
+  // Assignments
+  listClientAssignments: (id: string) =>
+    api.get<ClientAssignmentRow[]>(`/api/coach/clients/${id}/assignments`),
+  createAssignment: (clientId: string, data: CreateAssignmentBody) =>
+    api.post<ClientAssignmentRow>(`/api/coach/clients/${clientId}/assignments`, data),
+  patchAssignment: (assignmentId: string, data: UpdateAssignmentBody) =>
+    api.patch<ClientAssignmentRow>(`/api/coach/assignments/${assignmentId}`, data),
+  deleteAssignment: (assignmentId: string) =>
+    api.delete(`/api/coach/assignments/${assignmentId}`),
+  // Messages
+  getMessageInbox: () =>
+    api.get<{ threads: CoachMessageThreadRow[] }>('/api/coach/messages'),
+  getMessageThread: (clientId: string, limit: number = 100) =>
+    api.get<CoachMessageThread>(`/api/coach/clients/${clientId}/messages`, { params: { limit } }),
+  sendMessage: (clientId: string, body: string) =>
+    api.post<CoachMessageRow>(`/api/coach/clients/${clientId}/messages`, { body }),
+  // Community
+  listCommunityPosts: () => api.get<CommunityPostRow[]>('/api/coach/community/posts'),
+  createCommunityPost: (data: CreateCommunityPostBody) =>
+    api.post<CommunityPostRow>('/api/coach/community/posts', data),
+  patchCommunityPost: (postId: string, data: Partial<CreateCommunityPostBody>) =>
+    api.patch<CommunityPostRow>(`/api/coach/community/posts/${postId}`, data),
+  deleteCommunityPost: (postId: string) =>
+    api.delete(`/api/coach/community/posts/${postId}`),
+  // Analytics
+  getPracticeAnalytics: () => api.get<PracticeAnalytics>('/api/coach/analytics'),
 };
 
 // Notifications API

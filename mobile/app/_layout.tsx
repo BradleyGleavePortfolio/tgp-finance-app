@@ -244,6 +244,8 @@ function RootLayout() {
         <Stack.Screen name="future-letter" />
         <Stack.Screen name="edit-financial-profile" />
         <Stack.Screen name="coach/student/[id]" />
+        {/* Stage 2 — Coach OS: nested stack lives at /coach/* */}
+        <Stack.Screen name="coach" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="settings/notifications" />
         <Stack.Screen name="settings/security" />
       </Stack>
