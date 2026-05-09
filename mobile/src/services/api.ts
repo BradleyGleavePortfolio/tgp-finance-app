@@ -341,6 +341,11 @@ export interface EODSubmissionResponse {
   ai_insight?: string;
   submitted_at?: string;
   created_at?: string;
+  // Side channels surfaced opportunistically by the server. The
+  // notifications side effect at handleEodSubmissionNotifications
+  // reads both; the post-submit screen ignores them.
+  newly_unlocked_milestones?: Array<{ key?: string; title?: string }>;
+  current_priority?: { index: number; title: string } | null;
 }
 
 export interface EODSubmissionRow {

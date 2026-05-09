@@ -26,7 +26,7 @@ import axios from 'axios';
 import Constants from 'expo-constants';
 import { secureStorage } from '../lib/secureStorage';
 
-const FITNESS_API_URL: string | undefined =
+const STATIC_FITNESS_API_URL: string | undefined =
   Constants.expoConfig?.extra?.fitnessApiUrl;
 
 const REQUEST_TIMEOUT_MS = 5000;
@@ -38,6 +38,25 @@ export type FitnessFederationOutcome =
   | { kind: 'degraded'; reason: string };
 
 /**
+ * Test-only override slot. Lets the unit test swap the resolved URL
+ * without mocking expo-constants. Production calls go through the
+ * static value from app.json -> Constants.expoConfig.extra.
+ */
+let TEST_OVERRIDE_URL: string | undefined | null = null;
+
+export function __setFitnessApiUrlForTests(url: string | undefined): void {
+  TEST_OVERRIDE_URL = url ?? undefined;
+  TEST_OVERRIDE_SET = true;
+}
+
+let TEST_OVERRIDE_SET = false;
+
+/** Resolved at call time so the test override is respected. */
+export function __resolvedFitnessApiUrl(): string | undefined {
+  return TEST_OVERRIDE_SET ? TEST_OVERRIDE_URL ?? undefined : STATIC_FITNESS_API_URL;
+}
+
+/**
  * Mirror the coach's practice-type selection to the fitness backend.
  * Returns a typed outcome rather than throwing — the caller decides
  * which outcomes are user-visible (degraded -> retry banner) vs
@@ -46,7 +65,8 @@ export type FitnessFederationOutcome =
 export async function setFitnessCoachPractice(
   practiceType: 'fitness_only' | 'finance_only' | 'both',
 ): Promise<FitnessFederationOutcome> {
-  if (!FITNESS_API_URL) {
+  const fitnessApiUrl = __resolvedFitnessApiUrl();
+  if (!fitnessApiUrl) {
     return { kind: 'skipped', reason: 'not_configured' };
   }
   const token = await secureStorage.getItem('auth_token');
@@ -55,7 +75,7 @@ export async function setFitnessCoachPractice(
   }
   try {
     await axios.put(
-      `${FITNESS_API_URL}/api/coach/practice`,
+      `${fitnessApiUrl}/api/coach/practice`,
       { practice_type: practiceType },
       {
         params: { propagate: 'false' },
@@ -82,19 +102,4 @@ export async function setFitnessCoachPractice(
     }
     return { kind: 'degraded', reason: `http_${status}` };
   }
-}
-
-/**
- * Test-only: override the resolved fitness API URL. Used by the
- * unit test so we don't have to mock expo-constants.
- */
-let TEST_OVERRIDE_URL: string | undefined;
-export function __setFitnessApiUrlForTests(url: string | undefined): void {
-  TEST_OVERRIDE_URL = url;
-}
-
-/** Internal: the URL used at call time. Exposed so the test helper
- * can swap. */
-export function __resolvedFitnessApiUrl(): string | undefined {
-  return TEST_OVERRIDE_URL ?? FITNESS_API_URL;
 }

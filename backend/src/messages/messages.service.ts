@@ -52,24 +52,27 @@ export class MessagesService {
    * Look up the client's currently-assigned coach. Returns null when
    * the client has no coach yet — caller handles that as a typed
    * empty response rather than 404.
+   *
+   * The User model carries `coach_id` as a plain column (no Prisma
+   * self-relation), so we resolve in two steps. Defensive: a stale
+   * coach_id pointing at a demoted user is treated as unassigned
+   * rather than letting the client message a non-coach.
    */
   private async resolveCoach(
     clientId: string,
   ): Promise<{ coach_id: string; coach_name: string } | null> {
     const me = await this.prisma.user.findUnique({
       where: { id: clientId },
-      select: {
-        coach_id: true,
-        coach: { select: { id: true, name: true, role: true } },
-      },
+      select: { coach_id: true },
     });
-    if (!me?.coach || !me.coach_id) return null;
-    if (me.coach.role !== 'coach' && me.coach.role !== 'owner') {
-      // Defensive: a stale coach_id pointing at a demoted user. Treat
-      // as unassigned rather than letting the client message a non-coach.
-      return null;
-    }
-    return { coach_id: me.coach.id, coach_name: me.coach.name };
+    if (!me?.coach_id) return null;
+    const coach = await this.prisma.user.findUnique({
+      where: { id: me.coach_id },
+      select: { id: true, name: true, role: true },
+    });
+    if (!coach) return null;
+    if (coach.role !== 'coach' && coach.role !== 'owner') return null;
+    return { coach_id: coach.id, coach_name: coach.name };
   }
 
   /**

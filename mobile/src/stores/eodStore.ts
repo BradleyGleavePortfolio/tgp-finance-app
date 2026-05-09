@@ -1,5 +1,9 @@
 import { create } from 'zustand';
-import { eodApi, type EODSubmissionResponse } from '../services/api';
+import {
+  eodApi,
+  type EODSubmissionResponse,
+  type EODSubmissionRow,
+} from '../services/api';
 
 interface EodSubmission {
   id: string;
@@ -9,6 +13,39 @@ interface EodSubmission {
   habits_checked: string[];
   notes?: string;
   createdAt: string;
+}
+
+/**
+ * Sprint A audit fix H-3 follow-up. The server-side
+ * EODSubmissionResponse / EODSubmissionRow shapes carry mood as a
+ * nullable number and use submitted_at instead of createdAt. The
+ * local EodSubmission interface predates the typed wire shape, so
+ * we normalise here rather than reshaping the store consumers.
+ *
+ * Returns null when the input is missing the minimum fields the
+ * store needs (id + submission_date) — the caller treats null as
+ * "do not update todaySubmission".
+ */
+function normaliseSubmission(
+  raw: EODSubmissionResponse | EODSubmissionRow | undefined | null,
+): EodSubmission | null {
+  if (!raw) return null;
+  const row = (raw as EODSubmissionResponse).submission ?? (raw as EODSubmissionRow);
+  if (!row || !row.id || !row.submission_date) return null;
+  return {
+    id: row.id,
+    submission_date: row.submission_date,
+    mood: row.mood ?? 0,
+    account_snapshots: (row.account_snapshots ?? []).map((s) => ({
+      account_id: s.account_id,
+      balance: s.balance,
+    })),
+    habits_checked: (row.habits ?? [])
+      .filter((h) => h.completed)
+      .map((h) => h.habit_key),
+    notes: row.notes ?? undefined,
+    createdAt: row.submitted_at ?? new Date().toISOString(),
+  };
 }
 
 interface EodState {
@@ -46,7 +83,7 @@ export const useEODStore = create<EodState>((set) => ({
     set({ isLoading: true, error: null });
     try {
       const { data } = await eodApi.getToday();
-      set({ todaySubmission: data.submission !== undefined ? data.submission : data });
+      set({ todaySubmission: normaliseSubmission(data) });
     } catch (error) {
       const e = error as { response?: { status?: number; data?: { message?: unknown } } };
       if (e.response?.status !== 404) {
@@ -64,13 +101,11 @@ export const useEODStore = create<EodState>((set) => ({
     set({ isLoading: true, error: null });
     try {
       const { data } = await eodApi.submitToday(submissionData);
-      // Hydrate the local todaySubmission from whichever shape the
-      // server returned. The local EodSubmission type was always a
-      // best-effort projection; we keep the behaviour but stop using
-      // `any` at the boundary.
-      const flat = data.submission as unknown as EodSubmission | undefined;
-      const inline = data as unknown as EodSubmission;
-      set({ todaySubmission: flat ?? inline, isLoading: false });
+      // Hydrate the local todaySubmission via the H-3 normaliser so
+      // the typed wire shape (mood: number | null, submitted_at)
+      // does not leak into the store consumers, which still rely on
+      // the historical EodSubmission projection.
+      set({ todaySubmission: normaliseSubmission(data), isLoading: false });
       return data;
     } catch (error) {
       const e = error as { response?: { data?: { message?: unknown } } };

@@ -7,14 +7,19 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { MessagesService } from '../src/messages/messages.service';
 
-interface MockUser {
+interface MockClient {
   id: string;
   coach_id: string | null;
-  coach: { id: string; name: string; role: string } | null;
+}
+interface MockCoach {
+  id: string;
+  name: string;
+  role: string;
 }
 
 function makePrisma(opts: {
-  client?: MockUser | null;
+  client?: MockClient | null;
+  coach?: MockCoach | null;
   threadRows?: Array<{
     id: string;
     body: string;
@@ -25,7 +30,13 @@ function makePrisma(opts: {
   }>;
   unread?: number;
 } = {}) {
-  const findUniqueUser = jest.fn().mockResolvedValue(opts.client ?? null);
+  // The service does a two-step lookup: first the client row (for
+  // coach_id), then the coach row (for id, name, role). Sequence the
+  // mock so the first call returns the client, the second the coach.
+  const findUniqueUser = jest
+    .fn()
+    .mockResolvedValueOnce(opts.client ?? null)
+    .mockResolvedValueOnce(opts.coach ?? null);
   const findManyMessages = jest.fn().mockResolvedValue(opts.threadRows ?? []);
   const updateManyMessages = jest.fn().mockResolvedValue({ count: opts.unread ?? 0 });
   const countMessages = jest.fn().mockResolvedValue(opts.unread ?? 0);
@@ -56,16 +67,14 @@ function makePrisma(opts: {
   };
 }
 
-const COACH = { id: 'coach-1', name: 'Coach A', role: 'coach' };
-const CLIENT_WITH_COACH: MockUser = {
+const COACH: MockCoach = { id: 'coach-1', name: 'Coach A', role: 'coach' };
+const CLIENT_WITH_COACH: MockClient = {
   id: 'client-1',
   coach_id: COACH.id,
-  coach: COACH,
 };
-const CLIENT_NO_COACH: MockUser = {
+const CLIENT_NO_COACH: MockClient = {
   id: 'client-2',
   coach_id: null,
-  coach: null,
 };
 
 describe('MessagesService.getThread', () => {
@@ -102,6 +111,7 @@ describe('MessagesService.getThread', () => {
     ];
     const { prisma, updateManyMessages } = makePrisma({
       client: CLIENT_WITH_COACH,
+      coach: COACH,
       threadRows: rows,
     });
     const svc = new MessagesService(prisma);
@@ -124,7 +134,7 @@ describe('MessagesService.getThread', () => {
       read_at: null,
       created_at: new Date(`2026-05-09T${String(10 + (i % 12)).padStart(2, '0')}:00:00Z`),
     }));
-    const { prisma } = makePrisma({ client: CLIENT_WITH_COACH, threadRows: rows });
+    const { prisma } = makePrisma({ client: CLIENT_WITH_COACH, coach: COACH, threadRows: rows });
     const svc = new MessagesService(prisma);
     const result = await svc.getThread('client-1', { limit: 50 });
     expect(result.messages).toHaveLength(50);
@@ -132,12 +142,16 @@ describe('MessagesService.getThread', () => {
   });
 
   it('rejects a stale coach_id pointing at a demoted user', async () => {
-    const stale: MockUser = {
+    const stale: MockClient = {
       id: 'client-3',
       coach_id: 'former-coach',
-      coach: { id: 'former-coach', name: 'Former', role: 'student' },
     };
-    const { prisma } = makePrisma({ client: stale });
+    const demotedCoach: MockCoach = {
+      id: 'former-coach',
+      name: 'Former',
+      role: 'student',
+    };
+    const { prisma } = makePrisma({ client: stale, coach: demotedCoach });
     const svc = new MessagesService(prisma);
     const result = await svc.getThread('client-3');
     expect(result.has_coach).toBe(false);
@@ -152,7 +166,7 @@ describe('MessagesService.unreadCount', () => {
   });
 
   it('returns the prisma count when the client has a coach', async () => {
-    const { prisma } = makePrisma({ client: CLIENT_WITH_COACH, unread: 7 });
+    const { prisma } = makePrisma({ client: CLIENT_WITH_COACH, coach: COACH, unread: 7 });
     const svc = new MessagesService(prisma);
     await expect(svc.unreadCount('client-1')).resolves.toEqual({ count: 7 });
   });
@@ -160,19 +174,19 @@ describe('MessagesService.unreadCount', () => {
 
 describe('MessagesService.send', () => {
   it('rejects a non-string body', async () => {
-    const { prisma } = makePrisma({ client: CLIENT_WITH_COACH });
+    const { prisma } = makePrisma({ client: CLIENT_WITH_COACH, coach: COACH });
     const svc = new MessagesService(prisma);
     await expect(svc.send('client-1', 42)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('rejects an empty / whitespace-only body', async () => {
-    const { prisma } = makePrisma({ client: CLIENT_WITH_COACH });
+    const { prisma } = makePrisma({ client: CLIENT_WITH_COACH, coach: COACH });
     const svc = new MessagesService(prisma);
     await expect(svc.send('client-1', '   ')).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('rejects a body over 4000 characters', async () => {
-    const { prisma } = makePrisma({ client: CLIENT_WITH_COACH });
+    const { prisma } = makePrisma({ client: CLIENT_WITH_COACH, coach: COACH });
     const svc = new MessagesService(prisma);
     const tooLong = 'a'.repeat(4001);
     await expect(svc.send('client-1', tooLong)).rejects.toBeInstanceOf(ForbiddenException);
@@ -185,7 +199,7 @@ describe('MessagesService.send', () => {
   });
 
   it('persists the trimmed body and returns it as from_coach=false', async () => {
-    const { prisma, createMessage } = makePrisma({ client: CLIENT_WITH_COACH });
+    const { prisma, createMessage } = makePrisma({ client: CLIENT_WITH_COACH, coach: COACH });
     const svc = new MessagesService(prisma);
     const result = await svc.send('client-1', '  hello coach  ');
     expect(createMessage).toHaveBeenCalledWith({
@@ -210,6 +224,7 @@ describe('MessagesService.markRead', () => {
   it('returns the updateMany result when the client has a coach', async () => {
     const { prisma, updateManyMessages } = makePrisma({
       client: CLIENT_WITH_COACH,
+      coach: COACH,
       unread: 3,
     });
     updateManyMessages.mockResolvedValue({ count: 3 });

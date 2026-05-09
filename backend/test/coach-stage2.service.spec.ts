@@ -78,42 +78,27 @@ describe('CoachService — Stage 2', () => {
       expect(out.clients.find((c) => c.id === 's2')?.status).toBe('inactive');
     });
 
-    it('filters by status when provided', async () => {
-      const day = (n: number) => new Date(Date.now() - n * 86400_000);
-      const prisma = {
-        user: {
-          findMany: jest.fn().mockResolvedValue([
-            {
-              id: 's1',
-              name: 'Alice',
-              email: 'a@x.com',
-              created_at: day(30),
-              profile: {
-                last_eod_date: day(1),
-                wealth_velocity_score: 80,
-                net_worth_snapshot: 0,
-                total_debt: 0,
-                total_assets: 0,
-                primary_goal: null,
-                current_priority_index: 0,
-              },
-              _count: { eod_submissions: 5 },
-            },
-            {
-              id: 's2',
-              name: 'Bob',
-              email: 'b@x.com',
-              created_at: day(20),
-              profile: null,
-              _count: { eod_submissions: 0 },
-            },
-          ]),
-        },
-      };
+    // Sprint A audit fix coach #5 — status is now pushed into the
+    // WHERE clause at the Prisma layer rather than post-filtered in
+    // JS. The unit test asserts the contract by inspecting the
+    // prisma.user.findMany args, since a unit-level mock cannot
+    // honour a real WHERE.
+    it('pushes status=onboarding into the WHERE clause as last_eod_date IS NULL', async () => {
+      const findMany = jest.fn().mockResolvedValue([]);
+      const prisma = { user: { findMany } };
       const svc = new CoachService(prisma as never);
-      const out = await svc.getCoachClients('coach-1', { status: 'onboarding', role: 'coach' });
-      expect(out.clients).toHaveLength(1);
-      expect(out.clients[0].id).toBe('s2');
+      await svc.getCoachClients('coach-1', { status: 'onboarding', role: 'coach' });
+      const args = findMany.mock.calls[0][0];
+      expect(args.where.profile).toEqual({ is: { last_eod_date: null } });
+    });
+
+    it('pushes status=active into the WHERE clause as last_eod_date >= activeFloor', async () => {
+      const findMany = jest.fn().mockResolvedValue([]);
+      const prisma = { user: { findMany } };
+      const svc = new CoachService(prisma as never);
+      await svc.getCoachClients('coach-1', { status: 'active', role: 'coach' });
+      const args = findMany.mock.calls[0][0];
+      expect(args.where.profile.is.last_eod_date.gte).toBeInstanceOf(Date);
     });
   });
 
