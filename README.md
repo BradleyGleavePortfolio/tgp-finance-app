@@ -453,3 +453,87 @@ Fitness backend (backend-spring-lake-3890)
 - Endpoints touching coach role require rate limiting plus audit logging.
 - AI prompts are pinned by `backend/test/ai-prompt-doctrine.spec.ts`. Trust Center capability flags are pinned by `backend/test/system-trust-meta.spec.ts` — flipping a flag without shipping the feature is a regression.
 - Bradley merges. Do not self-merge.
+
+## Sprint A audit fixes
+
+GPT-5.5 ran two POV audits on the post-Sprint-A merge state — one as
+a client, one as a coach. Both scored 71/100 with verdict DO NOT SHIP.
+The audits live at `/home/user/workspace/audit_client_pov.md` and
+`/home/user/workspace/audit_coach_pov.md` (in-repo at deploy time).
+
+This branch closes every blocker and high-priority item the audits
+flagged on the finance side. Commits are conventional and additive
+— no force-pushes, no history rewrite.
+
+### What shipped
+
+| Audit ID | Blocker | Where the fix landed |
+|---|---|---|
+| **CR-2** | Finance password-reset deep link broken end to end. Supabase recovery email sent users to `tgp-finance://auth/reset-password` but no route handled it. | `mobile/app/auth/reset-password.tsx` (new), `mobile/app/_layout.tsx` (forwards the deep link), `mobile/src/lib/parseRecoveryFragment.ts` (pure parser, 8 unit tests). |
+| **CR-3** | Finance app had no client-side surface to read coach messages. The notification preferences advertised the feature but no read screen or endpoint existed. | `backend/src/messages/{module,controller,service}.ts` (new module + 13 unit tests), `mobile/app/messages/index.tsx` (new screen), `mobile/app/(tabs)/profile.tsx` (entry row), `mobile/src/services/api.ts` (`messagesApi`). |
+| **CR-5** | Five "Coming in Stage 3" disabled rows in coach Settings contradicted the decacorn quality bar. | `mobile/app/coach/settings/index.tsx` removes the rows; they return when the underlying flows ship. |
+| **CR-6** | Practice picker on finance silently produced asymmetric state — wrote only locally and left fitness `coach_practice_type` null. | `mobile/src/services/fitnessApi.ts` (new) calls fitness `PUT /api/coach/practice?propagate=false` with the user's Supabase JWT. `mobile/app/coach/practice/index.tsx` dual-writes, surfaces the same `couldn't sync your practice` 503 copy the fitness side uses, adds a back button + skip-and-configure-later link. 8 unit tests. |
+| **H-3** | EOD page used `useState<any>` in violation of strict-TS doctrine. | `mobile/src/services/api.ts` adds typed `EODSubmissionResponse` + `EODSubmissionRow`. `mobile/app/eod/index.tsx` consumes the typed shape. `mobile/src/stores/eodStore.ts` normalises the wire shape into the legacy local type so consumers do not break. |
+| **M-4** | Finance forgot-password used `Alert.alert` for the error path; the rest of the auth surface uses inline field errors. | `mobile/app/(auth)/login.tsx` swaps the Alert for `setFieldErrors`. |
+| **Coach #5** | Finance coach client list was unpaginated and post-filtered in JS — memory-bound on 100+ clients. | `backend/src/coach/coach.service.ts` adds DB-layer status WHERE + Prisma orderBy + cursor pagination (`take: limit + 1`, max 50). `backend/src/coach/coach.controller.ts` accepts `limit` + `cursor`. `encodeRosterCursor` / `decodeRosterCursor` use a `v1:` prefix for forward compat. 6 unit tests. |
+| **Coach #7** | `coach_promotion_audits` had no retention or pruning. | `backend/src/auth/coach-promotion-audit.scheduler.ts` runs nightly at 03:15 UTC. Success rows kept indefinitely (compliance). `already_coach` kept 365 days. Other failure outcomes kept 90 days. `RUNBOOK.md` documents the policy + manual-prune hook. 3 unit tests. |
+| **Coach #13** | Misconfigured `FEDERATION_SERVICE_TOKEN` was silent — federation calls returned 503 / auth_unconfigured but ops had no boot-time signal. | `backend/src/system/federation-token-self-check.ts` runs on `OnModuleInit`, logs three states (`ok` / `too_short` / `unset`) with the exact `fly secrets set` command to fix. 5 unit tests. |
+| **Coach #17** | Finance picker did not special-case 503 PRACTICE_FEDERATION_FAILED. | Covered by CR-6 — the picker maps `kind: 'degraded'` to the same `couldn't sync` retry copy the fitness side uses. |
+
+### Not in scope (fitness repo)
+
+The audits also flagged Coach #9 (cross-pillar Wealth deep link
+silent failure) and Coach #11 (`BothPillarsScreen` stub still
+mountable). Both files live in `growth-project-mobile`, not in this
+repo. They are handled by the parallel fitness PRs (#128, #189).
+
+### Tests added
+
+| Suite | Count | File |
+|---|---|---|
+| Recovery URL fragment parser | 8 | `mobile/src/lib/__tests__/parseRecoveryFragment.test.ts` |
+| Client-side messages service | 13 | `backend/test/messages.service.spec.ts` |
+| Fitness federation client | 8 | `mobile/src/services/__tests__/fitnessApi.test.ts` |
+| Coach client cursor pagination | 6 | `backend/test/coach-clients-cursor.spec.ts` |
+| Coach promotion audit retention | 3 | `backend/test/coach-promotion-audit-scheduler.spec.ts` |
+| Federation token self-check | 5 | `backend/test/federation-token-self-check.spec.ts` |
+| **Total new** | **43** | |
+
+Backend full suite: 294 / 294 passing. Mobile full suite: 97 / 97
+passing. `npx tsc --noEmit` clean on both. `npx prisma validate` clean.
+
+### Federation token preflight (Coach #13 details)
+
+On every backend boot, `FederationTokenSelfCheck.runCheck` logs one
+of three lines (search Fly logs after a deploy):
+
+- `federation token configured (N chars). Cross-pillar federation
+  receive surface is enabled.` — the normal path.
+- `FEDERATION_SERVICE_TOKEN is unset — federation will return 503
+  FEDERATION_DISABLED.` — set with
+  `fly secrets set FEDERATION_SERVICE_TOKEN=$(openssl rand -hex 32)`
+  on this app.
+- `FEDERATION_SERVICE_TOKEN is too short (N chars; expected at least
+  32).` — rotate the secret on both backends.
+
+Both backends (fitness `growth-project-backend` and finance
+`tgp-finance-app/backend`) must agree on the same secret value.
+The fitness side reads it as `FINANCE_SERVICE_TOKEN`; this is the
+same secret, just a different variable name on each side.
+
+### Coach promotion audit retention policy (Coach #7 details)
+
+`coach_promotion_audits` is the append-only log of every coach
+self-promotion attempt. Sprint A added the table; this branch adds
+nightly retention so an attacker with persistence cannot grow it
+unbounded. Retention rules:
+
+| Outcome | Retention | Rationale |
+|---|---|---|
+| `success` | indefinite | Compliance / audit trail. |
+| `already_coach` | 365 days | Idempotent re-promote noise. |
+| `invalid_token`, `invalid_role`, `rate_limited`, others | 90 days | Failure-mode signal value decays. |
+
+The scheduler runs at 03:15 UTC; counts of pruned rows are logged
+on every run. `RUNBOOK.md` covers manual invocation if a one-off
+cleanup is ever needed.
