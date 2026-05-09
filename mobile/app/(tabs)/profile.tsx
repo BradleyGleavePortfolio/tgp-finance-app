@@ -158,6 +158,13 @@ export default function ProfileScreen() {
   const totalAccounts = safeAccounts.length;
 
   const settingsItems = [
+    // Sprint A audit fix CR-3 — surface the client coach-message
+    // thread for clients (role !== 'coach'). The notification
+    // preferences had a "Coach Messages" toggle that previously
+    // pointed at nothing. Now this item lands on the live thread.
+    ...(user?.role !== 'coach'
+      ? [{ icon: 'chatbubble-outline', label: 'Messages with coach', route: '/messages' }]
+      : []),
     // Stage-1: financial profile is editable post-onboarding. Quiz answers
     // (income, goal, risk, horizon) used to be write-once.
     { icon: 'create-outline', label: 'Edit financial profile', route: '/edit-financial-profile' },
