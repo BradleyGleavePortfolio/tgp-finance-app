@@ -100,6 +100,12 @@ model User {
   community_wins       CommunityWin[]
   preferences          UserPreferences?
   coach_profile        CoachProfile?
+  // Stage 2 — coach OS additions
+  assignments_assigned    ClientAssignment[] @relation("AssignmentsByCoach")
+  assignments_received    ClientAssignment[] @relation("AssignmentsForClient")
+  coach_messages_sent     CoachMessage[]     @relation("CoachMessagesSent")
+  coach_messages_received CoachMessage[]     @relation("CoachMessagesReceived")
+  community_posts         CommunityPost[]    @relation("CommunityPostsAuthored")
 
   @@map("users")
 }
@@ -405,4 +411,118 @@ model AiResponseCache {
   @@unique([intent, context_hash])
   @@index([intent, last_used_at(sort: Desc)])
   @@map("ai_response_cache")
+}
+
+// ============================================================
+// STAGE 2 — Coach Operating System
+// ============================================================
+
+// ClientAssignment: a task or challenge a coach assigns to a client.
+// Examples: "Save $500 by Friday", "Pay extra $200 toward debt this week",
+// "Track every coffee purchase for 14 days". The coach defines the
+// assignment, the client sees it on their home, marks it done, and the
+// coach sees completion status in their dashboard.
+//
+// Why a model and not a free-text note: assignments need state (open /
+// completed / dismissed), a due_date for nudges, and they show up on
+// both the coach view (compliance) and the client home (focus). Notes
+// are coach-only memory; assignments are a two-sided contract.
+enum AssignmentStatus {
+  open
+  completed
+  dismissed
+}
+
+enum AssignmentType {
+  budget
+  savings_challenge
+  debt_paydown
+  habit
+  custom
+}
+
+model ClientAssignment {
+  id          String           @id @default(uuid())
+  coach_id    String
+  coach       User             @relation("AssignmentsByCoach", fields: [coach_id], references: [id])
+  client_id   String
+  client      User             @relation("AssignmentsForClient", fields: [client_id], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  assignment_type AssignmentType @default(custom)
+  due_date    DateTime?
+  status      AssignmentStatus @default(open)
+  // Optional structured target for budget / savings challenges. For a
+  // savings challenge it's the dollar target; for a habit it can be the
+  // streak count. Stored as Decimal so we can keep money values precise.
+  target_value Decimal?         @db.Decimal(14, 2)
+  target_unit  String? // e.g. 'usd', 'days', 'count'
+  // Coach private context that doesn't surface to the client. Useful for
+  // attaching reasoning the coach wants to remember without confusing
+  // the client UI.
+  coach_notes String?
+  created_at  DateTime         @default(now())
+  updated_at  DateTime         @updatedAt
+  completed_at DateTime?
+
+  @@index([client_id, status])
+  @@index([coach_id, created_at(sort: Desc)])
+  @@map("client_assignments")
+}
+
+// CoachMessage: durable chat messages between coach and client.
+// Stage 2 ships read + write APIs and the thread UI. Real-time delivery
+// (websockets / push fan-out) lands in Stage 3 — for now a coach reading
+// the thread re-fetches via the inbox/thread endpoints. The model is
+// unidirectional (sender + recipient) so the inbox query is a single
+// findMany on (recipient_id OR sender_id) with the per-thread reduction
+// happening in the service layer.
+model CoachMessage {
+  id           String   @id @default(uuid())
+  thread_key   String // canonical pair key — sorted "<a>:<b>" — used to group messages into threads
+  sender_id    String
+  sender       User     @relation("CoachMessagesSent", fields: [sender_id], references: [id])
+  recipient_id String
+  recipient    User     @relation("CoachMessagesReceived", fields: [recipient_id], references: [id])
+  body         String
+  // Read-state tracking. We only flip read_at on a recipient fetch; the
+  // sender's view never marks as read on their own send.
+  read_at      DateTime?
+  created_at   DateTime @default(now())
+
+  @@index([thread_key, created_at])
+  @@index([recipient_id, read_at])
+  @@map("coach_messages")
+}
+
+// CommunityPost: coach-authored content surfaced in the client community
+// feed. The Stage 2 implementation is intentionally simple — title + body
+// + optional URL (e.g. YouTube link). Stage 3 may add scheduled
+// publishing, segmentation, or reactions.
+enum CommunityPostStatus {
+  draft
+  published
+  archived
+}
+
+model CommunityPost {
+  id          String              @id @default(uuid())
+  author_id   String
+  author      User                @relation("CommunityPostsAuthored", fields: [author_id], references: [id])
+  title       String
+  body        String
+  // Optional resource link — YouTube video, Substack article, etc. The
+  // client surfaces it as a single tap-out card; we deliberately do not
+  // try to inline-render arbitrary URLs.
+  resource_url String?
+  status      CommunityPostStatus @default(published)
+  // Coach posts are visible to that coach's clients by default. An owner
+  // post can set `audience` to 'all_clients' to broadcast across coaches.
+  audience    String              @default("own_clients")
+  created_at  DateTime            @default(now())
+  updated_at  DateTime            @updatedAt
+  published_at DateTime?
+
+  @@index([author_id, status, published_at(sort: Desc)])
+  @@map("community_posts")
 }

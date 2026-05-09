@@ -207,6 +207,47 @@ export const CreateProgramTemplateSchema = z.object({
   })),
 });
 
+// Stage 2 — Coach Operating System validators
+
+export const CreateAssignmentSchema = z.object({
+  title: z.string().min(1).max(200),
+  description: z.string().max(2000).optional(),
+  assignment_type: z
+    .enum(['budget', 'savings_challenge', 'debt_paydown', 'habit', 'custom'])
+    .default('custom'),
+  due_date: z.string().datetime().optional(),
+  target_value: MoneyAmountNonNegative().optional(),
+  target_unit: z.string().max(20).optional(),
+  coach_notes: z.string().max(2000).optional(),
+});
+
+export const UpdateAssignmentSchema = z.object({
+  title: z.string().min(1).max(200).optional(),
+  description: z.string().max(2000).optional(),
+  assignment_type: z
+    .enum(['budget', 'savings_challenge', 'debt_paydown', 'habit', 'custom'])
+    .optional(),
+  due_date: z.string().datetime().nullable().optional(),
+  status: z.enum(['open', 'completed', 'dismissed']).optional(),
+  target_value: MoneyAmountNonNegative().nullable().optional(),
+  target_unit: z.string().max(20).nullable().optional(),
+  coach_notes: z.string().max(2000).nullable().optional(),
+});
+
+export const SendCoachMessageSchema = z.object({
+  body: z.string().min(1).max(4000),
+});
+
+export const CreateCommunityPostSchema = z.object({
+  title: z.string().min(1).max(200),
+  body: z.string().min(1).max(8000),
+  resource_url: z.string().url().max(500).optional(),
+  status: z.enum(['draft', 'published', 'archived']).default('published'),
+  audience: z.enum(['own_clients', 'all_clients']).default('own_clients'),
+});
+
+export const UpdateCommunityPostSchema = CreateCommunityPostSchema.partial();
+
 // ============================================================
 // ACCOUNTABILITY SCHEMAS
 // ============================================================

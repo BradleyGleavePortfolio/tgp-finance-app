@@ -13,6 +13,50 @@ export interface CoachAlert {
   days_since_last?: number | null;
 }
 
+// ─── Stage 2 typed payloads ───────────────────────────────────────────────────
+//
+// Money fields use the same Decimal | number shape the Zod money helper emits
+// so the controller can pass parsed results straight through. The service
+// runs `toN()` at the boundary before persisting, which Prisma then re-coerces
+// to Decimal via its driver.
+
+import type { Prisma as PrismaTypes } from '@prisma/client';
+type MoneyInput = PrismaTypes.Decimal | number;
+
+export interface CreateAssignmentInput {
+  title: string;
+  description?: string;
+  assignment_type?: 'budget' | 'savings_challenge' | 'debt_paydown' | 'habit' | 'custom';
+  due_date?: string; // ISO
+  target_value?: MoneyInput;
+  target_unit?: string;
+  coach_notes?: string;
+}
+
+export interface UpdateAssignmentInput {
+  title?: string;
+  description?: string;
+  assignment_type?: 'budget' | 'savings_challenge' | 'debt_paydown' | 'habit' | 'custom';
+  due_date?: string | null;
+  status?: 'open' | 'completed' | 'dismissed';
+  target_value?: MoneyInput | null;
+  target_unit?: string | null;
+  coach_notes?: string | null;
+}
+
+export interface CreateCommunityPostInput {
+  title: string;
+  body: string;
+  resource_url?: string;
+  status?: 'draft' | 'published' | 'archived';
+  audience?: 'own_clients' | 'all_clients';
+}
+
+/** Build a deterministic thread_key for a coach/client pair. */
+export function threadKey(a: string, b: string): string {
+  return [a, b].sort().join(':');
+}
+
 @Injectable()
 export class CoachService {
   constructor(private readonly prisma: PrismaService) {}
@@ -433,5 +477,668 @@ export class CoachService {
     });
 
     return { message: `Template "${template.name}" applied to student`, template_id: templateId };
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Stage 2 — Coach OS additions
+  //
+  // Each public method below either returns coach-scoped data (own_clients
+  // only by default; owner sees all) or mutates coach-scoped data with an
+  // explicit ownership check. The mobile coach module hits these directly.
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /** Aggregated dashboard payload for the Coach Home screen. One round-trip. */
+  async getCoachDashboard(coachId: string, role: string = 'coach') {
+    const scope = scopeToCoach({ id: coachId, role });
+    const where: Prisma.UserWhereInput = { role: 'student', ...scope };
+
+    const [students, recentEods, openAssignments, recentMilestones] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        include: {
+          profile: {
+            select: {
+              net_worth_snapshot: true,
+              total_debt: true,
+              total_assets: true,
+              wealth_velocity_score: true,
+              last_eod_date: true,
+              primary_goal: true,
+            },
+          },
+        },
+      }),
+      // Activity feed = last 10 EOD submissions across the coach's roster.
+      this.prisma.eODSubmission.findMany({
+        where: { user: { role: 'student', ...scope } },
+        orderBy: { submission_date: 'desc' },
+        take: 10,
+        include: { user: { select: { id: true, name: true } } },
+      }),
+      // "Open assignments" lets us surface compliance pressure on the coach's home.
+      this.prisma.clientAssignment.count({
+        where: {
+          coach_id: role === 'owner' ? undefined : coachId,
+          status: 'open',
+        },
+      }),
+      // Recent milestones for the activity feed.
+      this.prisma.milestoneUnlock.findMany({
+        where: { user: { role: 'student', ...scope } },
+        orderBy: { unlocked_at: 'desc' },
+        take: 10,
+        include: { user: { select: { id: true, name: true } } },
+      }),
+    ]);
+
+    const now = Date.now();
+    const oneWeek = 7 * 24 * 60 * 60 * 1000;
+    let totalNetWorth = 0;
+    let totalDebt = 0;
+    let totalAssets = 0;
+    let needsAttention = 0;
+
+    const clientsNeedingAttention: Array<{
+      id: string;
+      name: string;
+      reason: string;
+      severity: 'low' | 'medium' | 'high';
+      days_silent: number | null;
+    }> = [];
+
+    for (const s of students) {
+      const p = s.profile;
+      totalNetWorth += toN(p?.net_worth_snapshot);
+      totalDebt += toN(p?.total_debt);
+      totalAssets += toN(p?.total_assets);
+      const lastEod = p?.last_eod_date ? new Date(p.last_eod_date).getTime() : null;
+      const daysSince = lastEod ? Math.floor((now - lastEod) / (24 * 60 * 60 * 1000)) : null;
+      if (daysSince === null || daysSince >= 7) {
+        needsAttention += 1;
+        clientsNeedingAttention.push({
+          id: s.id,
+          name: s.name,
+          reason:
+            daysSince === null
+              ? 'Never submitted a check-in'
+              : `${daysSince} days since last check-in`,
+          severity: daysSince === null || daysSince >= 14 ? 'high' : 'medium',
+          days_silent: daysSince,
+        });
+      }
+    }
+
+    const activeThisWeek = students.filter((s) => {
+      const last = s.profile?.last_eod_date;
+      return last && now - new Date(last).getTime() < oneWeek;
+    }).length;
+
+    return {
+      stats: {
+        total_clients: students.length,
+        active_this_week: activeThisWeek,
+        needs_attention: needsAttention,
+        open_assignments: openAssignments,
+        roster_net_worth: Math.round(totalNetWorth),
+        roster_total_debt: Math.round(totalDebt),
+        roster_total_assets: Math.round(totalAssets),
+      },
+      clients_needing_attention: clientsNeedingAttention.slice(0, 8),
+      recent_activity: [
+        ...recentEods.map((e) => ({
+          kind: 'eod' as const,
+          at: e.submission_date,
+          client_id: e.user_id,
+          client_name: e.user.name,
+          summary: `Logged a check-in (mood ${e.mood ?? '—'})`,
+        })),
+        ...recentMilestones.map((m) => ({
+          kind: 'milestone' as const,
+          at: m.unlocked_at,
+          client_id: m.user_id,
+          client_name: m.user.name,
+          summary: `Unlocked milestone: ${m.milestone_key}`,
+        })),
+      ]
+        .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+        .slice(0, 10),
+    };
+  }
+
+  /**
+   * Searchable / filterable / sortable client list for the EHR-style screen.
+   * Filtering and sorting are implemented in-memory after the prisma fetch
+   * because the underlying ranks (savings rate, growth) are derived. For a
+   * roster of <500 clients this is fine; we can move to a materialized
+   * roster_summary table once the typical tenant exceeds that.
+   */
+  async getCoachClients(
+    coachId: string,
+    opts: {
+      search?: string;
+      status?: 'all' | 'active' | 'at_risk' | 'onboarding' | 'inactive';
+      sort?: 'name' | 'last_activity' | 'net_worth' | 'savings_rate';
+      role?: string;
+    } = {},
+  ) {
+    const scope = scopeToCoach({ id: coachId, role: opts.role ?? 'coach' });
+    const where: Prisma.UserWhereInput = { role: 'student', ...scope };
+
+    if (opts.search && opts.search.trim()) {
+      const term = opts.search.trim();
+      where.OR = [
+        { name: { contains: term, mode: 'insensitive' } },
+        { email: { contains: term, mode: 'insensitive' } },
+      ];
+    }
+
+    const students = await this.prisma.user.findMany({
+      where,
+      include: {
+        profile: {
+          select: {
+            net_worth_snapshot: true,
+            total_debt: true,
+            total_assets: true,
+            wealth_velocity_score: true,
+            last_eod_date: true,
+            primary_goal: true,
+            current_priority_index: true,
+          },
+        },
+        _count: { select: { eod_submissions: true } },
+      },
+    });
+
+    const now = Date.now();
+    const enriched = students.map((s) => {
+      const lastEod = s.profile?.last_eod_date ? new Date(s.profile.last_eod_date).getTime() : null;
+      const daysSince = lastEod ? Math.floor((now - lastEod) / (24 * 60 * 60 * 1000)) : null;
+      let status: 'active' | 'at_risk' | 'onboarding' | 'inactive';
+      if ((s._count?.eod_submissions ?? 0) === 0) status = 'onboarding';
+      else if (daysSince !== null && daysSince <= 3) status = 'active';
+      else if (daysSince !== null && daysSince <= 14) status = 'at_risk';
+      else status = 'inactive';
+
+      return {
+        id: s.id,
+        name: s.name,
+        email: s.email,
+        status,
+        net_worth: Math.round(toN(s.profile?.net_worth_snapshot)),
+        total_debt: Math.round(toN(s.profile?.total_debt)),
+        total_assets: Math.round(toN(s.profile?.total_assets)),
+        wealth_velocity_score: s.profile?.wealth_velocity_score ?? 0,
+        primary_goal: s.profile?.primary_goal ?? null,
+        days_since_last_checkin: daysSince,
+        eod_submission_count: s._count?.eod_submissions ?? 0,
+        priority_index: s.profile?.current_priority_index ?? 0,
+        joined_at: s.created_at,
+      };
+    });
+
+    const filtered =
+      opts.status && opts.status !== 'all'
+        ? enriched.filter((c) => c.status === opts.status)
+        : enriched;
+
+    const sortKey = opts.sort ?? 'last_activity';
+    filtered.sort((a, b) => {
+      switch (sortKey) {
+        case 'name':
+          return a.name.localeCompare(b.name);
+        case 'net_worth':
+          return b.net_worth - a.net_worth;
+        case 'savings_rate':
+          // Proxy: velocity score is the project's normalized savings-rate-ish metric.
+          return (b.wealth_velocity_score ?? 0) - (a.wealth_velocity_score ?? 0);
+        case 'last_activity':
+        default: {
+          const ad = a.days_since_last_checkin ?? Number.POSITIVE_INFINITY;
+          const bd = b.days_since_last_checkin ?? Number.POSITIVE_INFINITY;
+          return ad - bd;
+        }
+      }
+    });
+
+    return { clients: filtered, total: filtered.length };
+  }
+
+  /** Combined accounts/goals/cashflow snapshot used by ClientDetail tabs. */
+  async getClientAccounts(coachId: string, clientId: string, role: string = 'coach') {
+    await this.assertCoachOwnsStudent(coachId, clientId, role);
+    const accounts = await this.prisma.financialAccount.findMany({
+      where: { user_id: clientId, is_active: true },
+      orderBy: [{ is_debt: 'asc' }, { balance: 'desc' }],
+    });
+    return accounts.map((a) => ({
+      id: a.id,
+      name: a.name,
+      account_type: a.account_type,
+      institution: a.institution,
+      balance: toN(a.balance),
+      is_debt: a.is_debt,
+      apr_percent: a.apr_percent,
+      minimum_payment: toN(a.minimum_payment),
+      currency: a.currency,
+      updated_at: a.updated_at,
+    }));
+  }
+
+  async getClientCashflow(coachId: string, clientId: string, role: string = 'coach') {
+    await this.assertCoachOwnsStudent(coachId, clientId, role);
+    const since = new Date();
+    since.setDate(since.getDate() - 30);
+    const eods = await this.prisma.eODSubmission.findMany({
+      where: { user_id: clientId, submitted_at: { gte: since } },
+      orderBy: { submission_date: 'desc' },
+    });
+    const totalIncoming = eods.reduce((s, e) => s + toN(e.total_assets_computed), 0);
+    return {
+      period_days: 30,
+      submissions: eods.length,
+      avg_net_worth_30d:
+        eods.length === 0
+          ? 0
+          : Math.round(
+              eods.reduce((s, e) => s + toN(e.net_worth_computed), 0) / eods.length,
+            ),
+      total_assets_observed: Math.round(totalIncoming),
+      timeline: eods.slice(0, 14).map((e) => ({
+        date: e.submission_date,
+        net_worth: toN(e.net_worth_computed),
+        debt: toN(e.total_debt_computed),
+        assets: toN(e.total_assets_computed),
+        mood: e.mood,
+      })),
+    };
+  }
+
+  /** Goals = derived from FinancialProfile + active milestones for now. */
+  async getClientGoals(coachId: string, clientId: string, role: string = 'coach') {
+    await this.assertCoachOwnsStudent(coachId, clientId, role);
+    const [profile, milestones] = await Promise.all([
+      this.prisma.financialProfile.findUnique({ where: { user_id: clientId } }),
+      this.prisma.milestoneUnlock.findMany({
+        where: { user_id: clientId },
+        orderBy: { unlocked_at: 'desc' },
+      }),
+    ]);
+    return {
+      primary_goal: profile?.primary_goal ?? null,
+      goal_timeline_months: profile?.goal_timeline_months ?? null,
+      dream_lifestyle_cost_mo: toN(profile?.dream_lifestyle_cost_mo),
+      dream_description: profile?.dream_description ?? null,
+      current_priority_index: profile?.current_priority_index ?? 0,
+      milestones: milestones.map((m) => ({
+        key: m.milestone_key,
+        unlocked_at: m.unlocked_at,
+      })),
+    };
+  }
+
+  // ── Assignments ──────────────────────────────────────────────────────────
+
+  async listClientAssignments(
+    coachId: string,
+    clientId: string,
+    role: string = 'coach',
+  ) {
+    await this.assertCoachOwnsStudent(coachId, clientId, role);
+    return this.prisma.clientAssignment.findMany({
+      where: { client_id: clientId },
+      orderBy: [{ status: 'asc' }, { due_date: 'asc' }, { created_at: 'desc' }],
+    });
+  }
+
+  async createAssignment(
+    coachId: string,
+    clientId: string,
+    input: CreateAssignmentInput,
+    role: string = 'coach',
+  ) {
+    await this.assertCoachOwnsStudent(coachId, clientId, role);
+    return this.prisma.clientAssignment.create({
+      data: {
+        coach_id: coachId,
+        client_id: clientId,
+        title: input.title,
+        description: input.description,
+        assignment_type: input.assignment_type ?? 'custom',
+        due_date: input.due_date ? new Date(input.due_date) : null,
+        target_value:
+          input.target_value === undefined ? null : toN(input.target_value),
+        target_unit: input.target_unit ?? null,
+        coach_notes: input.coach_notes ?? null,
+      },
+    });
+  }
+
+  async updateAssignment(
+    coachId: string,
+    assignmentId: string,
+    input: UpdateAssignmentInput,
+    role: string = 'coach',
+  ) {
+    const existing = await this.prisma.clientAssignment.findUnique({
+      where: { id: assignmentId },
+    });
+    if (!existing) {
+      throw new NotFoundException({ error: 'Assignment not found', code: 'NOT_FOUND' });
+    }
+    if (role !== 'owner' && existing.coach_id !== coachId) {
+      throw new ForbiddenException({ error: 'Access denied', code: 'FORBIDDEN' });
+    }
+
+    const data: Prisma.ClientAssignmentUpdateInput = {};
+    if (input.title !== undefined) data.title = input.title;
+    if (input.description !== undefined) data.description = input.description;
+    if (input.assignment_type !== undefined) data.assignment_type = input.assignment_type;
+    if (input.due_date !== undefined) data.due_date = input.due_date === null ? null : new Date(input.due_date);
+    if (input.status !== undefined) {
+      data.status = input.status;
+      if (input.status === 'completed') data.completed_at = new Date();
+      if (input.status === 'open') data.completed_at = null;
+    }
+    if (input.target_value !== undefined) {
+      data.target_value = input.target_value === null ? null : toN(input.target_value);
+    }
+    if (input.target_unit !== undefined) data.target_unit = input.target_unit;
+    if (input.coach_notes !== undefined) data.coach_notes = input.coach_notes;
+
+    return this.prisma.clientAssignment.update({ where: { id: assignmentId }, data });
+  }
+
+  async deleteAssignment(coachId: string, assignmentId: string, role: string = 'coach') {
+    const existing = await this.prisma.clientAssignment.findUnique({
+      where: { id: assignmentId },
+    });
+    if (!existing) {
+      throw new NotFoundException({ error: 'Assignment not found', code: 'NOT_FOUND' });
+    }
+    if (role !== 'owner' && existing.coach_id !== coachId) {
+      throw new ForbiddenException({ error: 'Access denied', code: 'FORBIDDEN' });
+    }
+    await this.prisma.clientAssignment.delete({ where: { id: assignmentId } });
+    return { ok: true };
+  }
+
+  // ── Notes (extends existing CoachNote endpoints with read/patch/delete) ──
+
+  async listClientNotes(coachId: string, clientId: string, role: string = 'coach') {
+    await this.assertCoachOwnsStudent(coachId, clientId, role);
+    return this.prisma.coachNote.findMany({
+      where: { student_id: clientId, ...(role === 'owner' ? {} : { coach_id: coachId }) },
+      orderBy: { created_at: 'desc' },
+    });
+  }
+
+  async updateNote(
+    coachId: string,
+    noteId: string,
+    input: { note?: string; is_private?: boolean },
+    role: string = 'coach',
+  ) {
+    const existing = await this.prisma.coachNote.findUnique({ where: { id: noteId } });
+    if (!existing) throw new NotFoundException({ error: 'Note not found', code: 'NOT_FOUND' });
+    if (role !== 'owner' && existing.coach_id !== coachId) {
+      throw new ForbiddenException({ error: 'Access denied', code: 'FORBIDDEN' });
+    }
+    const data: Prisma.CoachNoteUpdateInput = {};
+    if (input.note !== undefined) data.note = input.note;
+    if (input.is_private !== undefined) data.is_private = input.is_private;
+    return this.prisma.coachNote.update({ where: { id: noteId }, data });
+  }
+
+  async deleteNote(coachId: string, noteId: string, role: string = 'coach') {
+    const existing = await this.prisma.coachNote.findUnique({ where: { id: noteId } });
+    if (!existing) throw new NotFoundException({ error: 'Note not found', code: 'NOT_FOUND' });
+    if (role !== 'owner' && existing.coach_id !== coachId) {
+      throw new ForbiddenException({ error: 'Access denied', code: 'FORBIDDEN' });
+    }
+    await this.prisma.coachNote.delete({ where: { id: noteId } });
+    return { ok: true };
+  }
+
+  // ── Messages ─────────────────────────────────────────────────────────────
+
+  /**
+   * Coach inbox — one row per thread (paired with one client). The aggregate
+   * is built in-memory because the typical coach has tens of clients, not
+   * thousands; once that pressure shifts we'll switch to a per-thread
+   * `last_message_at` column.
+   */
+  async getCoachMessageInbox(coachId: string, role: string = 'coach') {
+    const scope = scopeToCoach({ id: coachId, role });
+    const clients = await this.prisma.user.findMany({
+      where: { role: 'student', ...scope },
+      select: { id: true, name: true, email: true },
+    });
+    const clientIds = clients.map((c) => c.id);
+    if (clientIds.length === 0) return { threads: [] };
+
+    // Most recent message per pair, plus an unread count where the coach is
+    // the recipient and read_at is null.
+    const messages = await this.prisma.coachMessage.findMany({
+      where: {
+        OR: [
+          { sender_id: coachId, recipient_id: { in: clientIds } },
+          { sender_id: { in: clientIds }, recipient_id: coachId },
+        ],
+      },
+      orderBy: { created_at: 'desc' },
+    });
+
+    const byClient = new Map<
+      string,
+      { last: typeof messages[number]; unread: number }
+    >();
+    for (const m of messages) {
+      const otherId = m.sender_id === coachId ? m.recipient_id : m.sender_id;
+      const entry = byClient.get(otherId);
+      if (!entry) {
+        byClient.set(otherId, {
+          last: m,
+          unread: m.recipient_id === coachId && !m.read_at ? 1 : 0,
+        });
+      } else {
+        if (m.recipient_id === coachId && !m.read_at) entry.unread += 1;
+      }
+    }
+
+    const threads = clients
+      .map((c) => {
+        const entry = byClient.get(c.id);
+        return {
+          client_id: c.id,
+          client_name: c.name,
+          client_email: c.email,
+          last_message: entry
+            ? {
+                id: entry.last.id,
+                body: entry.last.body,
+                created_at: entry.last.created_at,
+                from_coach: entry.last.sender_id === coachId,
+              }
+            : null,
+          unread_count: entry?.unread ?? 0,
+        };
+      })
+      .sort((a, b) => {
+        const aT = a.last_message ? new Date(a.last_message.created_at).getTime() : 0;
+        const bT = b.last_message ? new Date(b.last_message.created_at).getTime() : 0;
+        return bT - aT;
+      });
+
+    return { threads };
+  }
+
+  /** Returns the message history for a single coach/client pair. */
+  async getCoachMessageThread(
+    coachId: string,
+    clientId: string,
+    role: string = 'coach',
+    limit: number = 100,
+  ) {
+    await this.assertCoachOwnsStudent(coachId, clientId, role);
+    const tk = threadKey(coachId, clientId);
+    const messages = await this.prisma.coachMessage.findMany({
+      where: { thread_key: tk },
+      orderBy: { created_at: 'asc' },
+      take: limit,
+    });
+
+    // Mark inbound messages as read on coach fetch.
+    await this.prisma.coachMessage.updateMany({
+      where: { thread_key: tk, recipient_id: coachId, read_at: null },
+      data: { read_at: new Date() },
+    });
+
+    return {
+      thread_key: tk,
+      messages: messages.map((m) => ({
+        id: m.id,
+        sender_id: m.sender_id,
+        recipient_id: m.recipient_id,
+        body: m.body,
+        read_at: m.read_at,
+        created_at: m.created_at,
+        from_coach: m.sender_id === coachId,
+      })),
+    };
+  }
+
+  async sendCoachMessage(
+    coachId: string,
+    clientId: string,
+    body: string,
+    role: string = 'coach',
+  ) {
+    await this.assertCoachOwnsStudent(coachId, clientId, role);
+    return this.prisma.coachMessage.create({
+      data: {
+        thread_key: threadKey(coachId, clientId),
+        sender_id: coachId,
+        recipient_id: clientId,
+        body,
+      },
+    });
+  }
+
+  // ── Community posts ──────────────────────────────────────────────────────
+
+  async listCommunityPosts(coachId: string, role: string = 'coach') {
+    return this.prisma.communityPost.findMany({
+      where: role === 'owner' ? {} : { author_id: coachId },
+      orderBy: { created_at: 'desc' },
+    });
+  }
+
+  async createCommunityPost(coachId: string, input: CreateCommunityPostInput) {
+    return this.prisma.communityPost.create({
+      data: {
+        author_id: coachId,
+        title: input.title,
+        body: input.body,
+        resource_url: input.resource_url ?? null,
+        status: input.status ?? 'published',
+        audience: input.audience ?? 'own_clients',
+        published_at:
+          (input.status ?? 'published') === 'published' ? new Date() : null,
+      },
+    });
+  }
+
+  async updateCommunityPost(
+    coachId: string,
+    postId: string,
+    input: Partial<CreateCommunityPostInput>,
+    role: string = 'coach',
+  ) {
+    const existing = await this.prisma.communityPost.findUnique({ where: { id: postId } });
+    if (!existing) throw new NotFoundException({ error: 'Post not found', code: 'NOT_FOUND' });
+    if (role !== 'owner' && existing.author_id !== coachId) {
+      throw new ForbiddenException({ error: 'Access denied', code: 'FORBIDDEN' });
+    }
+    const data: Prisma.CommunityPostUpdateInput = {};
+    if (input.title !== undefined) data.title = input.title;
+    if (input.body !== undefined) data.body = input.body;
+    if (input.resource_url !== undefined) data.resource_url = input.resource_url ?? null;
+    if (input.audience !== undefined) data.audience = input.audience;
+    if (input.status !== undefined) {
+      data.status = input.status;
+      // Flipping to 'published' for the first time stamps published_at.
+      if (input.status === 'published' && !existing.published_at) {
+        data.published_at = new Date();
+      }
+    }
+    return this.prisma.communityPost.update({ where: { id: postId }, data });
+  }
+
+  async deleteCommunityPost(coachId: string, postId: string, role: string = 'coach') {
+    const existing = await this.prisma.communityPost.findUnique({ where: { id: postId } });
+    if (!existing) throw new NotFoundException({ error: 'Post not found', code: 'NOT_FOUND' });
+    if (role !== 'owner' && existing.author_id !== coachId) {
+      throw new ForbiddenException({ error: 'Access denied', code: 'FORBIDDEN' });
+    }
+    await this.prisma.communityPost.delete({ where: { id: postId } });
+    return { ok: true };
+  }
+
+  // ── Practice analytics ───────────────────────────────────────────────────
+
+  async getPracticeAnalytics(coachId: string, role: string = 'coach') {
+    const scope = scopeToCoach({ id: coachId, role });
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+    const [students, eodCount, retainedCount] = await Promise.all([
+      this.prisma.user.findMany({
+        where: { role: 'student', ...scope },
+        include: {
+          profile: {
+            select: {
+              wealth_velocity_score: true,
+              net_worth_snapshot: true,
+              total_debt: true,
+              total_assets: true,
+              last_eod_date: true,
+            },
+          },
+        },
+      }),
+      this.prisma.eODSubmission.count({
+        where: {
+          user: { role: 'student', ...scope },
+          submitted_at: { gte: oneMonthAgo },
+        },
+      }),
+      // "Retained" = clients with at least one check-in in the last 30 days.
+      this.prisma.user.count({
+        where: {
+          role: 'student',
+          ...scope,
+          eod_submissions: { some: { submitted_at: { gte: oneMonthAgo } } },
+        },
+      }),
+    ]);
+
+    const total = students.length;
+    const avgVelocity =
+      total === 0
+        ? 0
+        : students.reduce((s, st) => s + (st.profile?.wealth_velocity_score ?? 0), 0) / total;
+    const totalAssets = students.reduce((s, st) => s + toN(st.profile?.total_assets), 0);
+    const totalDebt = students.reduce((s, st) => s + toN(st.profile?.total_debt), 0);
+
+    return {
+      total_clients: total,
+      retention_30d_pct: total === 0 ? 0 : Math.round((retainedCount / total) * 100),
+      avg_velocity_score: Math.round(avgVelocity),
+      eod_submissions_30d: eodCount,
+      roster_total_assets: Math.round(totalAssets),
+      roster_total_debt: Math.round(totalDebt),
+      roster_net_worth: Math.round(totalAssets - totalDebt),
+    };
   }
 }
