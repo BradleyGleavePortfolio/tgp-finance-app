@@ -50,6 +50,36 @@ Remote builder deploys have intermittently failed with builder-OOM and intermitt
 
 The local-only path is reliable; the remote-only path is what is intermittently broken. Track in the issue tracker as a separate ticket.
 
+### Stuck Fly `release_command` (machine never reaches `destroyed`)
+
+Symptom in the deploy log:
+
+```
+> Machine <id> has state: started
+> Waiting for <id> to have state: destroyed
+... 5+ minutes later ...
+error waiting for release_command machine <id> to finish running: timeout reached waiting for machine's state to change
+```
+
+Root cause is usually one of:
+
+1. The release_command VM's Prisma step hung on a stale `pg_advisory_lock` held by a previous release_command machine that itself timed out without releasing the lock cleanly.
+2. Fly's control-plane hiccuped on the started → destroyed transition even though the script exited zero. The default `--release-command-timeout` is 5min and is easy to brush against.
+
+Remediation:
+
+1. List the lingering release_command machines and destroy them so they can no longer hold connections:
+   ```bash
+   flyctl machine list -a tgp-finance-api | grep release_command
+   flyctl machine destroy <machine-id> -a tgp-finance-api --force
+   ```
+2. If a Prisma advisory lock is suspected, connect to the database and clear it:
+   ```sql
+   SELECT pid, locktype, mode, granted FROM pg_locks WHERE locktype = 'advisory';
+   SELECT pg_terminate_backend(<pid>);   -- only the lock-holder, not application backends
+   ```
+3. Re-run the GitHub Actions deploy workflow. The workflow now passes `--release-command-timeout 15m` and `release.sh` itself wraps each Prisma step in `timeout` so future hangs surface within minutes with a clear error rather than chewing the full Fly timeout.
+
 ---
 
 ## Roll back
