@@ -185,3 +185,56 @@ means a single release runbook covers both apps.
   Apple/Google AASA/asset-links file.
 - If you bump the backend response envelope, this app's response
   interceptor must move at the same time.
+
+## Operator Fill-Ins Required
+
+The canonical EAS-secret table for the finance mobile app lives in the [root README](../README.md#mobile--testflight-blocking-eas-secrets) under "Operator Fill-Ins Required → Mobile". Set every `EXPO_PUBLIC_*` value listed there before running an EAS production build from this directory.
+
+## TestFlight Launch Checklist
+
+The finance mobile app ships from this directory to TestFlight (iOS) and Play Internal Testing (Android). Confirm each step before tagging a build.
+
+### 1. Pre-flight
+
+- [ ] All EAS production-profile secrets in the root README's [Mobile fill-ins table](../README.md#mobile--testflight-blocking-eas-secrets) are set. Verify with `npx eas-cli env:list --environment production`.
+- [ ] **Backend `tgp-finance-api` is deployed at the version this build expects.** The mobile app does not function with a stale or down backend — the data fetch on first launch will fail closed.
+  - PR #131 (`fix/prisma-direct-url`) landed on 2026-05-12. The `DIRECT_URL` Fly secret must be set before the next backend deploy will succeed. Do not build mobile until that secret is set and the backend deploy is green.
+- [ ] `app.json` build numbers were bumped in this handoff PR: `ios.buildNumber` 8 → 9, `android.versionCode` 7 → 8. Confirm these are the next monotonic values relative to whatever is already in App Store Connect / Play Console.
+- [ ] `expo.extra.eas.projectId` in `app.json` matches the EAS project the operator's `eas-cli` is logged into.
+- [ ] `EXPO_PUBLIC_COACH_SIGNUP_SECRET` matches the backend's `COACH_SIGNUP_SECRET` byte-for-byte. A mismatch causes silent coach signup HMAC failures.
+
+### 2. Build
+
+```bash
+# iOS only — TestFlight target
+npx eas-cli build --platform ios --profile production
+
+# Android only — Play Internal target
+npx eas-cli build --platform android --profile production
+
+# Both at once
+npx eas-cli build --platform all --profile production
+```
+
+The `production` profile is defined in [`eas.json`](eas.json) and sets `distribution: "store"` + `environment: "production"`. The Android variant produces an `.aab` (`buildType: "app-bundle"`).
+
+### 3. Submit
+
+```bash
+# iOS
+npx eas-cli submit --platform ios --latest
+
+# Android (uses ./pc-api-key.json — confirm it exists locally before submit)
+npx eas-cli submit --platform android --latest
+```
+
+### 4. TestFlight verification
+
+Once the build is processed in App Store Connect, assign to the internal testing group and verify on a physical device:
+
+- [ ] Sign-in with email/password completes against the live backend.
+- [ ] Coach signup with a fresh invite code completes (HMAC token verifies against backend `COACH_SIGNUP_SECRET`).
+- [ ] Coach dashboard loads at least one client without error.
+- [ ] Daily check-in submit round-trips and persists across cold restart.
+- [ ] Federation: a client's coach insights page resolves data from the fitness backend through the federation token (`FEDERATION_SERVICE_TOKEN` ↔ fitness `FINANCE_SERVICE_TOKEN`).
+- [ ] No Sentry crashes in the first 5 minutes of use (verify in the finance mobile Sentry project).
