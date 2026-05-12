@@ -20,6 +20,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { createClient } from '@supabase/supabase-js';
+import ws from 'ws';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 
@@ -122,7 +123,9 @@ async function main() {
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (supabaseUrl && supabaseKey) {
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      realtime: { transport: ws as any },
+    });
     const { error } = await supabase.auth.admin.deleteUser(user.supabase_id);
     if (error) {
       console.error(`Warning: Failed to delete Supabase auth user: ${error.message}`);
