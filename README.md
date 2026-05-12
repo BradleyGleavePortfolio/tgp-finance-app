@@ -554,7 +554,7 @@ Operator-action checklist for the finance launch. All backend secrets target the
 | `COACH_SIGNUP_SECRET` | `backend/src/auth/auth.service.ts:381` | Fly secret (app: `tgp-finance-api`) | 256-bit random hex. Must match the mobile `EXPO_PUBLIC_COACH_SIGNUP_SECRET` byte-for-byte (HMAC verification, `mobile/src/lib/coachSignupToken.ts:173`). |
 | `FEDERATION_SERVICE_TOKEN` | `backend/src/system/federation-token-self-check.ts:29` | Fly secret (app: `tgp-finance-api`) | 256-bit random hex. Must match the fitness backend's `FINANCE_SERVICE_TOKEN` byte-for-byte. |
 | `CORS_ORIGINS` | `backend/src/main.ts:36` | Fly secret (app: `tgp-finance-api`) | Comma-separated allow-list of origins. `*` is rejected. |
-| `DIRECT_URL` | NOT YET IN CODE — added by `fix/prisma-direct-url` PR (in flight) | Fly secret (app: `tgp-finance-api`) | Supabase dashboard → Settings → Database → direct (non-pooler) URL on port 5432. **Required after the Prisma direct-url PR merges** for `prisma migrate deploy` to succeed at boot. |
+| `DIRECT_URL` | `backend/prisma/schema.prisma:11` | Fly secret (app: `tgp-finance-api`) | Supabase dashboard → Settings → Database → direct (non-pooler) URL on port 5432. Required for `prisma migrate deploy` at boot — pooled `DATABASE_URL` cannot run DDL. Landed in PR #131 on 2026-05-12. |
 
 ### Backend — production already-set (verify, do not introspect)
 
@@ -603,7 +603,9 @@ fly secrets list -a tgp-finance-api
 
 ### Active blocker
 
-Fly deploys for `tgp-finance-api` currently fail because `prisma migrate deploy` requires a non-pooler `DIRECT_URL` and the schema does not yet declare one. A fix PR (`fix/prisma-direct-url`) is in flight; once it merges, the operator must set the `DIRECT_URL` Fly secret (Supabase direct DB URL, port 5432, non-pooler) before the deploy will succeed. Mobile builds are useful only after the backend deploy is green.
+The Prisma direct-URL fix landed in PR #131 on 2026-05-12. Operator action: set the `DIRECT_URL` Fly secret (Supabase direct DB URL, port 5432, non-pooler) on `tgp-finance-api` before triggering the next deploy. Until that secret is set, `prisma migrate deploy` will continue to fail at release-command time and mobile builds remain blocked downstream.
+
+Separate concern: `main` HEAD CI is currently red due to PR #129 (`@supabase/supabase-js` 2.105.1 → 2.105.4 + posthog-node 5.33 → 5.34) which introduced a Node 20 / `realtime-js` native-WebSocket regression in the test suite. This is a pre-existing condition that affects every branch including this docs PR; a follow-up will pin the supabase-js version or supply a `ws` transport.
 
 ## Open PRs by Status
 
@@ -614,6 +616,7 @@ Triage of open PRs as of 2026-05-12 (`gh pr list --state open --limit 100`).
 - **#112** Proof runtime scaffolding with coach signoff + AI guardrails. Trigger: when the proof-of-work feature ships.
 - **#113** AI gateway provider-neutral seam with fail-closed config + provenance contracts. Trigger: when finance adopts the same AI gateway pattern as backend PR #194.
 
-### Bucket D: UNSTABLE dependabot (CI failing, needs code fix)
+### Recently merged on `main` (out of scope for this triage)
 
-- **#129** `backend-prod-dependencies` group bump — CI failing, needs code fix.
+- **#129** `backend-prod-dependencies` group bump (`@supabase/supabase-js` + `posthog-node`) — merged 2026-05-12; introduced a Node 20 / `realtime-js` WebSocket regression in tests.
+- **#131** `fix(deploy)`: route `prisma migrate deploy` through `DIRECT_URL` — merged 2026-05-12; unblocks Fly release-command migrations once `DIRECT_URL` is set as a Fly secret.

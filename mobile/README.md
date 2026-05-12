@@ -198,7 +198,7 @@ The finance mobile app ships from this directory to TestFlight (iOS) and Play In
 
 - [ ] All EAS production-profile secrets in the root README's [Mobile fill-ins table](../README.md#mobile--testflight-blocking-eas-secrets) are set. Verify with `npx eas-cli env:list --environment production`.
 - [ ] **Backend `tgp-finance-api` is deployed at the version this build expects.** The mobile app does not function with a stale or down backend — the data fetch on first launch will fail closed.
-  - Active blocker: backend deploy is failing pending the `fix/prisma-direct-url` PR + `DIRECT_URL` Fly secret. Do not build mobile until backend is green.
+  - PR #131 (`fix/prisma-direct-url`) landed on 2026-05-12. The `DIRECT_URL` Fly secret must be set before the next backend deploy will succeed. Do not build mobile until that secret is set and the backend deploy is green.
 - [ ] `app.json` build numbers were bumped in this handoff PR: `ios.buildNumber` 8 → 9, `android.versionCode` 7 → 8. Confirm these are the next monotonic values relative to whatever is already in App Store Connect / Play Console.
 - [ ] `expo.extra.eas.projectId` in `app.json` matches the EAS project the operator's `eas-cli` is logged into.
 - [ ] `EXPO_PUBLIC_COACH_SIGNUP_SECRET` matches the backend's `COACH_SIGNUP_SECRET` byte-for-byte. A mismatch causes silent coach signup HMAC failures.
