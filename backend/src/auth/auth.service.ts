@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import ws from 'ws';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { AnalyticsService } from '../analytics/analytics.service';
@@ -97,7 +98,12 @@ export class AuthService {
       );
     }
 
-    this.supabase = createClient(supabaseUrl || 'https://placeholder.supabase.co', supabaseKey || 'placeholder');
+    // Node 20 lacks native WebSocket; supabase-js >=2.105 requires an explicit
+    // transport when running under Node <22. Pass the `ws` package so the
+    // RealtimeClient constructor doesn't throw during AuthService init.
+    this.supabase = createClient(supabaseUrl || 'https://placeholder.supabase.co', supabaseKey || 'placeholder', {
+      realtime: { transport: ws as any },
+    });
   }
 
   async register(dto: {
