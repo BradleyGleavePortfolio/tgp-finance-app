@@ -537,3 +537,83 @@ unbounded. Retention rules:
 The scheduler runs at 03:15 UTC; counts of pruned rows are logged
 on every run. `RUNBOOK.md` covers manual invocation if a one-off
 cleanup is ever needed.
+
+## Operator Fill-Ins Required
+
+Operator-action checklist for the finance launch. All backend secrets target the Fly app **`tgp-finance-api`**. Mobile secrets target the EAS project for the `tgp-finance` slug. Every `Used in (file:line)` row was verified by grep against `main` HEAD on 2026-05-12.
+
+### Backend — TestFlight-blocking secrets (Fly app `tgp-finance-api`)
+
+| Variable | Used in (file:line) | Where to set | How to generate / source |
+|---|---|---|---|
+| `DATABASE_URL` | `backend/src/common/env.ts:10` | Fly secret (app: `tgp-finance-api`) | Supabase dashboard → Settings → Database → Connection pooler (session mode). Include `?connection_limit=10&pool_timeout=10`. |
+| `SUPABASE_URL` | `backend/src/common/env.ts:11` | Fly secret (app: `tgp-finance-api`) | Supabase dashboard → Settings → API → Project URL (same Supabase project the fitness backend uses). |
+| `SUPABASE_SERVICE_ROLE_KEY` | `backend/src/common/env.ts:12` | Fly secret (app: `tgp-finance-api`) | Supabase dashboard → Settings → API → `service_role` key. Secret. |
+| `JWT_SECRET` | `backend/src/common/env.ts:13` | Fly secret (app: `tgp-finance-api`) | 32-byte random hex: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. Must be ≥16 chars; boot crashes otherwise (`backend/src/auth/auth.module.ts:24`). |
+| `PERPLEXITY_API_KEY` | `backend/src/common/env.ts:14` | Fly secret (app: `tgp-finance-api`) | perplexity.ai → API. |
+| `COACH_SIGNUP_SECRET` | `backend/src/auth/auth.service.ts:381` | Fly secret (app: `tgp-finance-api`) | 256-bit random hex. Must match the mobile `EXPO_PUBLIC_COACH_SIGNUP_SECRET` byte-for-byte (HMAC verification, `mobile/src/lib/coachSignupToken.ts:173`). |
+| `FEDERATION_SERVICE_TOKEN` | `backend/src/system/federation-token-self-check.ts:29` | Fly secret (app: `tgp-finance-api`) | 256-bit random hex. Must match the fitness backend's `FINANCE_SERVICE_TOKEN` byte-for-byte. |
+| `CORS_ORIGINS` | `backend/src/main.ts:36` | Fly secret (app: `tgp-finance-api`) | Comma-separated allow-list of origins. `*` is rejected. |
+| `DIRECT_URL` | NOT YET IN CODE — added by `fix/prisma-direct-url` PR (in flight) | Fly secret (app: `tgp-finance-api`) | Supabase dashboard → Settings → Database → direct (non-pooler) URL on port 5432. **Required after the Prisma direct-url PR merges** for `prisma migrate deploy` to succeed at boot. |
+
+### Backend — production already-set (verify, do not introspect)
+
+| Variable | Used in (file:line) | Where to set | How to generate / source |
+|---|---|---|---|
+| `SENTRY_DSN` | `backend/src/instrument.ts:6` | Fly secret (app: `tgp-finance-api`) | Sentry → finance project → Client Keys (DSN). VERIFY in Fly dashboard. |
+| `POSTHOG_KEY` | `backend/src/analytics/analytics.service.ts:49` | Fly secret (app: `tgp-finance-api`) | PostHog → Project Settings → API Key. VERIFY in Fly dashboard. |
+| `POSTHOG_HOST` | `backend/src/analytics/analytics.service.ts:58` | Fly secret (app: `tgp-finance-api`) | PostHog instance URL. VERIFY in Fly dashboard. |
+| `EXPO_ACCESS_TOKEN` | `backend/src/push/push-sender.service.ts:33` | Fly secret (app: `tgp-finance-api`) | expo.dev → Settings → Access Tokens. Used to authenticate Expo push sends. VERIFY in Fly dashboard. |
+| `SUPPORT_CONTACT_EMAIL` | `backend/src/users/users.service.ts:68` | Fly secret (app: `tgp-finance-api`) | Static string — operator's support inbox address. VERIFY in Fly dashboard. |
+| `RELEASE_SHA` | `backend/src/system/release-info.ts:32` | Fly env (auto-set in fly.toml or deploy command) | Git SHA, auto-injected at build/deploy time. |
+| `RELEASE_VERSION` | `backend/src/instrument.ts:12` | Fly env (auto-set in fly.toml or deploy command) | Semver tag for Sentry release. |
+
+### Backend — feature flags (defaults documented; set only if changing)
+
+| Variable | Used in (file:line) | Where to set | How to generate / source |
+|---|---|---|---|
+| `FEATURE_REQUIRE_COACH_CODE` | `backend/src/invites/invites.service.ts:49` | Fly secret (app: `tgp-finance-api`) | `true` (default) requires coach signup with a coach code. Leave unset for v1. |
+| `ENABLE_SWAGGER` | `backend/src/main.ts:52` | Fly secret (app: `tgp-finance-api`) | `true` exposes Swagger at `/api/docs`. Leave unset in production. |
+| `ENABLE_DEV_BACKDOOR` | `backend/src/common/env.ts:32` | Local `.env` only — NEVER in production | Forced off in production by an explicit env check. |
+
+### Mobile — TestFlight-blocking EAS secrets
+
+| Variable | Used in (file:line) | Where to set | How to generate / source |
+|---|---|---|---|
+| `EXPO_PUBLIC_API_URL` | `mobile/src/utils/constants.ts:236` | EAS secret (eas.json env block, profile `production`) | `https://tgp-finance-api.fly.dev`. Must include scheme; no trailing slash. |
+| `EXPO_PUBLIC_SUPABASE_URL` | `mobile/src/services/supabase.ts:15` | EAS secret (eas.json env block, profile `production`) | Same Supabase Project URL as the backend. |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | `mobile/src/services/supabase.ts:16` | EAS secret (eas.json env block, profile `production`) | Supabase dashboard → Settings → API → `anon` public key. |
+| `EXPO_PUBLIC_COACH_SIGNUP_SECRET` | `mobile/src/lib/coachSignupToken.ts:173` | EAS secret (eas.json env block, profile `production`) | Must match backend `COACH_SIGNUP_SECRET` byte-for-byte. |
+| `EXPO_PUBLIC_ENVIRONMENT` | `mobile/src/services/sentry.ts:62` | EAS secret (eas.json env block, profile `production`) | Static string `production` for store builds. |
+| `EXPO_PUBLIC_INVITE_BASE_URL` | `mobile/app/coach/invite-codes/index.tsx:32` | EAS secret (eas.json env block, profile `production`) | Public host base for invite deep links (e.g. `https://tgp-finance-api.fly.dev/invite`). |
+| `EXPO_PUBLIC_POSTHOG_KEY` | `mobile/src/lib/analytics.ts:47` | EAS secret (eas.json env block, profile `production`) | PostHog → Project Settings → API Key (finance mobile project). |
+| `EXPO_PUBLIC_POSTHOG_HOST` | `mobile/src/lib/analytics.ts:51` | EAS secret (eas.json env block, profile `production`) | PostHog instance URL. |
+| `EXPO_PUBLIC_SENTRY_DSN` | `mobile/src/services/sentry.ts:42` | EAS secret (eas.json env block, profile `production`) | Sentry → finance mobile project → Client Keys (DSN). |
+| `SENTRY_AUTH_TOKEN` | EAS build host (sourcemaps upload) | EAS account-level secret | Sentry → Settings → Auth Tokens → create with `project:releases` scope. |
+
+### Currently set (verify, do not introspect)
+
+```bash
+# backend secrets
+fly secrets list -a tgp-finance-api
+
+# mobile EAS env
+( cd mobile && npx eas-cli env:list --environment production )
+```
+
+### Active blocker
+
+Fly deploys for `tgp-finance-api` currently fail because `prisma migrate deploy` requires a non-pooler `DIRECT_URL` and the schema does not yet declare one. A fix PR (`fix/prisma-direct-url`) is in flight; once it merges, the operator must set the `DIRECT_URL` Fly secret (Supabase direct DB URL, port 5432, non-pooler) before the deploy will succeed. Mobile builds are useful only after the backend deploy is green.
+
+## Open PRs by Status
+
+Triage of open PRs as of 2026-05-12 (`gh pr list --state open --limit 100`).
+
+### Bucket C: Future state
+
+- **#112** Proof runtime scaffolding with coach signoff + AI guardrails. Trigger: when the proof-of-work feature ships.
+- **#113** AI gateway provider-neutral seam with fail-closed config + provenance contracts. Trigger: when finance adopts the same AI gateway pattern as backend PR #194.
+
+### Bucket D: UNSTABLE dependabot (CI failing, needs code fix)
+
+- **#129** `backend-prod-dependencies` group bump — CI failing, needs code fix.
