@@ -29,24 +29,11 @@ MIGRATE_TIMEOUT="${MIGRATE_TIMEOUT:-8m}"
 PUSH_TIMEOUT="${PUSH_TIMEOUT:-5m}"
 RESOLVE_TIMEOUT="${RESOLVE_TIMEOUT:-1m}"
 
-# Prisma's migration engine acquires a session-level advisory lock, which
-# Supabase's PgBouncer pooler (port 6543, transaction mode) cannot hold —
-# the lock never resolves and migrate hangs to MIGRATE_TIMEOUT. Route
-# migrations through DIRECT_URL (port 5432) when set; fall back to
-# DATABASE_URL so local dev (no pooler) keeps working.
-if [ -z "${DIRECT_URL:-}" ]; then
-  echo "[release] DIRECT_URL not set; using DATABASE_URL for migrations"
-  PRISMA_MIGRATION_URL="${DATABASE_URL}"
-else
-  echo "[release] routing migrations through DIRECT_URL"
-  PRISMA_MIGRATION_URL="${DIRECT_URL}"
-fi
-
 echo "[release] attempting prisma migrate deploy (timeout: ${MIGRATE_TIMEOUT})..."
 
 LOG=/tmp/prisma_migrate.log
 set +e
-DATABASE_URL="${PRISMA_MIGRATION_URL}" timeout --preserve-status "${MIGRATE_TIMEOUT}" npx prisma migrate deploy 2>&1 | tee "$LOG"
+timeout --preserve-status "${MIGRATE_TIMEOUT}" npx prisma migrate deploy 2>&1 | tee "$LOG"
 MIGRATE_EXIT=${PIPESTATUS[0]}
 set -e
 
@@ -72,12 +59,12 @@ if grep -qE "P3005|P3018|P3009|database schema is not empty|is not managed by Pr
   FAILED=$(grep -oE "[0-9]{14}_[a-zA-Z0-9_]+" "$LOG" | sort -u)
   for m in $FAILED; do
     echo "[release] marking failed migration $m as rolled-back"
-    DATABASE_URL="${PRISMA_MIGRATION_URL}" timeout --preserve-status "${RESOLVE_TIMEOUT}" npx prisma migrate resolve --rolled-back "$m" || true
+    timeout --preserve-status "${RESOLVE_TIMEOUT}" npx prisma migrate resolve --rolled-back "$m" || true
   done
 
   echo "[release] forward-syncing schema with db push --accept-data-loss (timeout: ${PUSH_TIMEOUT})"
   set +e
-  DATABASE_URL="${PRISMA_MIGRATION_URL}" timeout --preserve-status "${PUSH_TIMEOUT}" npx prisma db push --accept-data-loss --skip-generate
+  timeout --preserve-status "${PUSH_TIMEOUT}" npx prisma db push --accept-data-loss --skip-generate
   PUSH_EXIT=$?
   set -e
   if [ "${PUSH_EXIT}" -ne 0 ]; then
