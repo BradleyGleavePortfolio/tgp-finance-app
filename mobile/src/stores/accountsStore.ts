@@ -4,6 +4,13 @@ import { accountsApi } from '../services/api';
 import type { FinancialAccount, AccountBalanceLog } from '../types';
 import { computeNetWorth, computeDailyInterest } from '../utils/financial';
 
+// staleTime — how long a successful fetch is considered fresh. Subsequent
+// fetchAccounts() calls inside this window return immediately without a
+// re-fetch, so RootLayout / Home / Profile / etc. don't kick off
+// duplicate API requests every time the screen mounts. Pull-to-refresh
+// (force=true) always bypasses the cache.
+const STALE_TIME_MS = 30 * 1000;
+
 /** Safely extract an array from any API response shape */
 function safeArray<T>(data: unknown, key: string): T[] {
   if (!data || typeof data !== 'object') return [];
@@ -41,7 +48,7 @@ interface AccountsStore {
   dailyInterest: number;
   lastFetched: number | null;
 
-  fetchAccounts: () => Promise<void>;
+  fetchAccounts: (opts?: { force?: boolean }) => Promise<void>;
   addAccount: (data: Partial<FinancialAccount>) => Promise<void>;
   updateAccount: (id: string, data: Partial<FinancialAccount>) => Promise<void>;
   deleteAccount: (id: string) => Promise<void>;
@@ -66,7 +73,12 @@ const initialAccountsState = {
 export const useAccountsStore = create<AccountsStore>((set, get) => ({
   ...initialAccountsState,
 
-  fetchAccounts: async () => {
+  fetchAccounts: async (opts?: { force?: boolean }) => {
+    const { lastFetched, isLoading } = get();
+    if (!opts?.force) {
+      if (isLoading) return;
+      if (lastFetched && Date.now() - lastFetched < STALE_TIME_MS) return;
+    }
     set({ isLoading: true, error: null });
     try {
       const { data } = await accountsApi.getAll();

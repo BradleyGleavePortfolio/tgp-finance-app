@@ -10,6 +10,7 @@ import { EmptyState } from '../src/components/ui/EmptyState';
 import { colors, typography, spacing } from '../src/theme/tokens';
 import { aiApi } from '../src/services/api';
 import { formatCurrency } from '../src/utils/formatters';
+import { errorMessage } from '../src/lib/errorMessage';
 
 interface DNAReport {
   month: string;
@@ -24,6 +25,7 @@ export default function SpendingDNAScreen() {
   const router = useRouter();
   const [reports, setReports] = useState<DNAReport[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     // Load reports from local state or API
@@ -33,6 +35,7 @@ export default function SpendingDNAScreen() {
   const generateReport = async () => {
     const currentMonth = new Date().toISOString().slice(0, 7);
     setIsLoading(true);
+    setError(null);
     try {
       const { data } = await aiApi.getSpendingDNA(currentMonth);
       const paragraphs = (data.report_text || '').split(/\n\n+/);
@@ -45,8 +48,13 @@ export default function SpendingDNAScreen() {
         savings_rate_pct: data.key_metrics?.avg_savings_rate_pct ?? 0,
       };
       setReports([parsed, ...reports]);
-    } catch {
-      // Silent failure
+    } catch (err) {
+      setError(
+        errorMessage(
+          err,
+          "We couldn't generate a Spending DNA report right now. Please try again in a moment.",
+        ),
+      );
     } finally {
       setIsLoading(false);
     }
@@ -79,6 +87,12 @@ export default function SpendingDNAScreen() {
           fullWidth
           style={styles.genBtn}
         />
+
+        {error ? (
+          <View style={styles.errorBanner} accessibilityLiveRegion="polite">
+            <Text style={styles.errorBannerText}>{error}</Text>
+          </View>
+        ) : null}
 
         {reports.length === 0 ? (
           <EmptyState
@@ -141,4 +155,18 @@ const styles = StyleSheet.create({
   paragraph: { gap: spacing.xs },
   paragraphTitle: { fontFamily: typography.families.medium, ...typography.scale.eyebrow, color: colors.oxblood },
   paragraphText: { fontFamily: typography.families.regular, ...typography.scale.bodySmall, color: colors.ink, lineHeight: 20 },
+  errorBanner: {
+    marginBottom: spacing.xl,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.cream,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.oxblood,
+  },
+  errorBannerText: {
+    fontFamily: typography.families.regular,
+    ...typography.scale.bodySmall,
+    color: colors.oxblood,
+    lineHeight: 20,
+  },
 });

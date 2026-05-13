@@ -3,6 +3,11 @@ import { create } from 'zustand';
 import { networthApi } from '../services/api';
 import type { NetWorthHistory } from '../types';
 
+// staleTime: see accountsStore for the rationale. Net worth history is the
+// heaviest call we make (90 days of submissions); de-duping rapid mounts
+// matters more here than for any other store.
+const STALE_TIME_MS = 30 * 1000;
+
 /** Safely extract an array from any API response shape */
 function safeArray<T>(data: unknown, key: string): T[] {
   if (!data || typeof data !== 'object') return [];
@@ -24,9 +29,12 @@ interface NetWorthStore {
   previousNetWorth: number;
   isLoading: boolean;
   error: string | null;
+  lastHistoryFetched: number | null;
+  lastHistoryDays: number | null;
+  lastCurrentFetched: number | null;
 
-  fetchHistory: (days?: number) => Promise<void>;
-  fetchCurrent: () => Promise<void>;
+  fetchHistory: (days?: number, opts?: { force?: boolean }) => Promise<void>;
+  fetchCurrent: (opts?: { force?: boolean }) => Promise<void>;
   setCurrentNetWorth: (value: number) => void;
   reset: () => void;
 }
@@ -37,12 +45,26 @@ const initialNetWorthState = {
   previousNetWorth: 0,
   isLoading: false,
   error: null as string | null,
+  lastHistoryFetched: null as number | null,
+  lastHistoryDays: null as number | null,
+  lastCurrentFetched: null as number | null,
 };
 
 export const useNetWorthStore = create<NetWorthStore>((set, get) => ({
   ...initialNetWorthState,
 
-  fetchHistory: async (days = 90) => {
+  fetchHistory: async (days = 90, opts?: { force?: boolean }) => {
+    const { isLoading, lastHistoryFetched, lastHistoryDays } = get();
+    if (!opts?.force) {
+      if (isLoading) return;
+      if (
+        lastHistoryFetched &&
+        lastHistoryDays === days &&
+        Date.now() - lastHistoryFetched < STALE_TIME_MS
+      ) {
+        return;
+      }
+    }
     set({ isLoading: true, error: null });
     try {
       const { data } = await networthApi.getHistory(days);
@@ -59,20 +81,32 @@ export const useNetWorthStore = create<NetWorthStore>((set, get) => ({
       const current = safeNum(sorted[0]?.net_worth);
       const previous = safeNum(sorted[1]?.net_worth, current);
 
-      set({ history, currentNetWorth: current, previousNetWorth: previous, isLoading: false });
+      set({
+        history,
+        currentNetWorth: current,
+        previousNetWorth: previous,
+        isLoading: false,
+        lastHistoryFetched: Date.now(),
+        lastHistoryDays: days,
+      });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to load net worth history';
       set({ isLoading: false, error: message });
     }
   },
 
-  fetchCurrent: async () => {
+  fetchCurrent: async (opts?: { force?: boolean }) => {
+    const { lastCurrentFetched } = get();
+    if (!opts?.force && lastCurrentFetched && Date.now() - lastCurrentFetched < STALE_TIME_MS) {
+      return;
+    }
     try {
       const { data } = await networthApi.getCurrent();
       if (data && typeof data === 'object') {
         set({
           currentNetWorth: safeNum(data.net_worth),
           previousNetWorth: safeNum(data.previous_net_worth, get().currentNetWorth),
+          lastCurrentFetched: Date.now(),
         });
       }
     } catch {

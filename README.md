@@ -1,5 +1,22 @@
 # The Growth Project: Finance
 
+> Status: pre-TestFlight audit complete; finance alpha only until manual bank-connect copy, message delivery, cache/perf, audit logging, and payment-positioning gaps are resolved; see /audits/00_MASTER_REPORT.md
+
+## Placeholders / TODO env vars
+
+The pre-TestFlight audit landed several fixes that gate on env vars the
+owner needs to populate before promoting an installed build past the
+internal-testers ring. Fill these in (EAS profile, Fly secrets) before
+inviting external coaches/clients.
+
+| Env var | Where | Why it matters | Example shape |
+|---|---|---|---|
+| `EXPO_PUBLIC_COACH_SIGNUP_SECRET` | mobile (EAS `production` profile) | HMAC secret the mobile app uses to mint a coach-promotion token. Missing in a production build now throws (was: silent fallback to the dev backdoor). Must be ≥32 characters and match `COACH_SIGNUP_SECRET` on the backend. | 64-char random hex (e.g. `openssl rand -hex 32`) |
+| `COACH_SIGNUP_SECRET` | backend (Fly) | Server-side counterpart to the mobile secret. Verifies the HMAC + freshness on `/api/auth/coach-promote`. | same 64-char value as the mobile EAS secret |
+| `SENTRY_TRACES_SAMPLE_RATE` | backend (Fly) | Reads at boot via `src/instrument.ts`. Defaults to `0.1` when unset. Set to `0` to disable performance traces; raise to `1.0` in dev for full sampling. | `0.1` |
+| `SENTRY_PROFILES_SAMPLE_RATE` | backend (Fly) | Optional companion to traces sample rate. Defaults to `0` when unset (no profiling). | `0` |
+| `CORS_ORIGINS` | backend (Fly) | Comma-separated list of allowed origins. **Wildcard (`*`) is now rejected at boot.** Required for any non-localhost client. | `https://app.trygrowthproject.com,https://growthproject.app` |
+
 A multi-tenant financial coaching and accountability platform. The app
 pairs a daily check-in with a long-running record of net worth, cash
 flow, debt, and a coach-curated set of priorities. It is read-only —

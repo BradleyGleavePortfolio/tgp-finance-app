@@ -15,6 +15,24 @@ export function ChatPanel() {
   const scrollRef = useRef<ScrollView>(null);
   const { messages, isLoading, error, sendMessage, clearError } = useChatStore();
 
+  // Drive the header status dot/text from real state instead of a hard-coded
+  // "Online". A non-empty `error` from the last send is the only signal the
+  // store currently produces; once it's set we surface "Unavailable" so a
+  // user staring at a dead AI doesn't think the chat is healthy.
+  const status: 'online' | 'thinking' | 'unavailable' = isLoading
+    ? 'thinking'
+    : error
+    ? 'unavailable'
+    : 'online';
+  const statusLabel =
+    status === 'thinking' ? 'Thinking…' : status === 'unavailable' ? 'Unavailable' : 'Online';
+  const statusColor =
+    status === 'thinking'
+      ? Colors.accentGold
+      : status === 'unavailable'
+      ? Colors.debtCrimson
+      : Colors.profitGreen;
+
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     if (messages.length > 0) {
@@ -50,8 +68,8 @@ export function ChatPanel() {
         <View style={{ flex: 1 }}>
           <Text style={styles.headerName}>FP — Financial Coach</Text>
           <View style={styles.statusRow}>
-            <View style={styles.statusDot} />
-            <Text style={styles.headerSub}>Online</Text>
+            <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+            <Text style={[styles.headerSub, { color: statusColor }]}>{statusLabel}</Text>
           </View>
         </View>
       </View>

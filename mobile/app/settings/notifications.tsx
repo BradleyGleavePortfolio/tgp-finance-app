@@ -1,14 +1,18 @@
 // Notification preferences screen
 // UX Psychology Report #3: success haptic on save
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Switch, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Switch, TouchableOpacity, Alert, Linking, Platform } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../src/components/ui/Button';
 import { Colors, Typography, Spacing, BorderRadius } from '../../src/theme/finance';
 import { notificationsApi } from '../../src/services/api';
-import { scheduleEODReminder } from '../../src/services/notifications';
+import {
+  scheduleEODReminder,
+  requestAndRegisterPushTokenInteractive,
+} from '../../src/services/notifications';
 import type { NotificationPreferences } from '../../src/types';
 
 export default function NotificationsScreen() {
@@ -25,13 +29,48 @@ export default function NotificationsScreen() {
     timezone: 'America/Los_Angeles',
   });
   const [saving, setSaving] = useState(false);
+  const [permission, setPermission] = useState<'granted' | 'denied' | 'undetermined' | 'unknown'>(
+    'unknown',
+  );
+
+  const refreshPermission = async () => {
+    try {
+      const { status } = await Notifications.getPermissionsAsync();
+      if (status === 'granted' || status === 'denied' || status === 'undetermined') {
+        setPermission(status);
+      } else {
+        setPermission('unknown');
+      }
+    } catch {
+      setPermission('unknown');
+    }
+  };
 
   useEffect(() => {
     // Read-only fetch: fall back to the local defaults if the server call fails.
     notificationsApi.getPreferences().then(({ data }) => {
       if (data) setPrefs(data.preferences || data);
     }).catch(() => {});
+    refreshPermission();
   }, []);
+
+  const handleEnableNotifications = async () => {
+    if (permission === 'denied') {
+      // OS won't show the prompt again — kick the user into the Settings app.
+      Linking.openSettings().catch(() => undefined);
+      return;
+    }
+    const token = await requestAndRegisterPushTokenInteractive();
+    await refreshPermission();
+    if (!token) {
+      Alert.alert(
+        'Notifications off',
+        Platform.OS === 'ios'
+          ? 'You can turn them on later in iOS Settings > TGP Finance > Notifications.'
+          : 'You can turn them on later in your device Settings.',
+      );
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -65,6 +104,24 @@ export default function NotificationsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {permission !== 'granted' ? (
+          <View style={styles.recoveryCard}>
+            <Text style={styles.recoveryTitle}>System notifications are off</Text>
+            <Text style={styles.recoveryDesc}>
+              {permission === 'denied'
+                ? 'Open Settings to allow notifications for TGP Finance.'
+                : "We'll only ask once. Enable to receive check-in reminders and milestone alerts."}
+            </Text>
+            <Button
+              title={permission === 'denied' ? 'Open Settings' : 'Turn on notifications'}
+              onPress={handleEnableNotifications}
+              variant="primary"
+              fullWidth
+              size="md"
+              style={styles.recoveryBtn}
+            />
+          </View>
+        ) : null}
         {[
           { key: 'eod_reminder_enabled', label: 'EOD Reminder', desc: 'Daily check-in reminder at your configured time' },
           { key: 'milestone_alerts', label: 'Milestones', desc: 'When you reach a financial milestone' },
@@ -104,4 +161,25 @@ const styles = StyleSheet.create({
   prefLabel: { fontFamily: 'Inter_600SemiBold', fontSize: Typography.bodyMedium, color: Colors.frostWhite },
   prefDesc: { fontFamily: 'Inter_400Regular', fontSize: Typography.bodySmall, color: Colors.slateGray, marginTop: 2 },
   saveBtn: { marginTop: Spacing.xxl },
+  recoveryCard: {
+    padding: Spacing.base,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.amberWarning ?? Colors.accentGold,
+    backgroundColor: Colors.cardSurfaceNavy,
+    marginBottom: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  recoveryTitle: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: Typography.bodyMedium,
+    color: Colors.frostWhite,
+  },
+  recoveryDesc: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: Typography.bodySmall,
+    color: Colors.slateGray,
+    lineHeight: 18,
+  },
+  recoveryBtn: { marginTop: Spacing.xs },
 });
