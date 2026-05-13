@@ -14,10 +14,36 @@ export const REQUIRED_ENV_VARS = [
   'PERPLEXITY_API_KEY',
 ] as const;
 
+// Heuristics that flag a value as a leftover .env.example placeholder rather
+// than a real secret. Ported from the fitness backend pattern. If any of
+// these substrings shows up in a REQUIRED secret in production, the boot
+// path aborts — a partially-filled deploy is worse than no deploy at all.
+const PLACEHOLDER_NEEDLES = [
+  'your-',
+  'YOUR_',
+  'change-me',
+  'CHANGE_ME',
+  'changeme',
+  'CHANGEME',
+  'placeholder',
+  'PLACEHOLDER',
+  'example.com',
+  'todo',
+  'TODO',
+  'xxxxxxxx',
+  'XXXXXXXX',
+];
+
+function looksLikePlaceholder(value: string): boolean {
+  if (!value) return false;
+  return PLACEHOLDER_NEEDLES.some((needle) => value.includes(needle));
+}
+
 export type EnvCheckResult = {
   ok: boolean;
   missing: string[];
   warnings: string[];
+  placeholders: string[];
 };
 
 /**
@@ -27,6 +53,7 @@ export type EnvCheckResult = {
 export function checkRequiredEnv(env: NodeJS.ProcessEnv = process.env): EnvCheckResult {
   const missing = REQUIRED_ENV_VARS.filter((k) => !env[k]);
   const warnings: string[] = [];
+  const placeholders: string[] = [];
 
   // Belt-and-suspenders: never let the dev backdoor escape into production.
   if (env.NODE_ENV === 'production' && env.ENABLE_DEV_BACKDOOR === 'true') {
@@ -42,10 +69,45 @@ export function checkRequiredEnv(env: NodeJS.ProcessEnv = process.env): EnvCheck
     );
   }
 
+  // Placeholder sweep over required env vars + the OPTIONAL-but-load-bearing
+  // ones (CORS, federation, signup secret). A value that still contains
+  // "your-supabase-url" or "CHANGE_ME" almost certainly came straight from
+  // .env.example; in production we treat that as fatal.
+  const sensitiveOptional = [
+    'CORS_ORIGINS',
+    'COACH_SIGNUP_SECRET',
+    'COACH_ACCESS_CODE',
+    'FEDERATION_SERVICE_TOKEN',
+    'SUPABASE_ANON_KEY',
+    'POSTHOG_KEY',
+    'SENTRY_DSN',
+  ];
+  const allCheck = [...REQUIRED_ENV_VARS, ...sensitiveOptional];
+  for (const key of allCheck) {
+    const value = env[key];
+    if (typeof value === 'string' && looksLikePlaceholder(value)) {
+      placeholders.push(key);
+    }
+  }
+
+  // In production a detected placeholder is fatal (escalated to a warning
+  // tagged 'not permitted' so assertRequiredEnv throws). In dev we surface
+  // it but don't block boot.
+  if (env.NODE_ENV === 'production' && placeholders.length > 0) {
+    warnings.push(
+      `Placeholder values detected (not permitted in production): ${placeholders.join(', ')}`,
+    );
+  } else if (placeholders.length > 0) {
+    warnings.push(
+      `Placeholder values detected (dev mode — non-fatal): ${placeholders.join(', ')}`,
+    );
+  }
+
   return {
     ok: missing.length === 0 && warnings.every((w) => !w.includes('not permitted')),
     missing,
     warnings,
+    placeholders,
   };
 }
 

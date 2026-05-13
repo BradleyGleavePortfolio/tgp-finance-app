@@ -14,6 +14,7 @@
 
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { PushSenderService } from '../push/push-sender.service';
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -44,9 +45,44 @@ export interface ThreadResponse {
   next_cursor: string | null;
 }
 
+// Minimal surface MessagesService uses from PushSenderService. Lets the
+// unit tests keep their one-argument constructor without wiring a full
+// stub: undefined pushSender falls back to a no-op.
+type PushSenderLike = Pick<PushSenderService, 'send'>;
+const NOOP_PUSH_SENDER: PushSenderLike = {
+  send: async () => ({ sent: false, reason: 'no_push_sender_in_test' }),
+};
+
 @Injectable()
 export class MessagesService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly pushSender: PushSenderLike;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    pushSender?: PushSenderService,
+  ) {
+    this.pushSender = pushSender ?? NOOP_PUSH_SENDER;
+  }
+
+  /**
+   * Resolve the sender's display name for the push title. We keep this in
+   * its own helper because the lookup is best-effort — a missing name
+   * falls back to "Your coach" so we don't leak a partial payload.
+   */
+  private async senderDisplayName(userId: string): Promise<string> {
+    try {
+      const row = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { name: true, role: true },
+      });
+      if (!row) return 'Your coach';
+      const trimmed = row.name?.trim();
+      if (trimmed) return trimmed;
+      return row.role === 'coach' || row.role === 'owner' ? 'Your coach' : 'Your client';
+    } catch {
+      return 'Your coach';
+    }
+  }
 
   /**
    * Look up the client's currently-assigned coach. Returns null when
@@ -212,6 +248,20 @@ export class MessagesService {
         body,
       },
     });
+
+    // Fire a push to the coach. Best-effort: PushSenderService swallows its
+    // own errors and writes to push_logs, so a missing token / disabled
+    // preference / Expo outage never propagates to the message send.
+    const senderName = await this.senderDisplayName(clientId);
+    const preview = body.length > 120 ? `${body.slice(0, 117)}…` : body;
+    this.pushSender
+      .send(coach.coach_id, 'coach_message', {
+        title: `${senderName} sent a message`,
+        body: preview,
+        data: { type: 'coach_message', screen: '/coach/messages', message_id: row.id },
+      })
+      .catch(() => undefined);
+
     return {
       id: row.id,
       body: row.body,

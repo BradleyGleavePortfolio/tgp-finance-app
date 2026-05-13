@@ -6,7 +6,8 @@ export type PushType =
   | 'net_worth_milestone'
   | 'priority_levelup'
   | 'future_self_letter'
-  | 'spending_dna';
+  | 'spending_dna'
+  | 'coach_message';
 
 export interface PushPayload {
   title: string;
@@ -31,6 +32,9 @@ export const DAILY_DEDUPE_TYPES: ReadonlyArray<PushType> = [
 export const EVENT_DEDUPE_KEYS: Readonly<Partial<Record<PushType, string>>> = {
   net_worth_milestone: 'milestone_key',
   priority_levelup: 'priority_index',
+  // Each message row gets its own dedupe key so resending the same body
+  // to a different recipient still fires.
+  coach_message: 'message_id',
 };
 
 // Maps each push type to the NotificationPreferences boolean column that
@@ -43,4 +47,5 @@ export const PREF_FIELD_BY_TYPE: Readonly<Record<PushType, string | null>> = {
   priority_levelup: 'priority_levelup_alerts',
   future_self_letter: 'future_self_letter_enabled',
   spending_dna: 'spending_dna_alerts',
+  coach_message: 'coach_messages',
 };
