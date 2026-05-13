@@ -23,6 +23,9 @@ export const STORAGE_KEYS = {
   lastPriorityIndex: 'notif.last_priority_index',
   lastSpendingDnaMonth: 'notif.last_spending_dna_month',
   futureSelfScheduled: 'notif.future_self_scheduled',
+  // The last Expo push token we successfully registered with the backend.
+  // Saves a redundant POST on every cold start when the token is unchanged.
+  lastRegisteredPushToken: 'notif.last_registered_push_token',
 } as const;
 
 // Configure how notifications appear when app is foregrounded
@@ -36,7 +39,19 @@ Notifications.setNotificationHandler({
   }),
 });
 
-export async function registerForPushNotificationsAsync(): Promise<string | null> {
+/**
+ * Get an Expo push token for this device. Two modes:
+ *   - `prompt: false` (default) is silent — returns null when permission is
+ *     not already granted. Safe to call on every auth flip / cold start.
+ *   - `prompt: true` triggers the OS permission dialog. Reserve this for an
+ *     explicit user action (a "Turn on notifications" button in settings, an
+ *     onboarding soft-ask card the user tapped, etc.). Never call it from a
+ *     background or auth-state effect — TestFlight reviewers and users alike
+ *     hate apps that prompt on launch.
+ */
+export async function registerForPushNotificationsAsync(
+  opts: { prompt?: boolean } = {},
+): Promise<string | null> {
   if (!Device.isDevice) {
     // Push notifications require a physical device
     return null;
@@ -46,6 +61,11 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
   let finalStatus = existingStatus;
 
   if (existingStatus !== 'granted') {
+    if (!opts.prompt) {
+      // Silent path: do not surface the OS prompt. Caller can retry later
+      // with prompt=true once the user has opted in to a soft-ask.
+      return null;
+    }
     const { status } = await Notifications.requestPermissionsAsync();
     finalStatus = status;
   }
@@ -319,20 +339,43 @@ export async function handleEodSubmissionNotifications(
 
 export async function registerPushToken(token: string): Promise<void> {
   try {
+    // Skip the POST if we already registered this exact token. Expo tokens
+    // are stable per install, so on a cold start we'd otherwise re-upload
+    // the same value to the backend on every auth flip.
+    const last = await AsyncStorage.getItem(STORAGE_KEYS.lastRegisteredPushToken);
+    if (last === token) return;
     await notificationsApi.updatePreferences({ expo_push_token: token });
+    await AsyncStorage.setItem(STORAGE_KEYS.lastRegisteredPushToken, token);
   } catch (error) {
-    // Failed to register push token
+    // Failed to register push token — leave the cache untouched so the next
+    // attempt re-runs the POST.
   }
 }
 
 /**
- * Register the Expo push token on login/app start. We capture the token even
- * though v1 is local-only so that a future server-push rollout has a filled
- * column to target. Silent on devices without granted permission.
+ * Silent token-register path used on login/app start. Will NOT trigger the
+ * OS permission prompt — that has to be opt-in via the settings UI (see
+ * `requestAndRegisterPushTokenInteractive`). Capturing the token without a
+ * prompt means the backend has a filled column to push to as soon as the
+ * user separately opts in.
  */
 export async function registerPushTokenIfGranted(): Promise<void> {
-  const token = await registerForPushNotificationsAsync();
+  const token = await registerForPushNotificationsAsync({ prompt: false });
   if (token) await registerPushToken(token);
+}
+
+/**
+ * Interactive opt-in. Surfaces the OS permission dialog and persists the
+ * resulting token. Returns the token (or null if the user denied).
+ *
+ * Intended for an explicit user gesture: a settings-screen toggle, an
+ * onboarding soft-ask card, etc. Never call this from an auth-state
+ * useEffect — that's what tripped TestFlight on the previous build.
+ */
+export async function requestAndRegisterPushTokenInteractive(): Promise<string | null> {
+  const token = await registerForPushNotificationsAsync({ prompt: true });
+  if (token) await registerPushToken(token);
+  return token;
 }
 
 function formatMonth(ym: string): string {

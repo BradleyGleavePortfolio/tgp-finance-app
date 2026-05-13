@@ -30,6 +30,8 @@ import { ScreenErrorBoundary } from '../../src/components/ui/ScreenErrorBoundary
 import { useAccountsStore } from '../../src/stores/accountsStore';
 import { useNetWorthStore } from '../../src/stores/networthStore';
 import { useMilestonesStore } from '../../src/stores/milestonesStore';
+import { useAuthStore } from '../../src/stores/authStore';
+import { messagesApi } from '../../src/services/api';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -99,6 +101,22 @@ const ActionLink = ({ label, onPress }: ActionLinkProps) => (
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { user } = useAuthStore();
+  const isClient = user?.role !== 'coach';
+
+  // Unread coach-message count — drives the header chat badge so clients
+  // have a way into /messages without burning a 5th tab. Coach role uses
+  // the dedicated /coach/messages inbox instead.
+  const [unread, setUnread] = React.useState(0);
+  const refreshUnread = React.useCallback(async () => {
+    if (!isClient) return;
+    try {
+      const { data } = await messagesApi.unreadCount();
+      setUnread(typeof data?.count === 'number' ? data.count : 0);
+    } catch {
+      // best-effort — leave previous count
+    }
+  }, [isClient]);
 
   // Data
   const { dailyInterest, fetchAccounts, isLoading } = useAccountsStore();
@@ -116,11 +134,17 @@ export default function HomeScreen() {
     fetchAccounts();
     fetchHistory();
     fetchCurrentNetWorth();
-  }, []);
+    refreshUnread();
+  }, [refreshUnread]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([fetchAccounts(), fetchHistory(), fetchCurrentNetWorth()]);
+    await Promise.all([
+      fetchAccounts({ force: true }),
+      fetchHistory(undefined, { force: true }),
+      fetchCurrentNetWorth({ force: true }),
+      refreshUnread(),
+    ]);
     setRefreshing(false);
   };
 
@@ -140,6 +164,55 @@ export default function HomeScreen() {
       <StatusBar style="light" backgroundColor={colors.navy} />
 
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.navy }} edges={['top']}>
+        {/* Client-only entry into the coach-message thread. Coaches have
+            their own /coach/messages inbox surfaced from the Coach OS, so
+            we hide this for them to keep the home hero uncluttered. */}
+        {isClient ? (
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 24, paddingTop: 8 }}>
+            <Pressable
+              onPress={() => router.push('/messages')}
+              accessibilityRole="button"
+              accessibilityLabel={
+                unread > 0
+                  ? `Messages, ${unread} unread`
+                  : 'Messages with your coach'
+              }
+              hitSlop={12}
+              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, padding: 8 })}
+            >
+              <View>
+                <Ionicons name="chatbubble-outline" size={22} color={colors.bone} />
+                {unread > 0 ? (
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: -4,
+                      right: -6,
+                      minWidth: 16,
+                      height: 16,
+                      borderRadius: 8,
+                      paddingHorizontal: 4,
+                      backgroundColor: colors.oxblood,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: typography.families.medium,
+                        fontSize: 10,
+                        lineHeight: 14,
+                        color: colors.bone,
+                      }}
+                    >
+                      {unread > 9 ? '9+' : unread}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            </Pressable>
+          </View>
+        ) : null}
         <ScrollView
           contentContainerStyle={{
             paddingHorizontal: 32,

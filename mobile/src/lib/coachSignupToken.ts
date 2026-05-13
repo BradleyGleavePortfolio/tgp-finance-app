@@ -171,6 +171,18 @@ export function mintCoachSignupToken(
 
 export function getCoachSignupSecret(): string | null {
   const raw = process.env.EXPO_PUBLIC_COACH_SIGNUP_SECRET ?? '';
-  if (!raw || raw.length < 32) return null;
+  if (!raw || raw.length < 32) {
+    // Prod builds (release/AppStore/TestFlight) must never silently fall back
+    // to the legacy COACH_ACCESS_CODE backdoor — that path bypasses the
+    // backend's audit log and rate limit. Fail loudly so a missed secret in
+    // the EAS profile surfaces in Sentry instead of as a confused user.
+    if (!__DEV__) {
+      throw new Error(
+        'EXPO_PUBLIC_COACH_SIGNUP_SECRET is not configured (production build). ' +
+          'Coach signup is unavailable.',
+      );
+    }
+    return null;
+  }
   return raw;
 }

@@ -342,16 +342,21 @@ export default function QuizScreen() {
           ))}
         </View>
 
-        {/* Skip all */}
-        <TouchableOpacity
-          style={styles.skipAll}
-          onPress={handleSkipAll}
-          disabled={isSubmitting}
-          accessibilityRole="button"
-          accessibilityLabel="Skip onboarding and explore"
-        >
-          <Text style={styles.skipAllText}>Skip — I'll explore</Text>
-        </TouchableOpacity>
+        {/* Skip-all (defaults everything) is only offered on the final bank
+            step. The earlier screens already let users tap-through quickly,
+            and skipping mid-quiz strands them with backend defaults that
+            don't match the values they were about to submit. */}
+        {step === 'bank' && (
+          <TouchableOpacity
+            style={styles.skipAll}
+            onPress={handleSkipAll}
+            disabled={isSubmitting}
+            accessibilityRole="button"
+            accessibilityLabel="Skip onboarding entirely"
+          >
+            <Text style={styles.skipAllText}>Skip all — use defaults</Text>
+          </TouchableOpacity>
+        )}
 
         {/* ── Q1: Primary goal ─────────────────────────────────────────────── */}
         {step === 'goal' && (
@@ -545,13 +550,14 @@ export default function QuizScreen() {
           </View>
         )}
 
-        {/* ── Q5: Connect bank ─────────────────────────────────────────────── */}
+        {/* ── Q5: Add accounts manually ───────────────────────────────────── */}
         {step === 'bank' && (
           <View style={styles.questionContainer}>
             <Text style={styles.stepLabel}>STEP 5 OF {TOTAL_STEPS}</Text>
-            <Text style={styles.question}>Connect your bank?</Text>
+            <Text style={styles.question}>Add your accounts.</Text>
             <Text style={styles.questionHint}>
-              Read-only access. The picture follows.
+              Enter balances by hand for now — read-only bank linking is coming
+              soon. You can update them anytime in the Accounts tab.
             </Text>
 
             <TouchableOpacity
@@ -559,9 +565,9 @@ export default function QuizScreen() {
               onPress={handleConnectBank}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel="Connect bank account"
+              accessibilityLabel="Add an account manually"
             >
-              <Text style={styles.connectButtonText}>Connect</Text>
+              <Text style={styles.connectButtonText}>Add manually</Text>
             </TouchableOpacity>
 
             <TouchableOpacity

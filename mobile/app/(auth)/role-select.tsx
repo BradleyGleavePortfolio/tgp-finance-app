@@ -50,7 +50,22 @@ export default function RoleSelectScreen() {
 
   const handleCoachSelect = async () => {
     setCoachError(null);
-    const secret = getCoachSignupSecret();
+    let secret: string | null;
+    try {
+      secret = getCoachSignupSecret();
+    } catch (err) {
+      // Production build with a missing EXPO_PUBLIC_COACH_SIGNUP_SECRET.
+      // getCoachSignupSecret throws in that case rather than silently
+      // dropping into the dev backdoor. Surface a user-facing message
+      // instead of crashing the screen.
+      setCoachError(
+        errorMessage(
+          err,
+          'Coach signup is temporarily unavailable. Please contact support@trygrowthproject.com.',
+        ),
+      );
+      return;
+    }
     if (!secret) {
       // Dev fallback path: production builds always ship the secret;
       // missing means a developer is running locally without one. Open
