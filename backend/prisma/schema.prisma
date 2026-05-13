@@ -129,6 +129,10 @@ model User {
   invite_codes_issued     InviteCode[]       @relation("InviteCodesByCoach")
   coach_promotion_audits  CoachPromotionAudit[]
 
+  // Coach roster queries (`role='student' AND coach_id = $1`) are the hot
+  // path on the Coach OS dashboard. Without an index the planner falls back
+  // to a sequential scan on `users` once the table is non-trivial.
+  @@index([coach_id])
   @@map("users")
 }
 
@@ -209,6 +213,10 @@ model FinancialAccount {
   updated_at      DateTime            @updatedAt
   balance_logs    AccountBalanceLog[]
 
+  // The accounts list view (`where user_id = $1 order by created_at desc`)
+  // and the EOD recompute path both read every account the user owns; a
+  // (user_id, created_at) composite serves both without a separate sort.
+  @@index([user_id, created_at])
   @@map("financial_accounts")
 }
 
@@ -314,6 +322,9 @@ model CoachNote {
   is_private Boolean  @default(false)
   created_at DateTime @default(now())
 
+  // Coach inbox queries (`coach_id = $1 order by created_at desc`) hit this
+  // table on every note-list refresh; a composite serves both filter + sort.
+  @@index([coach_id, created_at])
   @@map("coach_notes")
 }
 
@@ -326,6 +337,9 @@ model ProgramTemplate {
   phases      Json // array of { phase_name, priority_index, duration_weeks, notes }
   created_at  DateTime @default(now())
 
+  // `coach.getTemplates(coachId)` filters by coach_id on every load of the
+  // Coach OS templates section.
+  @@index([coach_id])
   @@map("program_templates")
 }
 

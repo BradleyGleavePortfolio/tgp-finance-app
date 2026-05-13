@@ -3,6 +3,7 @@ import { EODSubmission, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { toN } from '../common/money';
 import { scopeToCoach } from '../auth/scope';
+import { PushSenderService } from '../push/push-sender.service';
 
 export interface CoachAlert {
   student_id: string;
@@ -79,11 +80,44 @@ export function decodeRosterCursor(cursor: string | undefined): string | null {
   }
 }
 
+// Minimal surface CoachService uses from PushSenderService. Declared
+// inline so tests can pass a stub without pulling in the full Push
+// module — and so the legacy unit tests that construct the service
+// with one argument continue to compile.
+type PushSenderLike = Pick<PushSenderService, 'send'>;
+const NOOP_PUSH_SENDER: PushSenderLike = {
+  send: async () => ({ sent: false, reason: 'no_push_sender_in_test' }),
+};
+
 @Injectable()
 export class CoachService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly pushSender: PushSenderLike;
 
-  async getStudents(coachId: string, search?: string, role: string = 'coach') {
+  constructor(
+    private readonly prisma: PrismaService,
+    pushSender?: PushSenderService,
+  ) {
+    this.pushSender = pushSender ?? NOOP_PUSH_SENDER;
+  }
+
+  /**
+   * Legacy roster query used by the v1 dashboard list. `getCoachClients`
+   * supersedes this for the Coach OS; we keep it for back-compat but now
+   * clamp the result to MAX_TAKE so an OWNER fetching the full roster
+   * cannot pull a million-row response into memory. Cursor pagination via
+   * `cursor` (last seen user id) lets callers walk past the cap when they
+   * really need to.
+   */
+  async getStudents(
+    coachId: string,
+    search?: string,
+    role: string = 'coach',
+    opts: { take?: number; cursor?: string } = {},
+  ) {
+    const MAX_TAKE = 200;
+    const DEFAULT_TAKE = 100;
+    const take = Math.min(Math.max(opts.take ?? DEFAULT_TAKE, 1), MAX_TAKE);
+
     // OWNER sees every student across every coach; coach sees only their own.
     // scopeToCoach returns {} for owner, { coach_id: coachId } for coach.
     const scope = scopeToCoach({ id: coachId, role });
@@ -93,6 +127,8 @@ export class CoachService {
     if (search && search.trim()) {
       where.email = { contains: search.trim(), mode: 'insensitive' };
     }
+
+    const cursor = opts.cursor ? { id: opts.cursor } : undefined;
 
     const students = await this.prisma.user.findMany({
       where,
@@ -109,7 +145,9 @@ export class CoachService {
         },
         _count: { select: { eod_submissions: true } },
       },
-      orderBy: { created_at: 'desc' },
+      orderBy: [{ created_at: 'desc' }, { id: 'asc' }],
+      take,
+      ...(cursor ? { cursor, skip: 1 } : {}),
     });
 
     const todayUTC = new Date().toISOString().split('T')[0];
@@ -1138,7 +1176,7 @@ export class CoachService {
     role: string = 'coach',
   ) {
     await this.assertCoachOwnsStudent(coachId, clientId, role);
-    return this.prisma.coachMessage.create({
+    const row = await this.prisma.coachMessage.create({
       data: {
         thread_key: threadKey(coachId, clientId),
         sender_id: coachId,
@@ -1146,6 +1184,24 @@ export class CoachService {
         body,
       },
     });
+
+    // Push the new message to the client. Best-effort: PushSenderService
+    // logs and swallows its own errors so a flaky Expo response never
+    // takes down the message-send round trip.
+    const coachRow = await this.prisma.user
+      .findUnique({ where: { id: coachId }, select: { name: true } })
+      .catch(() => null);
+    const senderName = coachRow?.name?.trim() || 'Your coach';
+    const preview = body.length > 120 ? `${body.slice(0, 117)}…` : body;
+    this.pushSender
+      .send(clientId, 'coach_message', {
+        title: `${senderName} sent a message`,
+        body: preview,
+        data: { type: 'coach_message', screen: '/messages', message_id: row.id },
+      })
+      .catch(() => undefined);
+
+    return row;
   }
 
   // ── Community posts ──────────────────────────────────────────────────────
