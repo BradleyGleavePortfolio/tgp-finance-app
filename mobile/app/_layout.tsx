@@ -223,7 +223,7 @@ function RootLayout() {
   const inner = (
     <ThemeProvider>
     <ErrorBoundary>
-      <StatusBar style="dark" backgroundColor="#F5EFE4" />
+      <StatusBar style="dark" backgroundColor={colors.bone} />
       <Stack
         screenOptions={{
           headerShown: false,

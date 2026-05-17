@@ -31,6 +31,7 @@ export class AuthController {
   @Public()
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
+  @Throttle({ default: { ttl: 3_600_000, limit: 5 } })
   async register(@Body() body: unknown) {
     const parsed = RegisterSchema.safeParse(body);
     if (!parsed.success) {
@@ -56,6 +57,7 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { ttl: 60_000, limit: 5 }, authHourly: { ttl: 3_600_000, limit: 30 } })
   async login(@Body() body: unknown) {
     const parsed = LoginSchema.safeParse(body);
     if (!parsed.success) {
@@ -70,6 +72,7 @@ export class AuthController {
   @Public()
   @Post('google')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { ttl: 60_000, limit: 5 }, authHourly: { ttl: 3_600_000, limit: 30 } })
   async googleAuth(@Body() body: unknown) {
     const parsed = GoogleAuthSchema.safeParse(body);
     if (!parsed.success) {

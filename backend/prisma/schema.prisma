@@ -229,6 +229,7 @@ model AccountBalanceLog {
   logged_at  DateTime         @default(now())
   source     LogSource        @default(eod_form)
 
+  @@index([account_id, date])
   @@map("account_balance_logs")
 }
 

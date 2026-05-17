@@ -1,5 +1,6 @@
 // Client-side financial calculations for The Growth Project: Finance
 import type { FinancialAccount, FinancialProfile } from '../types';
+import { Colors } from '../theme/finance';
 
 // ─── Net Worth ────────────────────────────────────────────────────────────────
 
@@ -258,13 +259,13 @@ export function computeWealthVelocityScore(params: {
 }
 
 export function getVelocityLevel(score: number): { name: string; color: string } {
-  if (score <= 15) return { name: 'Starting Line', color: '#8895A7' };
-  if (score <= 30) return { name: 'Debt Fighter', color: '#E63946' };
-  if (score <= 45) return { name: 'Cash Builder', color: '#F39C12' };
-  if (score <= 60) return { name: 'Building Position', color: '#F9C74F' };
-  if (score <= 75) return { name: 'Asset Machine', color: '#06D6A0' };
-  if (score <= 90) return { name: 'Freedom Tier', color: '#06D6A0' };
-  return { name: 'Operator Level', color: '#F9C74F' };
+  if (score <= 15) return { name: 'Starting Line', color: Colors.slateGray };
+  if (score <= 30) return { name: 'Debt Fighter', color: Colors.debtCrimson };
+  if (score <= 45) return { name: 'Cash Builder', color: Colors.amberWarning };
+  if (score <= 60) return { name: 'Building Position', color: Colors.accentGold };
+  if (score <= 75) return { name: 'Asset Machine', color: Colors.profitGreen };
+  if (score <= 90) return { name: 'Freedom Tier', color: Colors.profitGreen };
+  return { name: 'Operator Level', color: Colors.accentGold };
 }
 
 // ─── DTI & Savings Rate ───────────────────────────────────────────────────────

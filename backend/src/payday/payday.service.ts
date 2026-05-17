@@ -91,51 +91,57 @@ export class PaydayService {
       balance_after: number;
     }> = [];
 
-    await this.prisma.$transaction(async (tx) => {
-      for (const alloc of allocDecs) {
-        const account = accounts.find((a) => a.id === alloc.account_id)!;
-        // account.balance is Prisma.Decimal coming back from the DB.
-        const balanceBeforeDec = new Prisma.Decimal(account.balance.toString());
+    const writeTimestamp = new Date();
+    const allocationPlan = allocDecs.map((alloc) => {
+      const account = accounts.find((a) => a.id === alloc.account_id)!;
+      // account.balance is Prisma.Decimal coming back from the DB.
+      const balanceBeforeDec = new Prisma.Decimal(account.balance.toString());
 
-        // For debt accounts: allocation reduces the balance (paying down debt),
-        // floored at 0. For asset accounts: allocation increases the balance.
-        const rawNewBalance = account.is_debt
-          ? balanceBeforeDec.minus(alloc.amount)
-          : balanceBeforeDec.plus(alloc.amount);
-        const newBalanceDec =
-          account.is_debt && rawNewBalance.isNegative()
-            ? new Prisma.Decimal(0)
-            : rawNewBalance;
+      // For debt accounts: allocation reduces the balance (paying down debt),
+      // floored at 0. For asset accounts: allocation increases the balance.
+      const rawNewBalance = account.is_debt
+        ? balanceBeforeDec.minus(alloc.amount)
+        : balanceBeforeDec.plus(alloc.amount);
+      const newBalanceDec =
+        account.is_debt && rawNewBalance.isNegative()
+          ? new Prisma.Decimal(0)
+          : rawNewBalance;
 
-        const updated = await tx.financialAccount.update({
+      receipt.push({
+        account_id: account.id,
+        account_name: account.name,
+        // Receipt is consumed by the mobile client which expects numbers.
+        // toN goes through the standard money-down-conversion path.
+        amount: toN(alloc.amount),
+        effect: account.is_debt ? 'debt_payment' : 'deposit',
+        balance_before: toN(balanceBeforeDec),
+        balance_after: toN(newBalanceDec),
+      });
+
+      return { account, newBalanceDec };
+    });
+
+    const writeResults = await this.prisma.$transaction(
+      allocationPlan.flatMap(({ account, newBalanceDec }) => [
+        this.prisma.financialAccount.update({
           where: { id: account.id },
           // Pass Decimal directly — Prisma persists it without going through
           // a JS Number round-trip.
-          data: { balance: newBalanceDec, updated_at: new Date() },
-        });
-
-        // Log the balance change
-        await tx.accountBalanceLog.create({
+          data: { balance: newBalanceDec, updated_at: writeTimestamp },
+        }),
+        this.prisma.accountBalanceLog.create({
           data: {
             account_id: account.id,
             balance: newBalanceDec,
-            date: new Date(),
+            date: writeTimestamp,
           },
-        });
+        }),
+      ]),
+    );
 
-        updatedAccounts.push(updated);
-        receipt.push({
-          account_id: account.id,
-          account_name: account.name,
-          // Receipt is consumed by the mobile client which expects numbers.
-          // toN goes through the standard money-down-conversion path.
-          amount: toN(alloc.amount),
-          effect: account.is_debt ? 'debt_payment' : 'deposit',
-          balance_before: toN(balanceBeforeDec),
-          balance_after: toN(newBalanceDec),
-        });
-      }
-    });
+    for (let i = 0; i < writeResults.length; i += 2) {
+      updatedAccounts.push(writeResults[i] as FinancialAccount);
+    }
 
     const unallocatedDec = paycheckDec.minus(totalAllocatedDec);
 

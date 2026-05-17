@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -34,23 +35,27 @@ export class AccountsService {
     // Auto-set is_debt based on account_type if not explicitly provided
     const is_debt = data.is_debt !== undefined ? data.is_debt : this.isDebtType(data.account_type);
 
-    const account = await this.prisma.financialAccount.create({
-      data: {
-        user_id: userId,
-        ...data,
-        is_debt,
-      },
-    });
+    // Pre-generate the account id so the account row and its initial
+    // balance log can be written atomically in one batch transaction.
+    const accountId = randomUUID();
+    const { id: _discardClientId, ...accountInput } = data;
+    const accountData = {
+      id: accountId,
+      user_id: userId,
+      ...accountInput,
+      is_debt,
+    };
+    const logData = {
+      account_id: accountId,
+      balance: accountData.balance,
+      date: new Date(),
+      source: 'onboarding' as const,
+    };
 
-    // Log initial balance
-    await this.prisma.accountBalanceLog.create({
-      data: {
-        account_id: account.id,
-        balance: account.balance,
-        date: new Date(),
-        source: 'onboarding',
-      },
-    });
+    const [account] = await this.prisma.$transaction([
+      this.prisma.financialAccount.create({ data: accountData }),
+      this.prisma.accountBalanceLog.create({ data: logData }),
+    ]);
 
     return account;
   }
@@ -95,6 +100,8 @@ export class AccountsService {
   }
 
   async getAccountHistory(userId: string, accountId: string, days: number = 30) {
+    const safeDays = Math.min(Math.max(Math.trunc(days || 30), 1), 365);
+
     const account = await this.prisma.financialAccount.findUnique({
       where: { id: accountId },
     });
@@ -105,7 +112,7 @@ export class AccountsService {
     }
 
     const since = new Date();
-    since.setDate(since.getDate() - days);
+    since.setDate(since.getDate() - safeDays);
 
     const logs = await this.prisma.accountBalanceLog.findMany({
       where: {

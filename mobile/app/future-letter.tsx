@@ -35,11 +35,16 @@ export default function FutureLetterScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back">
+        <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back" testID="future-letter-back-button">
           <Text style={styles.back}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Future Self Letter</Text>
-        <TouchableOpacity onPress={() => setEditing(!editing)}>
+        <TouchableOpacity
+          onPress={() => setEditing(!editing)}
+          accessibilityRole="button"
+          accessibilityLabel={editing ? 'Cancel editing future self letter' : 'Edit future self letter'}
+          testID="future-letter-edit-button"
+        >
           <Text style={styles.editBtn}>{editing ? 'Cancel' : 'Edit'}</Text>
         </TouchableOpacity>
       </View>

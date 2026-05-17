@@ -1,6 +1,6 @@
 import {
   Controller, Get, Post, Put, Delete, Body, Param, Query,
-  UseGuards, BadRequestException, ParseIntPipe, DefaultValuePipe,
+  UseGuards, BadRequestException,
 } from '@nestjs/common';
 import { AccountsService } from './accounts.service';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
@@ -49,9 +49,13 @@ export class AccountsController {
   @Get(':id/history')
   async getAccountHistory(
     @Param('id') id: string,
-    @Query('days', new DefaultValuePipe(30), ParseIntPipe) days: number,
+    @Query('days') days: string | undefined,
     @CurrentUser() user: CurrentUser,
   ) {
-    return this.accountsService.getAccountHistory(user.id, id, days);
+    const parsedDays = parseInt(days ?? '30', 10);
+    const safeDays = Number.isNaN(parsedDays)
+      ? 30
+      : Math.min(Math.max(parsedDays, 1), 365);
+    return this.accountsService.getAccountHistory(user.id, id, safeDays);
   }
 }
