@@ -78,7 +78,14 @@ export default function CommunityScreen() {
       <SafeAreaView style={styles.container} edges={['top']}>
         {/* Nav header */}
         <View style={styles.navHeader}>
-          <HapticPressable intent="light" onPress={() => router.back()} style={styles.backBtn}>
+          <HapticPressable
+            intent="light"
+            onPress={() => router.back()}
+            style={styles.backBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            testID="community-back-button"
+          >
             <Ionicons name="chevron-back" size={22} color={Colors.frostWhite} />
           </HapticPressable>
           <Text style={styles.navTitle}>Community</Text>
@@ -107,6 +114,10 @@ export default function CommunityScreen() {
                 style={[styles.visBtn, visibility === 'circle' && styles.visBtnActive]}
                 onPress={() => setVisibility('circle')}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Share win with my circle"
+                accessibilityState={{ selected: visibility === 'circle' }}
+                testID="community-visibility-circle-button"
               >
                 <Text style={[styles.visBtnText, visibility === 'circle' && styles.visBtnTextActive]}>
                   Circle
@@ -116,6 +127,10 @@ export default function CommunityScreen() {
                 style={[styles.visBtn, visibility === 'public' && styles.visBtnActive]}
                 onPress={() => setVisibility('public')}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Share win publicly"
+                accessibilityState={{ selected: visibility === 'public' }}
+                testID="community-visibility-public-button"
               >
                 <Text style={[styles.visBtnText, visibility === 'public' && styles.visBtnTextActive]}>
                   Public
@@ -138,6 +153,10 @@ export default function CommunityScreen() {
               style={[styles.postBtn, (action.trim().length < 3 || posting) && styles.postBtnDisabled]}
               onPress={handlePost}
               disabled={action.trim().length < 3 || posting}
+              accessibilityRole="button"
+              accessibilityLabel="Post community win"
+              accessibilityState={{ disabled: action.trim().length < 3 || posting }}
+              testID="community-post-win-button"
             >
               {posting ? (
                 <ActivityIndicator size="small" color={Colors.backgroundDeepNavy} />

@@ -125,22 +125,24 @@ export class EODService {
           },
         });
 
-        // Update account balances + write balance logs.
-        for (const snapshot of snapshots) {
-          await tx.financialAccount.update({
+        // Update account balances + write balance logs as one batched set of
+        // transaction operations instead of serial per-account update+log awaits.
+        const accountWriteTimestamp = new Date();
+        const accountWriteOps = snapshots.flatMap((snapshot) => [
+          tx.financialAccount.update({
             where: { id: snapshot.account_id },
-            data: { balance: snapshot.balance, updated_at: new Date() },
-          });
-
-          await tx.accountBalanceLog.create({
+            data: { balance: snapshot.balance, updated_at: accountWriteTimestamp },
+          }),
+          tx.accountBalanceLog.create({
             data: {
               account_id: snapshot.account_id,
               balance: snapshot.balance,
               date: dateObj,
               source: 'eod_form',
             },
-          });
-        }
+          }),
+        ]);
+        await Promise.all(accountWriteOps);
 
         // Update profile totals.
         await tx.financialProfile.upsert({

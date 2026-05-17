@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -42,6 +42,7 @@ import { TenantGuard } from './auth/guards/tenant.guard';
 import { ClientCoachLinkedGuard } from './auth/guards/client-coach-linked.guard';
 import { AdminModule } from './admin/admin.module';
 import { InvitesModule } from './invites/invites.module';
+import { RlsContextMiddleware } from './common/middleware/rls-context.middleware';
 
 @Module({
   imports: [
@@ -54,8 +55,17 @@ import { InvitesModule } from './invites/invites.module';
     // Global rate limiting (fallback for non-AI routes)
     ThrottlerModule.forRoot([
       {
-        ttl: 60000,  // 1 minute window
-        limit: 100,  // 100 requests per minute per IP
+        name: 'default',
+        ttl: 60_000,  // 1 minute window
+        limit: 100,   // 100 requests per minute per IP
+      },
+      {
+        // Named hourly bucket used by login/google decorators. The high
+        // fallback preserves the existing global behavior for non-auth routes;
+        // auth endpoints override it to 30/hour per IP.
+        name: 'authHourly',
+        ttl: 3_600_000,
+        limit: 10_000,
       },
     ]),
 
@@ -131,4 +141,11 @@ import { InvitesModule } from './invites/invites.module';
     { provide: APP_GUARD, useClass: ClientCoachLinkedGuard },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    // RLS context is defense-in-depth for future non-service-role query paths.
+    // Register globally so any authenticated request that has req.user populated
+    // can expose app.current_user_id to PostgreSQL policies.
+    consumer.apply(RlsContextMiddleware).forRoutes('*');
+  }
+}
